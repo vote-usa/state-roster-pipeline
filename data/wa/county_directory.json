@@ -1,0 +1,314 @@
+[
+  {
+    "state": "WA",
+    "county_name": "Adams",
+    "county_fips": "53001",
+    "elections_office_url": "https://wa-adamscounty.civicplus.com/162/Elections-Elecciones",
+    "address": "Elections Office, 106 W Main Ave, Ritzville, WA, 99169",
+    "phone": "509-659-3249"
+  },
+  {
+    "state": "WA",
+    "county_name": "Asotin",
+    "county_fips": "53003",
+    "elections_office_url": "https://www.co.asotin.wa.us/183/Elections",
+    "address": "135 2nd St. / PO Box 129, Asotin, WA, 99402",
+    "phone": "509-243-2084"
+  },
+  {
+    "state": "WA",
+    "county_name": "Benton",
+    "county_fips": "53005",
+    "elections_office_url": "https://www.bentoncountywa.gov/elections",
+    "address": "Mailing Address, PO Box 1000, Richland, WA, 99352",
+    "phone": "509-736-3085"
+  },
+  {
+    "state": "WA",
+    "county_name": "Chelan",
+    "county_fips": "53007",
+    "elections_office_url": "http://www.elections.chelancountywa.gov",
+    "address": "350 Orondo Ave, Suite 306, Wenatchee, WA, 98801",
+    "phone": "509-667-6808"
+  },
+  {
+    "state": "WA",
+    "county_name": "Clallam",
+    "county_fips": "53009",
+    "elections_office_url": "https://www.clallamcountywa.gov/",
+    "address": "223 E 4th Street, Ste 1, Port Angeles, WA, 98362",
+    "phone": "360-417-2221"
+  },
+  {
+    "state": "WA",
+    "county_name": "Clark",
+    "county_fips": "53011",
+    "elections_office_url": "http://www.clark.wa.gov/elections/index.html",
+    "address": "1408 Franklin Street / PO Box 8815, Vancouver, WA, 98660",
+    "phone": "564-397-2345"
+  },
+  {
+    "state": "WA",
+    "county_name": "Columbia",
+    "county_fips": "53013",
+    "elections_office_url": "http://www.columbiaco.com/index.aspx?NID=148",
+    "address": "115 E. Main St., Ste 3, Dayton, WA, 99328",
+    "phone": "509-382-4541"
+  },
+  {
+    "state": "WA",
+    "county_name": "Cowlitz",
+    "county_fips": "53015",
+    "elections_office_url": "https://www.co.cowlitz.wa.us/2357/Elections",
+    "address": "207 N 4th Avenue, Rm 205, Kelso, WA, 98626",
+    "phone": "360-577-3005"
+  },
+  {
+    "state": "WA",
+    "county_name": "Douglas",
+    "county_fips": "53017",
+    "elections_office_url": "https://www.douglascountywa.net/201/Elections",
+    "address": "213 S Rainier St / PO Box 853, Waterville, WA, 98858",
+    "phone": "509-888-6402"
+  },
+  {
+    "state": "WA",
+    "county_name": "Ferry",
+    "county_fips": "53019",
+    "elections_office_url": "https://www.ferry-county.com/departments/auditor/",
+    "address": "350 E. Delaware Ave. #2, Republic, WA, 99166",
+    "phone": "(509) 775-5225"
+  },
+  {
+    "state": "WA",
+    "county_name": "Franklin",
+    "county_fips": "53021",
+    "elections_office_url": "https://www.franklincountywa.gov/Elections",
+    "address": "404 W Clark St., Pasco, WA, 99301",
+    "phone": "509-545-3538"
+  },
+  {
+    "state": "WA",
+    "county_name": "Garfield",
+    "county_fips": "53023",
+    "elections_office_url": "https://www.garfieldcountywa.gov/auditor",
+    "address": "789 Main St / PO Box 278, Pomeroy, WA, 99347",
+    "phone": "509-843-1411"
+  },
+  {
+    "state": "WA",
+    "county_name": "Grant",
+    "county_fips": "53025",
+    "elections_office_url": "http://www.grantcountywa.gov/270/Elections/",
+    "address": "35 C St NW, Rm 203 / PO Box 37, Ephrata, WA, 98823",
+    "phone": "509-754-2011"
+  },
+  {
+    "state": "WA",
+    "county_name": "Grays Harbor",
+    "county_fips": "53027",
+    "elections_office_url": "http://www.co.grays-harbor.wa.us/government/Auditors/elections.php",
+    "address": "100 W Broadway Ave, Suite 2, Montesano, WA, 98563",
+    "phone": "360-249-4232"
+  },
+  {
+    "state": "WA",
+    "county_name": "Island",
+    "county_fips": "53029",
+    "elections_office_url": "https://www.islandcountywa.gov/auditor",
+    "address": "400 N Main St / PO Box 1410, Coupeville, WA, 98239",
+    "phone": "360-678-8290"
+  },
+  {
+    "state": "WA",
+    "county_name": "Jefferson",
+    "county_fips": "53031",
+    "elections_office_url": "http://co.jefferson.wa.us/1266/Elections",
+    "address": "1820 Jefferson St. / PO Box 563, Port Townsend, WA, 98368",
+    "phone": "360-385-9119"
+  },
+  {
+    "state": "WA",
+    "county_name": "King",
+    "county_fips": "53033",
+    "elections_office_url": "http://www.kingcounty.gov/elections",
+    "address": "919 Southwest Grady Way, Renton, WA, 98057",
+    "phone": "206-296-8683"
+  },
+  {
+    "state": "WA",
+    "county_name": "Kitsap",
+    "county_fips": "53035",
+    "elections_office_url": "https://www.kitsap.gov/elections",
+    "address": "619 Division St, Port Orchard, WA, 98366",
+    "phone": "(360) 307-"
+  },
+  {
+    "state": "WA",
+    "county_name": "Kittitas",
+    "county_fips": "53037",
+    "elections_office_url": "https://www.co.kittitas.wa.us/auditor/elections/default.aspx",
+    "address": "205 W. 5th Ave, Suite 105, Ellensburg, WA, 98926",
+    "phone": "509-962-7503"
+  },
+  {
+    "state": "WA",
+    "county_name": "Klickitat",
+    "county_fips": "53039",
+    "elections_office_url": "https://www.klickitatcounty.gov/1109/Auditor",
+    "address": "205 S. Columbus Ave., Room 203, Goldendale, WA, 98620",
+    "phone": "509-773-4001"
+  },
+  {
+    "state": "WA",
+    "county_name": "Lewis",
+    "county_fips": "53041",
+    "elections_office_url": "http://elections.lewiscountywa.gov/",
+    "address": "351 N.W. North Street / PO Box 29, Chehalis, WA, 98532",
+    "phone": "360-740-1278"
+  },
+  {
+    "state": "WA",
+    "county_name": "Lincoln",
+    "county_fips": "53043",
+    "elections_office_url": "https://www.co.lincoln.wa.us/auditor/",
+    "address": "450 Logan St / PO Box 28, Davenport, WA, 99122",
+    "phone": "509-725-4971"
+  },
+  {
+    "state": "WA",
+    "county_name": "Mason",
+    "county_fips": "53045",
+    "elections_office_url": "https://www.masoncountywaelections.gov",
+    "address": "411 N. 5th Street / PO Box 400, Shelton, WA, 98584",
+    "phone": "360-427-9670"
+  },
+  {
+    "state": "WA",
+    "county_name": "Okanogan",
+    "county_fips": "53047",
+    "elections_office_url": "https://www.okanogancounty.gov/337/Elections",
+    "address": "149 3rd Avenue N, Rm.104 / PO Box 1010, Okanogan, WA, 98840",
+    "phone": "509-422-7240"
+  },
+  {
+    "state": "WA",
+    "county_name": "Pacific",
+    "county_fips": "53049",
+    "elections_office_url": "https://co.pacific.wa.us/auditor/elections.htm",
+    "address": "7013 Sandridge Rd, Long Beach, WA, 98631",
+    "phone": "360-875-9317"
+  },
+  {
+    "state": "WA",
+    "county_name": "Pend Oreille",
+    "county_fips": "53051",
+    "elections_office_url": "https://www.pendoreille.gov/auditor/page/elections",
+    "address": "625 W. 4th / PO Box 5015, Newport, WA, 99156",
+    "phone": "509-447-3185"
+  },
+  {
+    "state": "WA",
+    "county_name": "Pierce",
+    "county_fips": "53053",
+    "elections_office_url": "http://PierceCountyElections.org",
+    "address": "2501 S. 35th St, Suite C, Tacoma, WA, 98409",
+    "phone": "253-798-8683"
+  },
+  {
+    "state": "WA",
+    "county_name": "San Juan",
+    "county_fips": "53055",
+    "elections_office_url": "https://www.sanjuancountywa.gov/1221/Elections-Office",
+    "address": "55 2nd Street, Suite A / PO Box 638, Friday Harbor, WA, 98250",
+    "phone": "360-378-3357"
+  },
+  {
+    "state": "WA",
+    "county_name": "Skagit",
+    "county_fips": "53057",
+    "elections_office_url": "https://www.skagitcounty.net/Departments/AuditorElections/main.htm",
+    "address": "700 S. Second Street / PO Box 1306, Mount Vernon, WA, 98273",
+    "phone": "360-416-1702"
+  },
+  {
+    "state": "WA",
+    "county_name": "Skamania",
+    "county_fips": "53059",
+    "elections_office_url": "https://www.skamaniacounty.org/departments-offices/auditor/elections",
+    "address": "240 NW Vancouver Ave / PO Box 790, Stevenson, WA, 98648",
+    "phone": "509-427-3730"
+  },
+  {
+    "state": "WA",
+    "county_name": "Snohomish",
+    "county_fips": "53061",
+    "elections_office_url": "https://snoco.gov",
+    "address": "3000 Rockefeller Avenue, MS 505, Everett, WA, 98201",
+    "phone": "425-388-3444"
+  },
+  {
+    "state": "WA",
+    "county_name": "Spokane",
+    "county_fips": "53063",
+    "elections_office_url": "https://www.spokanecounty.gov/elections",
+    "address": "1033 W Gardner Ave, Spokane, WA, 99260",
+    "phone": "509-477-2320"
+  },
+  {
+    "state": "WA",
+    "county_name": "Stevens",
+    "county_fips": "53065",
+    "elections_office_url": "https://vote.stevenscountywa.gov/",
+    "address": "215 South Oak Street, Rm 106, Colville, WA, 99114",
+    "phone": "509-684-7514"
+  },
+  {
+    "state": "WA",
+    "county_name": "Thurston",
+    "county_fips": "53067",
+    "elections_office_url": "https://www.ThurstonWAVotes.gov",
+    "address": "Mailing address, 2000 Lakeridge Dr SW, Olympia, WA, 98502",
+    "phone": "360-786-5408"
+  },
+  {
+    "state": "WA",
+    "county_name": "Wahkiakum",
+    "county_fips": "53069",
+    "elections_office_url": "https://www.co.wahkiakum.wa.us/419/Elections",
+    "address": "64 Main Street / PO Box 543, Cathlamet, WA, 98612",
+    "phone": "360-795-3219"
+  },
+  {
+    "state": "WA",
+    "county_name": "Walla Walla",
+    "county_fips": "53071",
+    "elections_office_url": "https://www.wwcowa.gov/government/auditor/elections.php",
+    "address": "315 W Main St., Room 203 / PO Box 1856, Walla Walla, WA, 99362",
+    "phone": "509-524-2530"
+  },
+  {
+    "state": "WA",
+    "county_name": "Whatcom",
+    "county_fips": "53073",
+    "elections_office_url": "http://www.whatcomcounty.us/1574/Elections",
+    "address": "311 Grand Avenue, Suite 103, Bellingham, WA, 98225",
+    "phone": "360-778-5102"
+  },
+  {
+    "state": "WA",
+    "county_name": "Whitman",
+    "county_fips": "53075",
+    "elections_office_url": "https://www.whitmancounty.net/169/Election-Information",
+    "address": "304 N. Main Street / PO Box 191, Colfax, WA, 99111",
+    "phone": "509-397-5284"
+  },
+  {
+    "state": "WA",
+    "county_name": "Yakima",
+    "county_fips": "53077",
+    "elections_office_url": "http://www.yakimacounty.us/vote/",
+    "address": "128 N 2nd St., Rm 117, Yakima, WA, 98901",
+    "phone": "509-574-1340"
+  }
+]

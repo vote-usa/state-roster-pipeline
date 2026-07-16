@@ -1,0 +1,20 @@
+[
+  {
+    "state": "WA",
+    "election_date": "2026-08-04",
+    "election_type": "Primary",
+    "jurisdiction": "state",
+    "name": "PRIMARY 2026",
+    "election_id": "898",
+    "source_url": "https://voter.votewa.gov/CandidateList.aspx?e=898"
+  },
+  {
+    "state": "WA",
+    "election_date": "2026-11-03",
+    "election_type": "General",
+    "jurisdiction": "state",
+    "name": "GENERAL 2026",
+    "election_id": "899",
+    "source_url": "https://voter.votewa.gov/CandidateList.aspx?e=899"
+  }
+]

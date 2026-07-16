@@ -1,0 +1,287 @@
+{
+  "elections": [
+    {
+      "url": "https://voter.votewa.gov/CandidateList.aspx",
+      "format": "html"
+    }
+  ],
+  "statewide_candidates": [
+    {
+      "url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=&p=",
+      "format": "json"
+    }
+  ],
+  "statewide_measures": [
+    {
+      "url": "https://www.sos.wa.gov/so/node/12667",
+      "format": "html"
+    }
+  ],
+  "local_measures": [
+    {
+      "url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=&p=",
+      "format": "json"
+    }
+  ],
+  "county_directory": [
+    {
+      "url": "https://www.sos.wa.gov/elections/voters/voter-registration/county-elections-offices",
+      "format": "html"
+    },
+    {
+      "url": "data/wa/county_fips.json (U.S. Census county FIPS codes)",
+      "format": "json"
+    }
+  ],
+  "county_ballots": {
+    "Adams": [
+      {
+        "url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=01&p=",
+        "format": "json"
+      }
+    ],
+    "Asotin": [
+      {
+        "url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=02&p=",
+        "format": "json"
+      }
+    ],
+    "Benton": [
+      {
+        "url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=03&p=",
+        "format": "json"
+      }
+    ],
+    "Chelan": [
+      {
+        "url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=04&p=",
+        "format": "json"
+      }
+    ],
+    "Clallam": [
+      {
+        "url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=05&p=",
+        "format": "json"
+      }
+    ],
+    "Clark": [
+      {
+        "url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=06&p=",
+        "format": "json"
+      }
+    ],
+    "Columbia": [
+      {
+        "url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=07&p=",
+        "format": "json"
+      }
+    ],
+    "Cowlitz": [
+      {
+        "url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=08&p=",
+        "format": "json"
+      }
+    ],
+    "Douglas": [
+      {
+        "url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=09&p=",
+        "format": "json"
+      }
+    ],
+    "Ferry": [
+      {
+        "url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=10&p=",
+        "format": "json"
+      }
+    ],
+    "Franklin": [
+      {
+        "url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=11&p=",
+        "format": "json"
+      }
+    ],
+    "Garfield": [
+      {
+        "url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=12&p=",
+        "format": "json"
+      }
+    ],
+    "Grant": [
+      {
+        "url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=13&p=",
+        "format": "json"
+      }
+    ],
+    "Grays Harbor": [
+      {
+        "url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=14&p=",
+        "format": "json"
+      }
+    ],
+    "Island": [
+      {
+        "url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=15&p=",
+        "format": "json"
+      }
+    ],
+    "Jefferson": [
+      {
+        "url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=16&p=",
+        "format": "json"
+      }
+    ],
+    "King": [
+      {
+        "url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=17&p=",
+        "format": "json"
+      }
+    ],
+    "Kitsap": [
+      {
+        "url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=18&p=",
+        "format": "json"
+      }
+    ],
+    "Kittitas": [
+      {
+        "url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=19&p=",
+        "format": "json"
+      }
+    ],
+    "Klickitat": [
+      {
+        "url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=20&p=",
+        "format": "json"
+      }
+    ],
+    "Lewis": [
+      {
+        "url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=21&p=",
+        "format": "json"
+      }
+    ],
+    "Lincoln": [
+      {
+        "url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=22&p=",
+        "format": "json"
+      }
+    ],
+    "Mason": [
+      {
+        "url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=23&p=",
+        "format": "json"
+      }
+    ],
+    "Okanogan": [
+      {
+        "url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=24&p=",
+        "format": "json"
+      }
+    ],
+    "Pacific": [
+      {
+        "url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=25&p=",
+        "format": "json"
+      }
+    ],
+    "Pend Oreille": [
+      {
+        "url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=26&p=",
+        "format": "json"
+      }
+    ],
+    "Pierce": [
+      {
+        "url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=27&p=",
+        "format": "json"
+      }
+    ],
+    "San Juan": [
+      {
+        "url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=28&p=",
+        "format": "json"
+      }
+    ],
+    "Skagit": [
+      {
+        "url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=29&p=",
+        "format": "json"
+      }
+    ],
+    "Skamania": [
+      {
+        "url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=30&p=",
+        "format": "json"
+      }
+    ],
+    "Thurston": [
+      {
+        "url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=31&p=",
+        "format": "json"
+      }
+    ],
+    "Spokane": [
+      {
+        "url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=32&p=",
+        "format": "json"
+      }
+    ],
+    "Stevens": [
+      {
+        "url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=33&p=",
+        "format": "json"
+      }
+    ],
+    "Snohomish": [
+      {
+        "url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=34&p=",
+        "format": "json"
+      }
+    ],
+    "Wahkiakum": [
+      {
+        "url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=35&p=",
+        "format": "json"
+      }
+    ],
+    "Walla Walla": [
+      {
+        "url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=36&p=",
+        "format": "json"
+      }
+    ],
+    "Whatcom": [
+      {
+        "url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=37&p=",
+        "format": "json"
+      }
+    ],
+    "Whitman": [
+      {
+        "url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=38&p=",
+        "format": "json"
+      }
+    ],
+    "Yakima": [
+      {
+        "url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=39&p=",
+        "format": "json"
+      }
+    ]
+  },
+  "verification_only": [
+    {
+      "url": "https://ballotpedia.org/Washington_elections,_2026",
+      "format": "html"
+    }
+  ],
+  "gaps": [
+    "GENERAL 2026 (2026-11-03): VoteWA voters' guide is not published yet (candidates/measures are certified closer to the election). Re-run later to fill in this election."
+  ],
+  "next_run": {
+    "recommended_after": "2026-08-21",
+    "reason": "GENERAL 2026 (2026-11-03) ballot data is not published yet. Washington certifies the PRIMARY 2026 results and statewide measures about 17 days after election day, after which the VoteWA general-election guide and certified candidate list are populated.",
+    "next_election_date": "2026-11-03",
+    "next_election_type": "General"
+  }
+}
