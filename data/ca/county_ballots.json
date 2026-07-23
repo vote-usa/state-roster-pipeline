@@ -1,0 +1,24 @@
+[
+  {
+    "state": "CA",
+    "county": "Alameda",
+    "election_date": "2026-08-18",
+    "election_type": "Special General",
+    "candidates": [
+      {
+        "office": "United States Representative",
+        "district": "14",
+        "candidate_name": "Aisha Wahab",
+        "party": "Democratic"
+      },
+      {
+        "office": "United States Representative",
+        "district": "14",
+        "candidate_name": "Melissa Hernandez",
+        "party": "Democratic"
+      }
+    ],
+    "measures": [],
+    "source_url": "https://www.sos.ca.gov/elections/upcoming-elections/county-administered-elections"
+  }
+]

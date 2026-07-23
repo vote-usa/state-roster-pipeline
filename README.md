@@ -3,8 +3,9 @@
 Reusable collector for U.S. state ballot rosters: upcoming elections, candidates,
 ballot measures, county elections office directory, and per-county ballots.
 
-Currently implemented: **Washington (WA)**. The structure is designed so additional
-states plug in without touching the shared code.
+Currently implemented:
+1. Washington (WA)
+1. California (CA)
 
 ## Structure
 
@@ -13,10 +14,11 @@ state-roster-pipeline/
   src/
     StateBallot.Core/        # state-agnostic: models, CollectResult, IStateCollector,
                              # HttpFetcher, JSON/CSV writers, sources.json writer
-    StateBallot.States.Wa/   # Washington: scrapers, selectors, source config, WaCollector
+    StateBallot.States.{State}/   # scrapers, selectors, source config, collector
     StateBallot.Cli/         # argument parsing + state registry
   data/
     wa/                      # per-state inputs (county_fips.json) and outputs
+    etc...
 ```
 
 ## Usage
@@ -24,7 +26,7 @@ state-roster-pipeline/
 ```bash
 cd state-roster-pipeline/src
 dotnet run --project StateBallot.Cli                       # WA, current year
-dotnet run --project StateBallot.Cli -- --state WA --dry-run   # fetch + counts, no writes
+dotnet run --project StateBallot.Cli -- --state CA --dry-run   # fetch + counts, no writes
 dotnet run --project StateBallot.Cli -- --year 2028        # back-fill a specific year
 dotnet run --project StateBallot.Cli -- --out /tmp/ballots # alternate output root
 ```
@@ -63,6 +65,22 @@ Conventions every state collector must follow:
 | Candidates + local measures | `voter.votewa.gov/elections/voterguide.ashx` (VoteWA voters' guide API) | JSON |
 | Statewide measures | `sos.wa.gov/so/node/12667` (Proposed Ballot Measure Information) | HTML (links to PDFs) |
 | County elections offices | `sos.wa.gov/elections/voters/voter-registration/county-elections-offices` | HTML |
+
+## California sources (`StateBallot.States.Ca`)
+
+| Data | Source | Format |
+| --- | --- | --- |
+| Statewide + special vacancy elections | `sos.ca.gov/elections/upcoming-elections` | HTML |
+| Candidates | `elections.cdn.sos.ca.gov/statewide-elections/{year}-{primary\|general}/cert-list-candidates.pdf`; special elections link their certified list from their detail page | PDF |
+| Statewide measures | `sos.ca.gov/elections/ballot-measures/qualified-ballot-measures` | HTML (links to full-text PDFs) |
+| County-administered (local) elections | `sos.ca.gov/elections/upcoming-elections/county-administered-elections` | HTML |
+| County elections offices | `sos.ca.gov/elections/voting-resources/county-elections-offices` | HTML |
+
+California notes: statewide certified candidate lists post 68 days before election
+day (Elections Code s. 8148); before that the election is recorded in `gaps` and
+`next_run` points at the posting date. The SoS lists county-administered elections
+but not their ballot content - those elections appear in `elections.*` with a gap
+entry pointing at the county elections office site.
 
 ## Outputs (`data/<state>/`)
 

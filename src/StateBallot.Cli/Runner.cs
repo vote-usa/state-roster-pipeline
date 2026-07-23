@@ -1,4 +1,5 @@
 using StateBallot.Core;
+using StateBallot.States.Ca;
 using StateBallot.States.Wa;
 
 namespace StateBallot.Cli;
@@ -12,6 +13,7 @@ public static class Runner
     private static readonly Dictionary<string, Func<HttpFetcher, int, string, IStateCollector>> StateCollectors =
         new(StringComparer.OrdinalIgnoreCase)
         {
+            ["CA"] = (fetcher, year, stateDataDir) => new CaCollector(fetcher, year, stateDataDir),
             ["WA"] = (fetcher, year, stateDataDir) => new WaCollector(fetcher, year, stateDataDir),
         };
 
