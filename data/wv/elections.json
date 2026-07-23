@@ -1,0 +1,29 @@
+[
+  {
+    "state": "WV",
+    "election_date": "2026-05-12",
+    "election_type": "PRIMARY",
+    "jurisdiction": "state",
+    "name": "05/12/2026 - PRIMARY 2026",
+    "election_id": "19081",
+    "source_url": ""
+  },
+  {
+    "state": "WV",
+    "election_date": "2026-06-09",
+    "election_type": "NON-PARTISAN",
+    "jurisdiction": "state",
+    "name": "06/09/2026 - TOWN OF HAMLIN MUNICIPAL",
+    "election_id": "19084",
+    "source_url": ""
+  },
+  {
+    "state": "WV",
+    "election_date": "2026-11-03",
+    "election_type": "GENERAL",
+    "jurisdiction": "state",
+    "name": "11/03/2026 - GENERAL 2026",
+    "election_id": "19080",
+    "source_url": ""
+  }
+]

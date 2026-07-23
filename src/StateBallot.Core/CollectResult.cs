@@ -8,7 +8,7 @@ public sealed class CollectResult
     /// <summary>Source-system county code => county name (e.g. VoteWA "01" => "Adams").</summary>
     public SortedDictionary<string, string> CountyCodes { get; init; } = new();
 
-    public List<CandidateRow> Candidates { get; init; } = new();
+    public List<CandidateData> Candidates { get; init; } = new();
 
     /// <summary>Measures already certified to a ballot (typically local/county).</summary>
     public List<MeasureRow> Measures { get; init; } = new();

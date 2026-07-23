@@ -3,6 +3,8 @@
   <ItemGroup>
     <ProjectReference Include="..\StateBallot.Core\StateBallot.Core.csproj" />
     <ProjectReference Include="..\StateBallot.States.Wa\StateBallot.States.Wa.csproj" />
+    <ProjectReference Include="..\StateBallot.States.Tx\StateBallot.States.Tx.csproj" />
+    <ProjectReference Include="..\StateBallot.States.Wv\StateBallot.States.Wv.csproj" />
   </ItemGroup>
 
   <PropertyGroup>
@@ -10,6 +12,9 @@
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <!-- This machine only has the net10.0 runtime installed; roll forward so this
+         net8.0-targeted app can still run here. Doesn't change the target. -->
+    <RollForward>LatestMajor</RollForward>
   </PropertyGroup>
 
 </Project>

@@ -1,5 +1,7 @@
 using StateBallot.Core;
+using StateBallot.States.Tx;
 using StateBallot.States.Wa;
+using StateBallot.States.Wv;
 
 namespace StateBallot.Cli;
 
@@ -13,6 +15,8 @@ public static class Runner
         new(StringComparer.OrdinalIgnoreCase)
         {
             ["WA"] = (fetcher, year, stateDataDir) => new WaCollector(fetcher, year, stateDataDir),
+            ["TX"] = (fetcher, year, stateDataDir) => new TxCollector(fetcher, year, stateDataDir),
+            ["WV"] = (fetcher, year, stateDataDir) => new WvCollector(fetcher, year, stateDataDir),
         };
 
     public static async Task<int> RunAsync(string[] args)

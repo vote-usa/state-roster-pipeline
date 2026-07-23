@@ -32,22 +32,32 @@ public sealed class WaCollector : IStateCollector
         var (allElections, countyCodes) = await electionScraper.FetchAsync();
         Console.WriteLine($"  Elections listed on VoteWA: {allElections.Count}; counties: {countyCodes.Count}");
 
+        var electionsInYear = allElections.Where(e => e.ElectionDate.Year == _year).ToList();
+        if (electionsInYear.Count == 0)
+            throw new InvalidOperationException(
+                $"No elections found for {_year} in the VoteWA election dropdown. " +
+                "If this is early in the year the dropdown may not list the year's elections yet.");
+
         // "Upcoming" = today or later within the target year. When back-filling a
         // different year, take the whole year.
         var today = DateOnly.FromDateTime(DateTime.UtcNow.Date);
-        var targetElections = allElections
-            .Where(e => e.ElectionDate.Year == _year)
+        var targetElections = electionsInYear
             .Where(e => _year != today.Year || e.ElectionDate >= today)
             .OrderBy(e => e.ElectionDate)
             .ThenBy(e => e.ElectionId, StringComparer.Ordinal)
             .ToList();
 
-        if (targetElections.Count == 0)
-            throw new InvalidOperationException(
-                $"No upcoming elections found for {_year} in the VoteWA election dropdown. " +
-                "If this is early in the year the dropdown may not list the year's elections yet.");
-
         var result = new CollectResult { CountyCodes = countyCodes };
+
+        if (targetElections.Count == 0)
+        {
+            // Elections exist for the year, they've just all already happened as of
+            // today - not a broken source, nothing to fail loudly about.
+            result.Gaps.Add(
+                $"All {electionsInYear.Count} election(s) listed for {_year} have already passed as of " +
+                $"{today:yyyy-MM-dd}; nothing upcoming to collect this run.");
+        }
+
         foreach (var election in targetElections)
         {
             election.State = StateCode;
@@ -55,7 +65,9 @@ public sealed class WaCollector : IStateCollector
         }
 
         var guideClient = new VoterGuideClient(_fetcher, _config);
-        var anyGuideData = false;
+        // Nothing to attempt when there are no target elections - don't treat that
+        // as a fetch failure (that's the case just handled above via Gaps).
+        var anyGuideData = targetElections.Count == 0;
 
         foreach (var election in targetElections)
         {
@@ -106,7 +118,7 @@ public sealed class WaCollector : IStateCollector
                     else
                     {
                         foreach (var candidate in race.Candidates.Where(c => !string.IsNullOrWhiteSpace(c.BallotName)))
-                            result.Candidates.Add(ToCandidateRow(election, race, candidate, county));
+                            result.Candidates.Add(ToCandidateData(election, race, candidate, county));
                     }
                 }
             }
@@ -165,7 +177,7 @@ public sealed class WaCollector : IStateCollector
                     ballot.Measures.Add(ToMeasureRow(election, race, countyName));
                 else
                     foreach (var candidate in race.Candidates.Where(c => !string.IsNullOrWhiteSpace(c.BallotName)))
-                        ballot.Candidates.Add(ToCandidateRow(election, race, candidate, countyName));
+                        ballot.Candidates.Add(ToCandidateData(election, race, candidate, countyName));
             }
         }
 
@@ -174,7 +186,7 @@ public sealed class WaCollector : IStateCollector
         return ballot;
     }
 
-    private CandidateRow ToCandidateRow(Election election, GuideRace race, GuideCandidate candidate, string? county) => new()
+    private CandidateData ToCandidateData(Election election, GuideRace race, GuideCandidate candidate, string? county) => new()
     {
         State = StateCode,
         ElectionDate = election.ElectionDate.ToString("yyyy-MM-dd"),
@@ -222,7 +234,7 @@ public sealed class WaCollector : IStateCollector
         });
     }
 
-    private static int CompareCandidates(CandidateRow a, CandidateRow b)
+    private static int CompareCandidates(CandidateData a, CandidateData b)
     {
         var c = string.CompareOrdinal(a.ElectionDate, b.ElectionDate);
         if (c != 0) return c;
@@ -311,6 +323,20 @@ public sealed class WaCollector : IStateCollector
         }
 
         var nextYear = _year + 1;
+
+        if (result.Elections.Count == 0)
+        {
+            return new
+            {
+                recommended_after = $"{nextYear}-05-20",
+                reason = $"All elections listed for {_year} have already passed; nothing was collected this run. " +
+                         $"Washington's {nextYear} candidate filing week ends in mid-May; the VoteWA candidate list " +
+                         "is populated within days of filing week closing.",
+                next_election_date = (string?)null,
+                next_election_type = (string?)null,
+            };
+        }
+
         return new
         {
             recommended_after = $"{nextYear}-05-20",

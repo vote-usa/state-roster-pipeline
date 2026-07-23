@@ -3,20 +3,24 @@
 Reusable collector for U.S. state ballot rosters: upcoming elections, candidates,
 ballot measures, county elections office directory, and per-county ballots.
 
-Currently implemented: **Washington (WA)**. The structure is designed so additional
-states plug in without touching the shared code.
+Currently implemented:
+1. Washington (WA)
+1. Texas (TX)
+1. West Virginia (WV)
+
+The structure is designed so additional states plug in without touching the shared code.
 
 ## Structure
 
 ```
 state-roster-pipeline/
   src/
-    StateBallot.Core/        # state-agnostic: models, CollectResult, IStateCollector,
-                             # HttpFetcher, JSON/CSV writers, sources.json writer
-    StateBallot.States.Wa/   # Washington: scrapers, selectors, source config, WaCollector
-    StateBallot.Cli/         # argument parsing + state registry
+    StateBallot.Core/             # state-agnostic: models, CollectResult, IStateCollector,
+                                  # HttpFetcher, JSON/CSV writers, sources.json writer
+    StateBallot.States.{State}/   # scrapers/clients, selectors, source config, collector
+    StateBallot.Cli/              # argument parsing + state registry
   data/
-    wa/                      # per-state inputs (county_fips.json) and outputs
+    wa/, tx/, wv/                 # per-state inputs (e.g. county_fips.json) and outputs
 ```
 
 ## Usage
@@ -24,7 +28,7 @@ state-roster-pipeline/
 ```bash
 cd state-roster-pipeline/src
 dotnet run --project StateBallot.Cli                       # WA, current year
-dotnet run --project StateBallot.Cli -- --state WA --dry-run   # fetch + counts, no writes
+dotnet run --project StateBallot.Cli -- --state TX --dry-run   # fetch + counts, no writes
 dotnet run --project StateBallot.Cli -- --year 2028        # back-fill a specific year
 dotnet run --project StateBallot.Cli -- --out /tmp/ballots # alternate output root
 ```
@@ -64,12 +68,41 @@ Conventions every state collector must follow:
 | Statewide measures | `sos.wa.gov/so/node/12667` (Proposed Ballot Measure Information) | HTML (links to PDFs) |
 | County elections offices | `sos.wa.gov/elections/voters/voter-registration/county-elections-offices` | HTML |
 
+## Texas sources (`StateBallot.States.Tx`)
+
+| Data | Source | Format |
+| --- | --- | --- |
+| Elections | `goelect.txelections.civixapps.com` `getElectionsByYear` (CivixApps CBP API) | JSON |
+| Candidates | `goelect.txelections.civixapps.com` `findQualifiedCandidates` (CivixApps CBP API) | JSON (POST) |
+
+Texas notes: the API is Cloudflare-fronted and requires browser-like headers
+(`TxSourceConfig.ExtraHeaders`, applied once per run - see `HttpFetcher.AddDefaultHeader`).
+No county or district attribution is published; `county`/`district` are always null.
+`party` is the raw single-letter source code (e.g. "R"/"D"), not expanded to a full name.
+
+## West Virginia sources (`StateBallot.States.Wv`)
+
+| Data | Source | Format |
+| --- | --- | --- |
+| Candidates (elections derived from these) | `candidates.wvsos.gov/candidate-web-api/candidates` | JSON (POST, paginated) |
+
+West Virginia notes: there is no standalone election-catalog endpoint - each candidate
+record carries its own election name/date/type, so `elections.*` is derived by grouping
+candidates on their `electionId`. `county` reflects the candidate's own residential
+county (a proxy for jurisdiction, not necessarily the race's actual jurisdiction).
+
 ## Outputs (`data/<state>/`)
 
 `elections.json|csv`, `candidates.json|csv`, `measures.json|csv` (statewide proposed +
 local measures), `county_directory.json`, `county_ballots.json|csv`, `sources.json`
 (provenance with URL + format per data group, known gaps, and a machine-readable
 `next_run` recommendation).
+
+`candidates.*` carries a canonical set of fields across every state (see
+`StateBallot.Core/Models.cs`'s `CandidateData`): beyond the original WA-derived fields,
+it also includes `source_candidate_id`, `filing_date`, `email`, `phone`,
+`campaign_phone`, `website`, `occupation`, and mailing/residential address fields -
+populated where a state's source publishes them, null otherwise.
 
 Notes on semantics:
 

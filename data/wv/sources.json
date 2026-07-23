@@ -1,0 +1,19 @@
+{
+  "statewide_candidates": [
+    {
+      "url": "https://candidates.wvsos.gov/candidate-web-api/candidates",
+      "format": "json (POST, paginated)"
+    }
+  ],
+  "verification_only": [
+    {
+      "url": "https://ballotpedia.org/West_Virginia_elections,2026",
+      "format": "html"
+    }
+  ],
+  "gaps": [],
+  "next_run": {
+    "recommended_after": "2027-01-01",
+    "reason": "All 2026 candidates collected. Re-run once 2027 filings open."
+  }
+}
