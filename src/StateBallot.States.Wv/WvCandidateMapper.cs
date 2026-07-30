@@ -23,7 +23,7 @@ public static class WvCandidateMapper
         SourceUrl = "",
     };
 
-    public static CandidateData ToCandidateData(WestVirginiaCandidate c, Election election, string sourceUrl) => new()
+    public static CandidateRow ToCandidateRow(WestVirginiaCandidate c, Election election, string sourceUrl) => new()
     {
         State = "WV",
         ElectionDate = election.ElectionDate.ToString("yyyy-MM-dd"),

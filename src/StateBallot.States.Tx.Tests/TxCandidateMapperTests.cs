@@ -32,7 +32,7 @@ public class TxCandidateMapperTests
     }
 
     [Fact]
-    public void ToCandidateData_MapsFieldsAndFormatsMailingAddress()
+    public void ToCandidateRow_MapsFieldsAndFormatsMailingAddress()
     {
         var election = TxCandidateMapper.ToElection(new TexasElection
         {
@@ -61,7 +61,7 @@ public class TxCandidateMapperTests
             },
         };
 
-        var data = TxCandidateMapper.ToCandidateData(candidate, election, "https://example.com/api");
+        var data = TxCandidateMapper.ToCandidateRow(candidate, election, "https://example.com/api");
 
         Assert.Equal("TX", data.State);
         Assert.Equal("2026-04-15", data.ElectionDate);
@@ -83,12 +83,12 @@ public class TxCandidateMapperTests
     }
 
     [Fact]
-    public void ToCandidateData_NoMailingAddress_LeavesAddressFieldsNull()
+    public void ToCandidateRow_NoMailingAddress_LeavesAddressFieldsNull()
     {
         var election = TxCandidateMapper.ToElection(new TexasElection { IdElection = 1, DtElectionDate = "2026-11-03" });
         var candidate = new TexasCandidate { IdCandidate = 1, TxFullNameBallot = "JANE DOE" };
 
-        var data = TxCandidateMapper.ToCandidateData(candidate, election, "https://example.com");
+        var data = TxCandidateMapper.ToCandidateRow(candidate, election, "https://example.com");
 
         Assert.Null(data.MailingAddressLine);
         Assert.Null(data.MailingCity);

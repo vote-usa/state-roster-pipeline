@@ -1,0 +1,59 @@
+{
+  "elections": [
+    {
+      "url": "https://www.sos.ca.gov/elections/upcoming-elections",
+      "format": "html"
+    },
+    {
+      "url": "https://www.sos.ca.gov/elections/upcoming-elections/county-administered-elections",
+      "format": "html"
+    }
+  ],
+  "statewide_candidates": [
+    {
+      "url": "https://elections.cdn.sos.ca.gov/special-elections/2026-cd14/cert-list-general.pdf",
+      "format": "pdf"
+    }
+  ],
+  "statewide_measures": [
+    {
+      "url": "https://www.sos.ca.gov/elections/ballot-measures/qualified-ballot-measures",
+      "format": "html"
+    }
+  ],
+  "county_directory": [
+    {
+      "url": "https://www.sos.ca.gov/elections/voting-resources/county-elections-offices",
+      "format": "html"
+    },
+    {
+      "url": "data/ca/county_fips.json (U.S. Census county FIPS codes)",
+      "format": "json"
+    }
+  ],
+  "verification_only": [
+    {
+      "url": "https://ballotpedia.org/California_elections,_2026",
+      "format": "html"
+    }
+  ],
+  "gaps": [
+    "General Election - November 3, 2026 (2026-11-03): certified candidate list is not posted yet at https://elections.cdn.sos.ca.gov/statewide-elections/2026-general/cert-list-candidates.pdf. California posts it 68 days before election day (2026-08-27); re-run after that.",
+    "Marin County - Special Election (2026-08-25): the SoS lists this county-administered election but does not publish its ballot content; see the county elections office site at https://www.marincounty.gov/departments/elections.",
+    "Sutter County - Special Fire (CSA-F) Election (2026-08-04): the SoS lists this county-administered election but does not publish its ballot content; see the county elections office site at http://www.co.sutter.ca.us/doc/government/depts/cr/elections/cr_elections_home."
+  ],
+  "next_run": {
+    "recommended_after": "2026-08-28",
+    "reason": "General Election - November 3, 2026 candidate list is not posted yet. California's Secretary of State certifies the list of candidates 68 days before election day (Elections Code s. 8148), i.e. by 2026-08-27 for this election.",
+    "next_election_date": "2026-11-03",
+    "next_election_type": "General"
+  },
+  "county_ballots": {
+    "Alameda": [
+      {
+        "url": "https://www.sos.ca.gov/elections/upcoming-elections/county-administered-elections",
+        "format": "html"
+      }
+    ]
+  }
+}

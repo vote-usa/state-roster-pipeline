@@ -34,7 +34,7 @@ public static class TxCandidateMapper
     private static string NormalizeElectionType(string? code) =>
         code is not null && ElectionTypeNames.TryGetValue(code, out var name) ? name : code ?? "";
 
-    public static CandidateData ToCandidateData(TexasCandidate c, Election election, string sourceUrl) => new()
+    public static CandidateRow ToCandidateRow(TexasCandidate c, Election election, string sourceUrl) => new()
     {
         State = "TX",
         ElectionDate = election.ElectionDate.ToString("yyyy-MM-dd"),

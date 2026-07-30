@@ -20,7 +20,7 @@ public sealed class Election
 /// Canonical candidate shape shared by every state. Fields a given state's source
 /// doesn't publish are left null - never invented (see README conventions).
 /// </summary>
-public sealed class CandidateData
+public sealed class CandidateRow
 {
     public string State { get; set; } = "";
     public string ElectionDate { get; set; } = "";
@@ -79,7 +79,7 @@ public sealed class CountyBallot
     public string CountyName { get; set; } = "";
     public string ElectionDate { get; set; } = "";
     public string ElectionType { get; set; } = "";
-    public List<CandidateData> Candidates { get; set; } = new();
+    public List<CandidateRow> Candidates { get; set; } = new();
     public List<MeasureRow> Measures { get; set; } = new();
     public string SourceUrl { get; set; } = "";
 }

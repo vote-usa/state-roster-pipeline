@@ -6,9 +6,11 @@
     "office": "STATE SENATOR, DISTRICT 9 - UNEXPIRED TERM",
     "district": null,
     "county": null,
+    "ocd_division_id": "ocd-division/country:us/state:tx",
     "candidate_name": "JOHN HUFFMAN",
     "party": "R",
     "incumbent": null,
+    "source_url": "https://goelect.txelections.civixapps.com/api-ivis-cbp/api/cbp/findQualifiedCandidates",
     "source_candidate_id": "21310",
     "filing_date": "2025-08-29",
     "email": "JOHN@JOHNHUFFMAN.COM",
@@ -21,8 +23,7 @@
     "mailing_state": null,
     "mailing_zip": null,
     "residential_city": null,
-    "residential_county": null,
-    "source_url": "https://goelect.txelections.civixapps.com/api-ivis-cbp/api/cbp/findQualifiedCandidates"
+    "residential_county": null
   },
   {
     "state": "TX",
@@ -31,9 +32,11 @@
     "office": "STATE SENATOR, DISTRICT 9 - UNEXPIRED TERM",
     "district": null,
     "county": null,
+    "ocd_division_id": "ocd-division/country:us/state:tx",
     "candidate_name": "LEIGH WAMBSGANSS",
     "party": "R",
     "incumbent": null,
+    "source_url": "https://goelect.txelections.civixapps.com/api-ivis-cbp/api/cbp/findQualifiedCandidates",
     "source_candidate_id": "21343",
     "filing_date": "2025-08-26",
     "email": "INFO@LEIGHFORTEXAS.COM",
@@ -46,8 +49,7 @@
     "mailing_state": null,
     "mailing_zip": null,
     "residential_city": null,
-    "residential_county": null,
-    "source_url": "https://goelect.txelections.civixapps.com/api-ivis-cbp/api/cbp/findQualifiedCandidates"
+    "residential_county": null
   },
   {
     "state": "TX",
@@ -56,9 +58,11 @@
     "office": "STATE SENATOR, DISTRICT 9 - UNEXPIRED TERM",
     "district": null,
     "county": null,
+    "ocd_division_id": "ocd-division/country:us/state:tx",
     "candidate_name": "TAYLOR REHMET",
     "party": "D",
     "incumbent": null,
+    "source_url": "https://goelect.txelections.civixapps.com/api-ivis-cbp/api/cbp/findQualifiedCandidates",
     "source_candidate_id": "21311",
     "filing_date": "2025-09-02",
     "email": "INFO@TAYLORFORTX.COM",
@@ -71,8 +75,7 @@
     "mailing_state": null,
     "mailing_zip": null,
     "residential_city": null,
-    "residential_county": null,
-    "source_url": "https://goelect.txelections.civixapps.com/api-ivis-cbp/api/cbp/findQualifiedCandidates"
+    "residential_county": null
   },
   {
     "state": "TX",
@@ -81,9 +84,11 @@
     "office": "U. S. REPRESENTATIVE DISTRICT 18 - UNEXPIRED TERM",
     "district": null,
     "county": null,
+    "ocd_division_id": "ocd-division/country:us/state:tx",
     "candidate_name": "AMANDA EDWARDS",
     "party": "D",
     "incumbent": null,
+    "source_url": "https://goelect.txelections.civixapps.com/api-ivis-cbp/api/cbp/findQualifiedCandidates",
     "source_candidate_id": "21346",
     "filing_date": "2025-09-02",
     "email": "AKEDWARDS00@YAHOO.COM",
@@ -96,8 +101,7 @@
     "mailing_state": null,
     "mailing_zip": null,
     "residential_city": null,
-    "residential_county": null,
-    "source_url": "https://goelect.txelections.civixapps.com/api-ivis-cbp/api/cbp/findQualifiedCandidates"
+    "residential_county": null
   },
   {
     "state": "TX",
@@ -106,9 +110,11 @@
     "office": "U. S. REPRESENTATIVE DISTRICT 18 - UNEXPIRED TERM",
     "district": null,
     "county": null,
+    "ocd_division_id": "ocd-division/country:us/state:tx",
     "candidate_name": "CARMEN MARIA MONTIEL",
     "party": "R",
     "incumbent": null,
+    "source_url": "https://goelect.txelections.civixapps.com/api-ivis-cbp/api/cbp/findQualifiedCandidates",
     "source_candidate_id": "21145",
     "filing_date": "2025-07-17",
     "email": "CARMENFORCONGRESS@GMAIL.COM",
@@ -121,8 +127,7 @@
     "mailing_state": "TX",
     "mailing_zip": "77008",
     "residential_city": null,
-    "residential_county": null,
-    "source_url": "https://goelect.txelections.civixapps.com/api-ivis-cbp/api/cbp/findQualifiedCandidates"
+    "residential_county": null
   },
   {
     "state": "TX",
@@ -131,9 +136,11 @@
     "office": "U. S. REPRESENTATIVE DISTRICT 18 - UNEXPIRED TERM",
     "district": null,
     "county": null,
+    "ocd_division_id": "ocd-division/country:us/state:tx",
     "candidate_name": "CARTER PAGE",
     "party": "R",
     "incumbent": null,
+    "source_url": "https://goelect.txelections.civixapps.com/api-ivis-cbp/api/cbp/findQualifiedCandidates",
     "source_candidate_id": "21354",
     "filing_date": "2025-09-03",
     "email": null,
@@ -146,8 +153,7 @@
     "mailing_state": null,
     "mailing_zip": null,
     "residential_city": null,
-    "residential_county": null,
-    "source_url": "https://goelect.txelections.civixapps.com/api-ivis-cbp/api/cbp/findQualifiedCandidates"
+    "residential_county": null
   },
   {
     "state": "TX",
@@ -156,9 +162,11 @@
     "office": "U. S. REPRESENTATIVE DISTRICT 18 - UNEXPIRED TERM",
     "district": null,
     "county": null,
+    "ocd_division_id": "ocd-division/country:us/state:tx",
     "candidate_name": "CHRISTIAN DASHAUN MENEFEE",
     "party": "D",
     "incumbent": null,
+    "source_url": "https://goelect.txelections.civixapps.com/api-ivis-cbp/api/cbp/findQualifiedCandidates",
     "source_candidate_id": "21178",
     "filing_date": "2025-08-19",
     "email": "CHRISTIAN@CHRISTIANMENEFEE.COM",
@@ -171,8 +179,7 @@
     "mailing_state": null,
     "mailing_zip": null,
     "residential_city": null,
-    "residential_county": null,
-    "source_url": "https://goelect.txelections.civixapps.com/api-ivis-cbp/api/cbp/findQualifiedCandidates"
+    "residential_county": null
   },
   {
     "state": "TX",
@@ -181,9 +188,11 @@
     "office": "U. S. REPRESENTATIVE DISTRICT 18 - UNEXPIRED TERM",
     "district": null,
     "county": null,
+    "ocd_division_id": "ocd-division/country:us/state:tx",
     "candidate_name": "FELDON BONNER II",
     "party": "D",
     "incumbent": null,
+    "source_url": "https://goelect.txelections.civixapps.com/api-ivis-cbp/api/cbp/findQualifiedCandidates",
     "source_candidate_id": "21142",
     "filing_date": "2025-05-15",
     "email": null,
@@ -196,8 +205,7 @@
     "mailing_state": "TX",
     "mailing_zip": "77088",
     "residential_city": null,
-    "residential_county": null,
-    "source_url": "https://goelect.txelections.civixapps.com/api-ivis-cbp/api/cbp/findQualifiedCandidates"
+    "residential_county": null
   },
   {
     "state": "TX",
@@ -206,9 +214,11 @@
     "office": "U. S. REPRESENTATIVE DISTRICT 18 - UNEXPIRED TERM",
     "district": null,
     "county": null,
+    "ocd_division_id": "ocd-division/country:us/state:tx",
     "candidate_name": "GEORGE FOREMAN, IV",
     "party": "I",
     "incumbent": null,
+    "source_url": "https://goelect.txelections.civixapps.com/api-ivis-cbp/api/cbp/findQualifiedCandidates",
     "source_candidate_id": "21347",
     "filing_date": "2025-09-03",
     "email": "INFO@FOREMANFORCONGRESS.ORG",
@@ -221,8 +231,7 @@
     "mailing_state": "TX",
     "mailing_zip": "77093",
     "residential_city": null,
-    "residential_county": null,
-    "source_url": "https://goelect.txelections.civixapps.com/api-ivis-cbp/api/cbp/findQualifiedCandidates"
+    "residential_county": null
   },
   {
     "state": "TX",
@@ -231,9 +240,11 @@
     "office": "U. S. REPRESENTATIVE DISTRICT 18 - UNEXPIRED TERM",
     "district": null,
     "county": null,
+    "ocd_division_id": "ocd-division/country:us/state:tx",
     "candidate_name": "ISAIAH R. MARTIN",
     "party": "D",
     "incumbent": null,
+    "source_url": "https://goelect.txelections.civixapps.com/api-ivis-cbp/api/cbp/findQualifiedCandidates",
     "source_candidate_id": "21211",
     "filing_date": "2025-08-22",
     "email": "INFO@ISAIAHMARTIN.ORG",
@@ -246,8 +257,7 @@
     "mailing_state": null,
     "mailing_zip": null,
     "residential_city": null,
-    "residential_county": null,
-    "source_url": "https://goelect.txelections.civixapps.com/api-ivis-cbp/api/cbp/findQualifiedCandidates"
+    "residential_county": null
   },
   {
     "state": "TX",
@@ -256,9 +266,11 @@
     "office": "U. S. REPRESENTATIVE DISTRICT 18 - UNEXPIRED TERM",
     "district": null,
     "county": null,
+    "ocd_division_id": "ocd-division/country:us/state:tx",
     "candidate_name": "JOLANDA JONES",
     "party": "D",
     "incumbent": null,
+    "source_url": "https://goelect.txelections.civixapps.com/api-ivis-cbp/api/cbp/findQualifiedCandidates",
     "source_candidate_id": "21349",
     "filing_date": "2025-07-11",
     "email": "CAMPAIGN@JOLANDAJONES.COM",
@@ -271,8 +283,7 @@
     "mailing_state": "TX",
     "mailing_zip": "77004",
     "residential_city": null,
-    "residential_county": null,
-    "source_url": "https://goelect.txelections.civixapps.com/api-ivis-cbp/api/cbp/findQualifiedCandidates"
+    "residential_county": null
   },
   {
     "state": "TX",
@@ -281,9 +292,11 @@
     "office": "U. S. REPRESENTATIVE DISTRICT 18 - UNEXPIRED TERM",
     "district": null,
     "county": null,
+    "ocd_division_id": "ocd-division/country:us/state:tx",
     "candidate_name": "OLLIE KNOX",
     "party": "R",
     "incumbent": null,
+    "source_url": "https://goelect.txelections.civixapps.com/api-ivis-cbp/api/cbp/findQualifiedCandidates",
     "source_candidate_id": "21350",
     "filing_date": "2025-08-29",
     "email": "OLLIEKNOX@MYYAHOO.COM",
@@ -296,8 +309,7 @@
     "mailing_state": "TX",
     "mailing_zip": "77016",
     "residential_city": null,
-    "residential_county": null,
-    "source_url": "https://goelect.txelections.civixapps.com/api-ivis-cbp/api/cbp/findQualifiedCandidates"
+    "residential_county": null
   },
   {
     "state": "TX",
@@ -306,9 +318,11 @@
     "office": "U. S. REPRESENTATIVE DISTRICT 18 - UNEXPIRED TERM",
     "district": null,
     "county": null,
+    "ocd_division_id": "ocd-division/country:us/state:tx",
     "candidate_name": "REYNA ANDERSON",
     "party": "I",
     "incumbent": null,
+    "source_url": "https://goelect.txelections.civixapps.com/api-ivis-cbp/api/cbp/findQualifiedCandidates",
     "source_candidate_id": "21143",
     "filing_date": "2025-05-19",
     "email": null,
@@ -321,8 +335,7 @@
     "mailing_state": null,
     "mailing_zip": null,
     "residential_city": null,
-    "residential_county": null,
-    "source_url": "https://goelect.txelections.civixapps.com/api-ivis-cbp/api/cbp/findQualifiedCandidates"
+    "residential_county": null
   },
   {
     "state": "TX",
@@ -331,9 +344,11 @@
     "office": "U. S. REPRESENTATIVE DISTRICT 18 - UNEXPIRED TERM",
     "district": null,
     "county": null,
+    "ocd_division_id": "ocd-division/country:us/state:tx",
     "candidate_name": "RONALD DWAYNE WHITFIELD",
     "party": "R",
     "incumbent": null,
+    "source_url": "https://goelect.txelections.civixapps.com/api-ivis-cbp/api/cbp/findQualifiedCandidates",
     "source_candidate_id": "21352",
     "filing_date": "2025-09-02",
     "email": "ANDIECOMONILOVEME@GMAIL.COM",
@@ -346,8 +361,7 @@
     "mailing_state": "TX",
     "mailing_zip": "77051",
     "residential_city": null,
-    "residential_county": null,
-    "source_url": "https://goelect.txelections.civixapps.com/api-ivis-cbp/api/cbp/findQualifiedCandidates"
+    "residential_county": null
   },
   {
     "state": "TX",
@@ -356,9 +370,11 @@
     "office": "U. S. REPRESENTATIVE DISTRICT 18 - UNEXPIRED TERM",
     "district": null,
     "county": null,
+    "ocd_division_id": "ocd-division/country:us/state:tx",
     "candidate_name": "STEPHEN HUEY",
     "party": "D",
     "incumbent": null,
+    "source_url": "https://goelect.txelections.civixapps.com/api-ivis-cbp/api/cbp/findQualifiedCandidates",
     "source_candidate_id": "21348",
     "filing_date": "2025-08-29",
     "email": "CONTACT@STEPHENHUEYFORCONGRESS.COM",
@@ -371,8 +387,7 @@
     "mailing_state": null,
     "mailing_zip": null,
     "residential_city": null,
-    "residential_county": null,
-    "source_url": "https://goelect.txelections.civixapps.com/api-ivis-cbp/api/cbp/findQualifiedCandidates"
+    "residential_county": null
   },
   {
     "state": "TX",
@@ -381,9 +396,11 @@
     "office": "U. S. REPRESENTATIVE DISTRICT 18 - UNEXPIRED TERM",
     "district": null,
     "county": null,
+    "ocd_division_id": "ocd-division/country:us/state:tx",
     "candidate_name": "TAMMIE JEAN ROCHESTER",
     "party": "G",
     "incumbent": null,
+    "source_url": "https://goelect.txelections.civixapps.com/api-ivis-cbp/api/cbp/findQualifiedCandidates",
     "source_candidate_id": "21353",
     "filing_date": "2025-09-02",
     "email": "TROCHESTER2@ATT.NET",
@@ -396,8 +413,7 @@
     "mailing_state": "TX",
     "mailing_zip": "77044",
     "residential_city": null,
-    "residential_county": null,
-    "source_url": "https://goelect.txelections.civixapps.com/api-ivis-cbp/api/cbp/findQualifiedCandidates"
+    "residential_county": null
   },
   {
     "state": "TX",
@@ -406,9 +422,11 @@
     "office": "U. S. REPRESENTATIVE DISTRICT 18 - UNEXPIRED TERM",
     "district": null,
     "county": null,
+    "ocd_division_id": "ocd-division/country:us/state:tx",
     "candidate_name": "THEODIS DANIEL",
     "party": "R",
     "incumbent": null,
+    "source_url": "https://goelect.txelections.civixapps.com/api-ivis-cbp/api/cbp/findQualifiedCandidates",
     "source_candidate_id": "21344",
     "filing_date": "2025-09-03",
     "email": "TDANIELHTX@GMAIL.COM",
@@ -421,8 +439,7 @@
     "mailing_state": "TX",
     "mailing_zip": "77021",
     "residential_city": null,
-    "residential_county": null,
-    "source_url": "https://goelect.txelections.civixapps.com/api-ivis-cbp/api/cbp/findQualifiedCandidates"
+    "residential_county": null
   },
   {
     "state": "TX",
@@ -431,9 +448,11 @@
     "office": "U. S. REPRESENTATIVE DISTRICT 18 - UNEXPIRED TERM",
     "district": null,
     "county": null,
+    "ocd_division_id": "ocd-division/country:us/state:tx",
     "candidate_name": "VALENCIA WILLIAMS",
     "party": "D",
     "incumbent": null,
+    "source_url": "https://goelect.txelections.civixapps.com/api-ivis-cbp/api/cbp/findQualifiedCandidates",
     "source_candidate_id": "21351",
     "filing_date": "2025-09-03",
     "email": "VALENCIA4CONGRESS@GMAIL.COM",
@@ -446,8 +465,7 @@
     "mailing_state": "TX",
     "mailing_zip": "77056",
     "residential_city": null,
-    "residential_county": null,
-    "source_url": "https://goelect.txelections.civixapps.com/api-ivis-cbp/api/cbp/findQualifiedCandidates"
+    "residential_county": null
   },
   {
     "state": "TX",
@@ -456,9 +474,11 @@
     "office": "U. S. REPRESENTATIVE DISTRICT 18 - UNEXPIRED TERM",
     "district": null,
     "county": null,
+    "ocd_division_id": "ocd-division/country:us/state:tx",
     "candidate_name": "VINCE DUNCAN",
     "party": "I",
     "incumbent": null,
+    "source_url": "https://goelect.txelections.civixapps.com/api-ivis-cbp/api/cbp/findQualifiedCandidates",
     "source_candidate_id": "21345",
     "filing_date": "2025-09-02",
     "email": "VINCEFORUS@GMAIL.COM",
@@ -471,7 +491,6 @@
     "mailing_state": "TX",
     "mailing_zip": "77029",
     "residential_city": null,
-    "residential_county": null,
-    "source_url": "https://goelect.txelections.civixapps.com/api-ivis-cbp/api/cbp/findQualifiedCandidates"
+    "residential_county": null
   }
 ]

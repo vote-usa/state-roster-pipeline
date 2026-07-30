@@ -4,10 +4,12 @@ using StateBallot.Core;
 namespace StateBallot.States.Wv;
 
 /// <summary>West Virginia state collector, backed by the WV SOS candidate-web-api.</summary>
+[StateCode("WV")]
 public sealed class WvCollector : IStateCollector
 {
     private readonly HttpFetcher _fetcher;
     private readonly WvSourceConfig _config;
+    private readonly IPublishSchedule _schedule;
     private readonly int _year;
 
     public string StateCode => "WV";
@@ -20,6 +22,7 @@ public sealed class WvCollector : IStateCollector
         _fetcher = fetcher;
         _year = year;
         _config = config ?? new WvSourceConfig();
+        _schedule = new WvPublishSchedule();
     }
 
     public async Task<CollectResult> CollectAsync()
@@ -51,43 +54,25 @@ public sealed class WvCollector : IStateCollector
             .ToList();
 
         var result = new CollectResult();
-        foreach (var election in elections)
-            result.Elections.Add(election);
+        result.Elections.AddRange(elections);
 
         var electionsById = elections.ToDictionary(e => e.ElectionId, StringComparer.Ordinal);
         foreach (var candidate in deduped)
         {
             var election = electionsById[candidate.ElectionId.ToString(CultureInfo.InvariantCulture)];
-            result.Candidates.Add(WvCandidateMapper.ToCandidateData(candidate, election, _config.CandidatesUrl));
+            result.Candidates.Add(WvCandidateMapper.ToCandidateRow(candidate, election, _config.CandidatesUrl));
         }
 
-        result.Candidates.Sort(CompareCandidates);
+        CollectResultSorter.Sort(result);
         BuildSourcesManifest(result);
         return result;
     }
 
-    private static int CompareCandidates(CandidateData a, CandidateData b)
-    {
-        var c = string.CompareOrdinal(a.ElectionDate, b.ElectionDate);
-        if (c != 0) return c;
-        c = string.CompareOrdinal(a.Office, b.Office);
-        return c != 0 ? c : string.CompareOrdinal(a.CandidateName, b.CandidateName);
-    }
-
     private void BuildSourcesManifest(CollectResult result)
     {
-        result.SourceGroups["statewide_candidates"] = new[]
-        {
-            new { url = _config.CandidatesUrl, format = "json (POST, paginated)" },
-        };
-        result.SourceGroups["verification_only"] = new[]
-        {
-            new { url = "https://ballotpedia.org/West_Virginia_elections," + _year, format = "html" },
-        };
-        result.NextRun = new
-        {
-            recommended_after = $"{_year + 1}-01-01",
-            reason = $"All {_year} candidates collected. Re-run once {_year + 1} filings open.",
-        };
+        var sources = result.Sources;
+        sources.StatewideCandidates = [new SourceEntry(_config.CandidatesUrl, "json (POST, paginated)")];
+        sources.VerificationOnly = [new SourceEntry("https://ballotpedia.org/West_Virginia_elections," + _year, "html")];
+        sources.NextRun = _schedule.Recommend(result, _year);
     }
 }

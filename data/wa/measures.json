@@ -8,6 +8,7 @@
     "full_text_url": "https://www.sos.wa.gov/sites/default/files/2026-03/INITIATIVE IL26-001 fulltext.pdf",
     "jurisdiction": "state",
     "county": null,
+    "ocd_division_id": "ocd-division/country:us/state:wa",
     "source_url": "https://www.sos.wa.gov/so/node/12667"
   },
   {
@@ -19,6 +20,19 @@
     "full_text_url": "https://www.sos.wa.gov/sites/default/files/2026-03/INITIATIVE IL26-638 fulltext.pdf",
     "jurisdiction": "state",
     "county": null,
+    "ocd_division_id": "ocd-division/country:us/state:wa",
+    "source_url": "https://www.sos.wa.gov/so/node/12667"
+  },
+  {
+    "state": "WA",
+    "election_date": null,
+    "measure_id": "IP26-645",
+    "title": "Initiative No. IP26-645",
+    "summary": "Ballot title letter: https://www.sos.wa.gov/sites/default/files/2026-07/IP26-645 Ballot title %26 Summary.pdf",
+    "full_text_url": "https://www.sos.wa.gov/sites/default/files/2026-07/Finaltext_IP26-645_fulltext.pdf",
+    "jurisdiction": "state",
+    "county": null,
+    "ocd_division_id": "ocd-division/country:us/state:wa",
     "source_url": "https://www.sos.wa.gov/so/node/12667"
   },
   {
@@ -30,6 +44,7 @@
     "full_text_url": null,
     "jurisdiction": "Local",
     "county": "Adams",
+    "ocd_division_id": "ocd-division/country:us/state:wa/county:adams",
     "source_url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=&p="
   },
   {
@@ -41,6 +56,7 @@
     "full_text_url": null,
     "jurisdiction": "Local",
     "county": "Adams",
+    "ocd_division_id": "ocd-division/country:us/state:wa/county:adams",
     "source_url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=&p="
   },
   {
@@ -52,6 +68,7 @@
     "full_text_url": null,
     "jurisdiction": "Local",
     "county": "Adams",
+    "ocd_division_id": "ocd-division/country:us/state:wa/county:adams",
     "source_url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=&p="
   },
   {
@@ -63,6 +80,7 @@
     "full_text_url": null,
     "jurisdiction": "Local",
     "county": "Adams",
+    "ocd_division_id": "ocd-division/country:us/state:wa/county:adams",
     "source_url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=&p="
   },
   {
@@ -74,6 +92,7 @@
     "full_text_url": null,
     "jurisdiction": "Local",
     "county": "Benton",
+    "ocd_division_id": "ocd-division/country:us/state:wa/county:benton",
     "source_url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=&p="
   },
   {
@@ -85,6 +104,7 @@
     "full_text_url": null,
     "jurisdiction": "Local",
     "county": "Benton",
+    "ocd_division_id": "ocd-division/country:us/state:wa/county:benton",
     "source_url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=&p="
   },
   {
@@ -96,6 +116,7 @@
     "full_text_url": null,
     "jurisdiction": "Local",
     "county": "Clallam",
+    "ocd_division_id": "ocd-division/country:us/state:wa/county:clallam",
     "source_url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=&p="
   },
   {
@@ -107,6 +128,7 @@
     "full_text_url": null,
     "jurisdiction": "Local",
     "county": "Clark",
+    "ocd_division_id": "ocd-division/country:us/state:wa/county:clark",
     "source_url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=&p="
   },
   {
@@ -118,6 +140,7 @@
     "full_text_url": null,
     "jurisdiction": "Local",
     "county": "Clark",
+    "ocd_division_id": "ocd-division/country:us/state:wa/county:clark",
     "source_url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=&p="
   },
   {
@@ -129,6 +152,7 @@
     "full_text_url": null,
     "jurisdiction": "Local",
     "county": "Douglas; Okanogan",
+    "ocd_division_id": null,
     "source_url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=&p="
   },
   {
@@ -140,6 +164,7 @@
     "full_text_url": null,
     "jurisdiction": "Local",
     "county": "Douglas; Okanogan",
+    "ocd_division_id": null,
     "source_url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=&p="
   },
   {
@@ -151,6 +176,7 @@
     "full_text_url": null,
     "jurisdiction": "Local",
     "county": "Grant",
+    "ocd_division_id": "ocd-division/country:us/state:wa/county:grant",
     "source_url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=&p="
   },
   {
@@ -162,6 +188,7 @@
     "full_text_url": null,
     "jurisdiction": "Local",
     "county": "Grays Harbor",
+    "ocd_division_id": "ocd-division/country:us/state:wa/county:grays_harbor",
     "source_url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=&p="
   },
   {
@@ -173,6 +200,7 @@
     "full_text_url": null,
     "jurisdiction": "Local",
     "county": "Grays Harbor; Mason",
+    "ocd_division_id": null,
     "source_url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=&p="
   },
   {
@@ -184,6 +212,7 @@
     "full_text_url": null,
     "jurisdiction": "Local",
     "county": "Grays Harbor; Pacific",
+    "ocd_division_id": null,
     "source_url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=&p="
   },
   {
@@ -195,6 +224,7 @@
     "full_text_url": null,
     "jurisdiction": "Local",
     "county": "Island; Snohomish",
+    "ocd_division_id": null,
     "source_url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=&p="
   },
   {
@@ -206,6 +236,7 @@
     "full_text_url": null,
     "jurisdiction": "Local",
     "county": "Jefferson",
+    "ocd_division_id": "ocd-division/country:us/state:wa/county:jefferson",
     "source_url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=&p="
   },
   {
@@ -217,6 +248,7 @@
     "full_text_url": null,
     "jurisdiction": "Local",
     "county": "Jefferson",
+    "ocd_division_id": "ocd-division/country:us/state:wa/county:jefferson",
     "source_url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=&p="
   },
   {
@@ -228,6 +260,7 @@
     "full_text_url": null,
     "jurisdiction": "Local",
     "county": "Jefferson",
+    "ocd_division_id": "ocd-division/country:us/state:wa/county:jefferson",
     "source_url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=&p="
   },
   {
@@ -239,6 +272,7 @@
     "full_text_url": null,
     "jurisdiction": "Local",
     "county": "Jefferson",
+    "ocd_division_id": "ocd-division/country:us/state:wa/county:jefferson",
     "source_url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=&p="
   },
   {
@@ -250,6 +284,7 @@
     "full_text_url": null,
     "jurisdiction": "Local",
     "county": "Jefferson",
+    "ocd_division_id": "ocd-division/country:us/state:wa/county:jefferson",
     "source_url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=&p="
   },
   {
@@ -261,6 +296,7 @@
     "full_text_url": null,
     "jurisdiction": "Local",
     "county": "King",
+    "ocd_division_id": "ocd-division/country:us/state:wa/county:king",
     "source_url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=&p="
   },
   {
@@ -272,6 +308,7 @@
     "full_text_url": null,
     "jurisdiction": "Local",
     "county": "King",
+    "ocd_division_id": "ocd-division/country:us/state:wa/county:king",
     "source_url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=&p="
   },
   {
@@ -283,6 +320,7 @@
     "full_text_url": null,
     "jurisdiction": "Local",
     "county": "King",
+    "ocd_division_id": "ocd-division/country:us/state:wa/county:king",
     "source_url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=&p="
   },
   {
@@ -294,6 +332,7 @@
     "full_text_url": null,
     "jurisdiction": "Local",
     "county": "King",
+    "ocd_division_id": "ocd-division/country:us/state:wa/county:king",
     "source_url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=&p="
   },
   {
@@ -305,6 +344,7 @@
     "full_text_url": null,
     "jurisdiction": "Local",
     "county": "King",
+    "ocd_division_id": "ocd-division/country:us/state:wa/county:king",
     "source_url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=&p="
   },
   {
@@ -316,6 +356,7 @@
     "full_text_url": null,
     "jurisdiction": "Local",
     "county": "King",
+    "ocd_division_id": "ocd-division/country:us/state:wa/county:king",
     "source_url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=&p="
   },
   {
@@ -327,6 +368,7 @@
     "full_text_url": null,
     "jurisdiction": "Local",
     "county": "King; Kittitas",
+    "ocd_division_id": null,
     "source_url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=&p="
   },
   {
@@ -338,6 +380,7 @@
     "full_text_url": null,
     "jurisdiction": "Local",
     "county": "Kitsap",
+    "ocd_division_id": "ocd-division/country:us/state:wa/county:kitsap",
     "source_url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=&p="
   },
   {
@@ -349,6 +392,7 @@
     "full_text_url": null,
     "jurisdiction": "Local",
     "county": "Kitsap",
+    "ocd_division_id": "ocd-division/country:us/state:wa/county:kitsap",
     "source_url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=&p="
   },
   {
@@ -360,6 +404,7 @@
     "full_text_url": null,
     "jurisdiction": "Local",
     "county": "Kitsap; Mason",
+    "ocd_division_id": null,
     "source_url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=&p="
   },
   {
@@ -371,6 +416,7 @@
     "full_text_url": null,
     "jurisdiction": "Local",
     "county": "Kittitas",
+    "ocd_division_id": "ocd-division/country:us/state:wa/county:kittitas",
     "source_url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=&p="
   },
   {
@@ -382,6 +428,7 @@
     "full_text_url": null,
     "jurisdiction": "Local",
     "county": "Kittitas",
+    "ocd_division_id": "ocd-division/country:us/state:wa/county:kittitas",
     "source_url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=&p="
   },
   {
@@ -393,6 +440,7 @@
     "full_text_url": null,
     "jurisdiction": "Local",
     "county": "Kittitas",
+    "ocd_division_id": "ocd-division/country:us/state:wa/county:kittitas",
     "source_url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=&p="
   },
   {
@@ -404,6 +452,7 @@
     "full_text_url": null,
     "jurisdiction": "Local",
     "county": "Klickitat",
+    "ocd_division_id": "ocd-division/country:us/state:wa/county:klickitat",
     "source_url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=&p="
   },
   {
@@ -415,6 +464,7 @@
     "full_text_url": null,
     "jurisdiction": "Local",
     "county": "Lewis",
+    "ocd_division_id": "ocd-division/country:us/state:wa/county:lewis",
     "source_url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=&p="
   },
   {
@@ -426,6 +476,7 @@
     "full_text_url": null,
     "jurisdiction": "Local",
     "county": "Lewis",
+    "ocd_division_id": "ocd-division/country:us/state:wa/county:lewis",
     "source_url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=&p="
   },
   {
@@ -437,6 +488,7 @@
     "full_text_url": null,
     "jurisdiction": "Local",
     "county": "Lewis",
+    "ocd_division_id": "ocd-division/country:us/state:wa/county:lewis",
     "source_url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=&p="
   },
   {
@@ -448,6 +500,7 @@
     "full_text_url": null,
     "jurisdiction": "Local",
     "county": "Lincoln",
+    "ocd_division_id": "ocd-division/country:us/state:wa/county:lincoln",
     "source_url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=&p="
   },
   {
@@ -459,6 +512,7 @@
     "full_text_url": null,
     "jurisdiction": "Local",
     "county": "Mason",
+    "ocd_division_id": "ocd-division/country:us/state:wa/county:mason",
     "source_url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=&p="
   },
   {
@@ -470,6 +524,7 @@
     "full_text_url": null,
     "jurisdiction": "Local",
     "county": "Okanogan",
+    "ocd_division_id": "ocd-division/country:us/state:wa/county:okanogan",
     "source_url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=&p="
   },
   {
@@ -481,6 +536,7 @@
     "full_text_url": null,
     "jurisdiction": "Local",
     "county": "Okanogan",
+    "ocd_division_id": "ocd-division/country:us/state:wa/county:okanogan",
     "source_url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=&p="
   },
   {
@@ -492,6 +548,7 @@
     "full_text_url": null,
     "jurisdiction": "Local",
     "county": "Okanogan",
+    "ocd_division_id": "ocd-division/country:us/state:wa/county:okanogan",
     "source_url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=&p="
   },
   {
@@ -503,6 +560,7 @@
     "full_text_url": null,
     "jurisdiction": "Local",
     "county": "Pend Oreille",
+    "ocd_division_id": "ocd-division/country:us/state:wa/county:pend_oreille",
     "source_url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=&p="
   },
   {
@@ -514,6 +572,7 @@
     "full_text_url": null,
     "jurisdiction": "Local",
     "county": "Pierce",
+    "ocd_division_id": "ocd-division/country:us/state:wa/county:pierce",
     "source_url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=&p="
   },
   {
@@ -525,6 +584,7 @@
     "full_text_url": null,
     "jurisdiction": "Local",
     "county": "Pierce",
+    "ocd_division_id": "ocd-division/country:us/state:wa/county:pierce",
     "source_url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=&p="
   },
   {
@@ -536,6 +596,7 @@
     "full_text_url": null,
     "jurisdiction": "Local",
     "county": "Pierce",
+    "ocd_division_id": "ocd-division/country:us/state:wa/county:pierce",
     "source_url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=&p="
   },
   {
@@ -547,6 +608,7 @@
     "full_text_url": null,
     "jurisdiction": "Local",
     "county": "Pierce",
+    "ocd_division_id": "ocd-division/country:us/state:wa/county:pierce",
     "source_url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=&p="
   },
   {
@@ -558,6 +620,7 @@
     "full_text_url": null,
     "jurisdiction": "Local",
     "county": "San Juan",
+    "ocd_division_id": "ocd-division/country:us/state:wa/county:san_juan",
     "source_url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=&p="
   },
   {
@@ -569,6 +632,7 @@
     "full_text_url": null,
     "jurisdiction": "Local",
     "county": "Skagit",
+    "ocd_division_id": "ocd-division/country:us/state:wa/county:skagit",
     "source_url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=&p="
   },
   {
@@ -580,6 +644,7 @@
     "full_text_url": null,
     "jurisdiction": "Local",
     "county": "Skagit; Snohomish",
+    "ocd_division_id": null,
     "source_url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=&p="
   },
   {
@@ -591,6 +656,7 @@
     "full_text_url": null,
     "jurisdiction": "Local",
     "county": "Skagit; Whatcom",
+    "ocd_division_id": null,
     "source_url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=&p="
   },
   {
@@ -602,6 +668,7 @@
     "full_text_url": null,
     "jurisdiction": "Local",
     "county": "Skamania",
+    "ocd_division_id": "ocd-division/country:us/state:wa/county:skamania",
     "source_url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=&p="
   },
   {
@@ -613,6 +680,7 @@
     "full_text_url": null,
     "jurisdiction": "Local",
     "county": "Snohomish",
+    "ocd_division_id": "ocd-division/country:us/state:wa/county:snohomish",
     "source_url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=&p="
   },
   {
@@ -624,6 +692,7 @@
     "full_text_url": null,
     "jurisdiction": "Local",
     "county": "Snohomish",
+    "ocd_division_id": "ocd-division/country:us/state:wa/county:snohomish",
     "source_url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=&p="
   },
   {
@@ -635,6 +704,7 @@
     "full_text_url": null,
     "jurisdiction": "Local",
     "county": "Snohomish",
+    "ocd_division_id": "ocd-division/country:us/state:wa/county:snohomish",
     "source_url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=&p="
   },
   {
@@ -646,6 +716,7 @@
     "full_text_url": null,
     "jurisdiction": "Local",
     "county": "Snohomish",
+    "ocd_division_id": "ocd-division/country:us/state:wa/county:snohomish",
     "source_url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=&p="
   },
   {
@@ -657,6 +728,7 @@
     "full_text_url": null,
     "jurisdiction": "Local",
     "county": "Snohomish",
+    "ocd_division_id": "ocd-division/country:us/state:wa/county:snohomish",
     "source_url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=&p="
   },
   {
@@ -668,6 +740,7 @@
     "full_text_url": null,
     "jurisdiction": "Local",
     "county": "Snohomish",
+    "ocd_division_id": "ocd-division/country:us/state:wa/county:snohomish",
     "source_url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=&p="
   },
   {
@@ -679,6 +752,7 @@
     "full_text_url": null,
     "jurisdiction": "Local",
     "county": "Spokane",
+    "ocd_division_id": "ocd-division/country:us/state:wa/county:spokane",
     "source_url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=&p="
   },
   {
@@ -690,6 +764,7 @@
     "full_text_url": null,
     "jurisdiction": "Local",
     "county": "Spokane",
+    "ocd_division_id": "ocd-division/country:us/state:wa/county:spokane",
     "source_url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=&p="
   },
   {
@@ -701,6 +776,7 @@
     "full_text_url": null,
     "jurisdiction": "Local",
     "county": "Spokane",
+    "ocd_division_id": "ocd-division/country:us/state:wa/county:spokane",
     "source_url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=&p="
   },
   {
@@ -712,6 +788,7 @@
     "full_text_url": null,
     "jurisdiction": "Local",
     "county": "Spokane",
+    "ocd_division_id": "ocd-division/country:us/state:wa/county:spokane",
     "source_url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=&p="
   },
   {
@@ -723,6 +800,7 @@
     "full_text_url": null,
     "jurisdiction": "Local",
     "county": "Spokane; Whitman",
+    "ocd_division_id": null,
     "source_url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=&p="
   },
   {
@@ -734,6 +812,7 @@
     "full_text_url": null,
     "jurisdiction": "Local",
     "county": "Stevens",
+    "ocd_division_id": "ocd-division/country:us/state:wa/county:stevens",
     "source_url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=&p="
   },
   {
@@ -745,6 +824,7 @@
     "full_text_url": null,
     "jurisdiction": "Local",
     "county": "Thurston",
+    "ocd_division_id": "ocd-division/country:us/state:wa/county:thurston",
     "source_url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=&p="
   },
   {
@@ -756,6 +836,7 @@
     "full_text_url": null,
     "jurisdiction": "Local",
     "county": "Thurston",
+    "ocd_division_id": "ocd-division/country:us/state:wa/county:thurston",
     "source_url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=&p="
   },
   {
@@ -767,6 +848,7 @@
     "full_text_url": null,
     "jurisdiction": "Local",
     "county": "Thurston",
+    "ocd_division_id": "ocd-division/country:us/state:wa/county:thurston",
     "source_url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=&p="
   },
   {
@@ -778,6 +860,7 @@
     "full_text_url": null,
     "jurisdiction": "Local",
     "county": "Whatcom",
+    "ocd_division_id": "ocd-division/country:us/state:wa/county:whatcom",
     "source_url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=&p="
   },
   {
@@ -789,6 +872,7 @@
     "full_text_url": null,
     "jurisdiction": "Local",
     "county": "Whatcom",
+    "ocd_division_id": "ocd-division/country:us/state:wa/county:whatcom",
     "source_url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=&p="
   },
   {
@@ -800,6 +884,7 @@
     "full_text_url": null,
     "jurisdiction": "Local",
     "county": "Whatcom",
+    "ocd_division_id": "ocd-division/country:us/state:wa/county:whatcom",
     "source_url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=&p="
   },
   {
@@ -811,6 +896,7 @@
     "full_text_url": null,
     "jurisdiction": "Local",
     "county": "Whitman",
+    "ocd_division_id": "ocd-division/country:us/state:wa/county:whitman",
     "source_url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=&p="
   },
   {
@@ -822,6 +908,7 @@
     "full_text_url": null,
     "jurisdiction": "Local",
     "county": "Whitman",
+    "ocd_division_id": "ocd-division/country:us/state:wa/county:whitman",
     "source_url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=&p="
   },
   {
@@ -833,6 +920,7 @@
     "full_text_url": null,
     "jurisdiction": "Local",
     "county": "Whitman",
+    "ocd_division_id": "ocd-division/country:us/state:wa/county:whitman",
     "source_url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=&p="
   },
   {
@@ -844,6 +932,7 @@
     "full_text_url": null,
     "jurisdiction": "Local",
     "county": "Whitman",
+    "ocd_division_id": "ocd-division/country:us/state:wa/county:whitman",
     "source_url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=&p="
   },
   {
@@ -855,6 +944,7 @@
     "full_text_url": null,
     "jurisdiction": "Local",
     "county": "Yakima",
+    "ocd_division_id": "ocd-division/country:us/state:wa/county:yakima",
     "source_url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=&p="
   }
 ]

@@ -1,3 +1,6 @@
+using System.Globalization;
+using StateBallot.Core.Output;
+
 namespace StateBallot.Core;
 
 /// <summary>
@@ -12,103 +15,132 @@ public sealed class ResultWriter
 
     public void WriteAll(CollectResult result)
     {
-        var electionRows = result.Elections.Select(e => new
-        {
-            state = e.State,
-            election_date = e.ElectionDate.ToString("yyyy-MM-dd"),
-            election_type = e.ElectionType,
-            jurisdiction = e.Jurisdiction,
-            name = e.Name,
-            election_id = e.ElectionId,
-            source_url = e.SourceUrl,
-        }).ToList();
+        var electionRows = result.Elections.Select(ToElectionOut).ToList();
         OutputWriter.WriteJson(Path.Combine(_outDir, "elections.json"), electionRows);
         OutputWriter.WriteCsv(Path.Combine(_outDir, "elections.csv"), electionRows);
 
-        var candidateRows = result.Candidates.Select(c => new
-        {
-            state = c.State,
-            election_date = c.ElectionDate,
-            election_type = c.ElectionType,
-            office = c.Office,
-            district = c.District,
-            county = c.County,
-            candidate_name = c.CandidateName,
-            party = c.Party,
-            incumbent = c.Incumbent,
-            source_candidate_id = c.SourceCandidateId,
-            filing_date = c.FilingDate,
-            email = c.Email,
-            phone = c.Phone,
-            campaign_phone = c.CampaignPhone,
-            website = c.Website,
-            occupation = c.Occupation,
-            mailing_address_line = c.MailingAddressLine,
-            mailing_city = c.MailingCity,
-            mailing_state = c.MailingState,
-            mailing_zip = c.MailingZip,
-            residential_city = c.ResidentialCity,
-            residential_county = c.ResidentialCounty,
-            source_url = c.SourceUrl,
-        }).ToList();
+        var candidateRows = result.Candidates.Select(ToCandidateOut).ToList();
         OutputWriter.WriteJson(Path.Combine(_outDir, "candidates.json"), candidateRows);
         OutputWriter.WriteCsv(Path.Combine(_outDir, "candidates.csv"), candidateRows);
 
-        var measureRows = result.StatewideProposedMeasures.Concat(result.Measures).Select(m => new
-        {
-            state = m.State,
-            election_date = m.ElectionDate,
-            measure_id = m.MeasureId,
-            title = m.Title,
-            summary = m.Summary,
-            full_text_url = m.FullTextUrl,
-            jurisdiction = m.Jurisdiction,
-            county = m.County,
-            source_url = m.SourceUrl,
-        }).ToList();
+        var measureRows = result.StatewideProposedMeasures.Concat(result.Measures)
+            .Select(ToMeasureOut).ToList();
         OutputWriter.WriteJson(Path.Combine(_outDir, "measures.json"), measureRows);
         OutputWriter.WriteCsv(Path.Combine(_outDir, "measures.csv"), measureRows);
 
-        var directoryRows = result.CountyDirectory.Select(d => new
-        {
-            state = d.State,
-            county_name = d.CountyName,
-            county_fips = d.CountyFips,
-            elections_office_url = d.ElectionsOfficeUrl,
-            address = d.Address,
-            phone = d.Phone,
-        }).ToList();
+        var directoryRows = result.CountyDirectory.Select(ToDirectoryOut).ToList();
         OutputWriter.WriteJson(Path.Combine(_outDir, "county_directory.json"), directoryRows);
 
-        OutputWriter.WriteJson(Path.Combine(_outDir, "county_ballots.json"), result.CountyBallots.Select(b => new
-        {
-            state = b.State,
-            county = b.CountyName,
-            election_date = b.ElectionDate,
-            election_type = b.ElectionType,
-            candidates = b.Candidates.Select(c => new
-            {
-                office = c.Office,
-                district = c.District,
-                candidate_name = c.CandidateName,
-                party = c.Party,
-            }),
-            measures = b.Measures.Select(m => new
-            {
-                measure_id = m.MeasureId,
-                title = m.Title,
-                summary = m.Summary,
-                jurisdiction = m.Jurisdiction,
-            }),
-            source_url = b.SourceUrl,
-        }).ToList());
+        var ballotRows = result.CountyBallots.Select(ToBallotOut).ToList();
+        OutputWriter.WriteJson(Path.Combine(_outDir, "county_ballots.json"), ballotRows);
 
-        // Flat CSV: one row per candidate or measure per county ballot.
-        var flatBallotRows = result.CountyBallots.SelectMany(b =>
-            b.Candidates.Select(c => new CountyBallotCsvRow
+        var flatBallotRows = result.CountyBallots.SelectMany(FlattenBallot).ToList();
+        OutputWriter.WriteCsv(Path.Combine(_outDir, "county_ballots.csv"), flatBallotRows);
+
+        OutputWriter.WriteJson(Path.Combine(_outDir, "sources.json"), result.Sources.ToJsonObject(result.Gaps));
+    }
+
+    public static ElectionOut ToElectionOut(Election e) => new()
+    {
+        State = e.State,
+        ElectionDate = e.ElectionDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+        ElectionType = e.ElectionType,
+        Jurisdiction = e.Jurisdiction,
+        OcdDivisionId = OcdDivisionId.ForElection(e.State, e.Jurisdiction, e.Name),
+        Name = e.Name,
+        ElectionId = e.ElectionId,
+        SourceUrl = e.SourceUrl,
+    };
+
+    public static CandidateOut ToCandidateOut(CandidateRow c) => new()
+    {
+        State = c.State,
+        ElectionDate = c.ElectionDate,
+        ElectionType = c.ElectionType,
+        Office = c.Office,
+        District = c.District,
+        County = c.County,
+        OcdDivisionId = OcdDivisionId.ForCandidate(c.State, c.Office, c.District, c.County),
+        CandidateName = c.CandidateName,
+        Party = c.Party,
+        Incumbent = c.Incumbent,
+        SourceUrl = c.SourceUrl,
+        SourceCandidateId = c.SourceCandidateId,
+        FilingDate = c.FilingDate,
+        Email = c.Email,
+        Phone = c.Phone,
+        CampaignPhone = c.CampaignPhone,
+        Website = c.Website,
+        Occupation = c.Occupation,
+        MailingAddressLine = c.MailingAddressLine,
+        MailingCity = c.MailingCity,
+        MailingState = c.MailingState,
+        MailingZip = c.MailingZip,
+        ResidentialCity = c.ResidentialCity,
+        ResidentialCounty = c.ResidentialCounty,
+    };
+
+    public static MeasureOut ToMeasureOut(MeasureRow m) => new()
+    {
+        State = m.State,
+        ElectionDate = m.ElectionDate,
+        MeasureId = m.MeasureId,
+        Title = m.Title,
+        Summary = m.Summary,
+        FullTextUrl = m.FullTextUrl,
+        Jurisdiction = m.Jurisdiction,
+        County = m.County,
+        OcdDivisionId = OcdDivisionId.ForMeasure(m.State, m.Jurisdiction, m.County),
+        SourceUrl = m.SourceUrl,
+    };
+
+    public static CountyDirectoryOut ToDirectoryOut(CountyDirectoryRow d) => new()
+    {
+        State = d.State,
+        CountyName = d.CountyName,
+        CountyFips = d.CountyFips,
+        OcdDivisionId = OcdDivisionId.ForCounty(d.State, d.CountyName),
+        ElectionsOfficeUrl = d.ElectionsOfficeUrl,
+        Address = d.Address,
+        Phone = d.Phone,
+    };
+
+    public static CountyBallotOut ToBallotOut(CountyBallot b) => new()
+    {
+        State = b.State,
+        County = b.CountyName,
+        OcdDivisionId = OcdDivisionId.ForCounty(b.State, b.CountyName),
+        ElectionDate = b.ElectionDate,
+        ElectionType = b.ElectionType,
+        Candidates = b.Candidates.Select(c => new CountyBallotCandidateOut
+        {
+            Office = c.Office,
+            District = c.District,
+            OcdDivisionId = OcdDivisionId.ForCandidate(c.State, c.Office, c.District, c.County),
+            CandidateName = c.CandidateName,
+            Party = c.Party,
+        }).ToList(),
+        Measures = b.Measures.Select(m => new CountyBallotMeasureOut
+        {
+            MeasureId = m.MeasureId,
+            Title = m.Title,
+            Summary = m.Summary,
+            Jurisdiction = m.Jurisdiction,
+            OcdDivisionId = OcdDivisionId.ForMeasure(m.State, m.Jurisdiction, m.County),
+        }).ToList(),
+        SourceUrl = b.SourceUrl,
+    };
+
+    private static IEnumerable<CountyBallotCsvOut> FlattenBallot(CountyBallot b)
+    {
+        foreach (var c in b.Candidates)
+        {
+            yield return new CountyBallotCsvOut
             {
                 State = b.State,
                 County = b.CountyName,
+                OcdDivisionId = OcdDivisionId.ForCandidate(c.State, c.Office, c.District, c.County)
+                               ?? OcdDivisionId.ForCounty(b.State, b.CountyName),
                 ElectionDate = b.ElectionDate,
                 ElectionType = b.ElectionType,
                 EntryType = "candidate",
@@ -117,40 +149,24 @@ public sealed class ResultWriter
                 CandidateName = c.CandidateName,
                 Party = c.Party,
                 SourceUrl = b.SourceUrl,
-            }).Concat(b.Measures.Select(m => new CountyBallotCsvRow
+            };
+        }
+
+        foreach (var m in b.Measures)
+        {
+            yield return new CountyBallotCsvOut
             {
                 State = b.State,
                 County = b.CountyName,
+                OcdDivisionId = OcdDivisionId.ForMeasure(m.State, m.Jurisdiction, m.County)
+                               ?? OcdDivisionId.ForCounty(b.State, b.CountyName),
                 ElectionDate = b.ElectionDate,
                 ElectionType = b.ElectionType,
                 EntryType = "measure",
                 MeasureId = m.MeasureId,
                 Title = m.Title,
                 SourceUrl = b.SourceUrl,
-            }))).ToList();
-        OutputWriter.WriteCsv(Path.Combine(_outDir, "county_ballots.csv"), flatBallotRows);
-
-        var sources = new Dictionary<string, object?>(result.SourceGroups)
-        {
-            ["gaps"] = result.Gaps,
-            ["next_run"] = result.NextRun,
-        };
-        OutputWriter.WriteJson(Path.Combine(_outDir, "sources.json"), sources);
+            };
+        }
     }
-}
-
-public sealed class CountyBallotCsvRow
-{
-    public string State { get; set; } = "";
-    public string County { get; set; } = "";
-    public string ElectionDate { get; set; } = "";
-    public string ElectionType { get; set; } = "";
-    public string EntryType { get; set; } = "";
-    public string? Office { get; set; }
-    public string? District { get; set; }
-    public string? CandidateName { get; set; }
-    public string? Party { get; set; }
-    public string? MeasureId { get; set; }
-    public string? Title { get; set; }
-    public string SourceUrl { get; set; } = "";
 }

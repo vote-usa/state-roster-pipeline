@@ -1,0 +1,308 @@
+{
+  "AL": {
+    "name": "Alabama",
+    "fips": "01",
+    "status": "unimplemented",
+    "project": null
+  },
+  "AK": {
+    "name": "Alaska",
+    "fips": "02",
+    "status": "unimplemented",
+    "project": null
+  },
+  "AZ": {
+    "name": "Arizona",
+    "fips": "04",
+    "status": "unimplemented",
+    "project": null
+  },
+  "AR": {
+    "name": "Arkansas",
+    "fips": "05",
+    "status": "unimplemented",
+    "project": null
+  },
+  "CA": {
+    "name": "California",
+    "fips": "06",
+    "status": "implemented",
+    "project": "StateBallot.States.Ca"
+  },
+  "CO": {
+    "name": "Colorado",
+    "fips": "08",
+    "status": "unimplemented",
+    "project": null
+  },
+  "CT": {
+    "name": "Connecticut",
+    "fips": "09",
+    "status": "unimplemented",
+    "project": null
+  },
+  "DE": {
+    "name": "Delaware",
+    "fips": "10",
+    "status": "unimplemented",
+    "project": null
+  },
+  "DC": {
+    "name": "District of Columbia",
+    "fips": "11",
+    "status": "unimplemented",
+    "project": null
+  },
+  "FL": {
+    "name": "Florida",
+    "fips": "12",
+    "status": "unimplemented",
+    "project": null
+  },
+  "GA": {
+    "name": "Georgia",
+    "fips": "13",
+    "status": "unimplemented",
+    "project": null
+  },
+  "HI": {
+    "name": "Hawaii",
+    "fips": "15",
+    "status": "unimplemented",
+    "project": null
+  },
+  "ID": {
+    "name": "Idaho",
+    "fips": "16",
+    "status": "unimplemented",
+    "project": null
+  },
+  "IL": {
+    "name": "Illinois",
+    "fips": "17",
+    "status": "unimplemented",
+    "project": null
+  },
+  "IN": {
+    "name": "Indiana",
+    "fips": "18",
+    "status": "unimplemented",
+    "project": null
+  },
+  "IA": {
+    "name": "Iowa",
+    "fips": "19",
+    "status": "unimplemented",
+    "project": null
+  },
+  "KS": {
+    "name": "Kansas",
+    "fips": "20",
+    "status": "unimplemented",
+    "project": null
+  },
+  "KY": {
+    "name": "Kentucky",
+    "fips": "21",
+    "status": "unimplemented",
+    "project": null
+  },
+  "LA": {
+    "name": "Louisiana",
+    "fips": "22",
+    "status": "unimplemented",
+    "project": null
+  },
+  "ME": {
+    "name": "Maine",
+    "fips": "23",
+    "status": "unimplemented",
+    "project": null
+  },
+  "MD": {
+    "name": "Maryland",
+    "fips": "24",
+    "status": "unimplemented",
+    "project": null
+  },
+  "MA": {
+    "name": "Massachusetts",
+    "fips": "25",
+    "status": "unimplemented",
+    "project": null
+  },
+  "MI": {
+    "name": "Michigan",
+    "fips": "26",
+    "status": "unimplemented",
+    "project": null
+  },
+  "MN": {
+    "name": "Minnesota",
+    "fips": "27",
+    "status": "unimplemented",
+    "project": null
+  },
+  "MS": {
+    "name": "Mississippi",
+    "fips": "28",
+    "status": "unimplemented",
+    "project": null
+  },
+  "MO": {
+    "name": "Missouri",
+    "fips": "29",
+    "status": "unimplemented",
+    "project": null
+  },
+  "MT": {
+    "name": "Montana",
+    "fips": "30",
+    "status": "unimplemented",
+    "project": null
+  },
+  "NE": {
+    "name": "Nebraska",
+    "fips": "31",
+    "status": "unimplemented",
+    "project": null
+  },
+  "NV": {
+    "name": "Nevada",
+    "fips": "32",
+    "status": "unimplemented",
+    "project": null
+  },
+  "NH": {
+    "name": "New Hampshire",
+    "fips": "33",
+    "status": "unimplemented",
+    "project": null
+  },
+  "NJ": {
+    "name": "New Jersey",
+    "fips": "34",
+    "status": "unimplemented",
+    "project": null
+  },
+  "NM": {
+    "name": "New Mexico",
+    "fips": "35",
+    "status": "unimplemented",
+    "project": null
+  },
+  "NY": {
+    "name": "New York",
+    "fips": "36",
+    "status": "unimplemented",
+    "project": null
+  },
+  "NC": {
+    "name": "North Carolina",
+    "fips": "37",
+    "status": "unimplemented",
+    "project": null
+  },
+  "ND": {
+    "name": "North Dakota",
+    "fips": "38",
+    "status": "unimplemented",
+    "project": null
+  },
+  "OH": {
+    "name": "Ohio",
+    "fips": "39",
+    "status": "unimplemented",
+    "project": null
+  },
+  "OK": {
+    "name": "Oklahoma",
+    "fips": "40",
+    "status": "unimplemented",
+    "project": null
+  },
+  "OR": {
+    "name": "Oregon",
+    "fips": "41",
+    "status": "unimplemented",
+    "project": null
+  },
+  "PA": {
+    "name": "Pennsylvania",
+    "fips": "42",
+    "status": "unimplemented",
+    "project": null
+  },
+  "RI": {
+    "name": "Rhode Island",
+    "fips": "44",
+    "status": "unimplemented",
+    "project": null
+  },
+  "SC": {
+    "name": "South Carolina",
+    "fips": "45",
+    "status": "unimplemented",
+    "project": null
+  },
+  "SD": {
+    "name": "South Dakota",
+    "fips": "46",
+    "status": "unimplemented",
+    "project": null
+  },
+  "TN": {
+    "name": "Tennessee",
+    "fips": "47",
+    "status": "unimplemented",
+    "project": null
+  },
+  "TX": {
+    "name": "Texas",
+    "fips": "48",
+    "status": "implemented",
+    "project": "StateBallot.States.Tx"
+  },
+  "UT": {
+    "name": "Utah",
+    "fips": "49",
+    "status": "unimplemented",
+    "project": null
+  },
+  "VT": {
+    "name": "Vermont",
+    "fips": "50",
+    "status": "unimplemented",
+    "project": null
+  },
+  "VA": {
+    "name": "Virginia",
+    "fips": "51",
+    "status": "unimplemented",
+    "project": null
+  },
+  "WA": {
+    "name": "Washington",
+    "fips": "53",
+    "status": "implemented",
+    "project": "StateBallot.States.Wa"
+  },
+  "WV": {
+    "name": "West Virginia",
+    "fips": "54",
+    "status": "implemented",
+    "project": "StateBallot.States.Wv"
+  },
+  "WI": {
+    "name": "Wisconsin",
+    "fips": "55",
+    "status": "unimplemented",
+    "project": null
+  },
+  "WY": {
+    "name": "Wyoming",
+    "fips": "56",
+    "status": "unimplemented",
+    "project": null
+  }
+}

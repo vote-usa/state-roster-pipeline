@@ -17,12 +17,6 @@
       "format": "html"
     }
   ],
-  "local_measures": [
-    {
-      "url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=&p=",
-      "format": "json"
-    }
-  ],
   "county_directory": [
     {
       "url": "https://www.sos.wa.gov/elections/voters/voter-registration/county-elections-offices",
@@ -30,6 +24,27 @@
     },
     {
       "url": "data/wa/county_fips.json (U.S. Census county FIPS codes)",
+      "format": "json"
+    }
+  ],
+  "verification_only": [
+    {
+      "url": "https://ballotpedia.org/Washington_elections,_2026",
+      "format": "html"
+    }
+  ],
+  "gaps": [
+    "GENERAL 2026 (2026-11-03): VoteWA voters' guide is not published yet (candidates/measures are certified closer to the election). Re-run later to fill in this election."
+  ],
+  "next_run": {
+    "recommended_after": "2026-08-21",
+    "reason": "GENERAL 2026 (2026-11-03) ballot data is not published yet. Washington certifies the PRIMARY 2026 results and statewide measures about 17 days after election day, after which the VoteWA general-election guide and certified candidate list are populated.",
+    "next_election_date": "2026-11-03",
+    "next_election_type": "General"
+  },
+  "local_measures": [
+    {
+      "url": "https://voter.votewa.gov/elections/voterguide.ashx?e=898&la=en&c=&p=",
       "format": "json"
     }
   ],
@@ -268,20 +283,5 @@
         "format": "json"
       }
     ]
-  },
-  "verification_only": [
-    {
-      "url": "https://ballotpedia.org/Washington_elections,_2026",
-      "format": "html"
-    }
-  ],
-  "gaps": [
-    "GENERAL 2026 (2026-11-03): VoteWA voters' guide is not published yet (candidates/measures are certified closer to the election). Re-run later to fill in this election."
-  ],
-  "next_run": {
-    "recommended_after": "2026-08-21",
-    "reason": "GENERAL 2026 (2026-11-03) ballot data is not published yet. Washington certifies the PRIMARY 2026 results and statewide measures about 17 days after election day, after which the VoteWA general-election guide and certified candidate list are populated.",
-    "next_election_date": "2026-11-03",
-    "next_election_type": "General"
   }
 }

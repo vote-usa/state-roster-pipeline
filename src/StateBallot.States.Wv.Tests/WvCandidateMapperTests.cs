@@ -32,7 +32,7 @@ public class WvCandidateMapperTests
     }
 
     [Fact]
-    public void ToCandidateData_UsesBallotNameWhenPresent()
+    public void ToCandidateRow_UsesBallotNameWhenPresent()
     {
         var election = WvCandidateMapper.ToElection(new WestVirginiaCandidate { ElectionId = 1, ElectionDate = "2026-05-12" });
         var candidate = new WestVirginiaCandidate
@@ -47,7 +47,7 @@ public class WvCandidateMapperTests
             CandidatePhoneNumber = "304-555-0100",
         };
 
-        var data = WvCandidateMapper.ToCandidateData(candidate, election, "https://example.com");
+        var data = WvCandidateMapper.ToCandidateRow(candidate, election, "https://example.com");
 
         Assert.Equal("JANE Q. PUBLIC", data.CandidateName);
         Assert.Equal("Democrat", data.Party);
@@ -57,7 +57,7 @@ public class WvCandidateMapperTests
     }
 
     [Fact]
-    public void ToCandidateData_FallsBackToNameParts_WhenNoBallotName()
+    public void ToCandidateRow_FallsBackToNameParts_WhenNoBallotName()
     {
         var election = WvCandidateMapper.ToElection(new WestVirginiaCandidate { ElectionId = 1, ElectionDate = "2026-05-12" });
         var candidate = new WestVirginiaCandidate
@@ -67,7 +67,7 @@ public class WvCandidateMapperTests
             CandidateLastName = "Public",
         };
 
-        var data = WvCandidateMapper.ToCandidateData(candidate, election, "https://example.com");
+        var data = WvCandidateMapper.ToCandidateRow(candidate, election, "https://example.com");
 
         Assert.Equal("Jane Q. Public", data.CandidateName);
     }

@@ -3,10 +3,12 @@ using StateBallot.Core;
 namespace StateBallot.States.Tx;
 
 /// <summary>Texas state collector, backed by the CivixApps CBP API.</summary>
+[StateCode("TX")]
 public sealed class TxCollector : IStateCollector
 {
     private readonly HttpFetcher _fetcher;
     private readonly TxSourceConfig _config;
+    private readonly IPublishSchedule _schedule;
     private readonly int _year;
 
     public string StateCode => "TX";
@@ -19,6 +21,7 @@ public sealed class TxCollector : IStateCollector
         _fetcher = fetcher;
         _year = year;
         _config = config ?? new TxSourceConfig();
+        _schedule = new TxPublishSchedule();
 
         // Stamps Cloudflare-spoofing headers onto the fetcher for every request it
         // makes from now on - assumes one HttpFetcher per single-state run (true today
@@ -43,13 +46,8 @@ public sealed class TxCollector : IStateCollector
                 $"No elections found for {_year} via getElectionsByYear. " +
                 "If this is early in the year the API may not list the year's elections yet.");
 
-        var today = DateOnly.FromDateTime(DateTime.UtcNow.Date);
-        var targetElections = rawElections
-            .Select(TxCandidateMapper.ToElection)
-            .Where(e => _year != today.Year || e.ElectionDate >= today)
-            .OrderBy(e => e.ElectionDate)
-            .ThenBy(e => e.ElectionId, StringComparer.Ordinal)
-            .ToList();
+        var mappedElections = rawElections.Select(TxCandidateMapper.ToElection);
+        var targetElections = ElectionFilters.ForTargetYear(mappedElections, _year);
 
         var result = new CollectResult();
 
@@ -59,11 +57,10 @@ public sealed class TxCollector : IStateCollector
             // today - not a broken source, nothing to fail loudly about.
             result.Gaps.Add(
                 $"All {rawElections.Count} election(s) listed for {_year} have already passed as of " +
-                $"{today:yyyy-MM-dd}; nothing upcoming to collect this run.");
+                $"{DateOnly.FromDateTime(DateTime.UtcNow.Date):yyyy-MM-dd}; nothing upcoming to collect this run.");
         }
 
-        foreach (var election in targetElections)
-            result.Elections.Add(election);
+        result.Elections.AddRange(targetElections);
 
         // Nothing to attempt when there are no target elections - don't treat that
         // as a fetch failure (that's the case just handled above via Gaps).
@@ -84,7 +81,7 @@ public sealed class TxCollector : IStateCollector
 
             var deduped = Deduplicator.RemoveDuplicates(rawCandidates, TxCandidateMapper.DeduplicationKey);
             foreach (var candidate in deduped)
-                result.Candidates.Add(TxCandidateMapper.ToCandidateData(candidate, election, _config.CandidatesUrl));
+                result.Candidates.Add(TxCandidateMapper.ToCandidateRow(candidate, election, _config.CandidatesUrl));
 
             anyCandidates = true;
         }
@@ -94,59 +91,17 @@ public sealed class TxCollector : IStateCollector
                 "Every upcoming election returned zero candidates; refusing to write hollow outputs. " +
                 "Check https://goelect.txelections.civixapps.com manually.");
 
-        result.Candidates.Sort(CompareCandidates);
+        CollectResultSorter.Sort(result);
         BuildSourcesManifest(result);
         return result;
     }
 
-    private static int CompareCandidates(CandidateData a, CandidateData b)
-    {
-        var c = string.CompareOrdinal(a.ElectionDate, b.ElectionDate);
-        if (c != 0) return c;
-        c = string.CompareOrdinal(a.Office, b.Office);
-        return c != 0 ? c : string.CompareOrdinal(a.CandidateName, b.CandidateName);
-    }
-
     private void BuildSourcesManifest(CollectResult result)
     {
-        result.SourceGroups["elections"] = new[]
-        {
-            new { url = _config.ElectionsUrl(_year), format = "json" },
-        };
-        result.SourceGroups["statewide_candidates"] = new[]
-        {
-            new { url = _config.CandidatesUrl, format = "json (POST)" },
-        };
-        result.SourceGroups["verification_only"] = new[]
-        {
-            new { url = "https://ballotpedia.org/Texas_elections," + _year, format = "html" },
-        };
-
-        if (result.PendingElections.Count > 0)
-        {
-            result.NextRun = new
-            {
-                recommended_after = DateTime.UtcNow.Date.AddDays(7).ToString("yyyy-MM-dd"),
-                reason = $"{result.PendingElections.Count} election(s) had no candidates yet as of this run; " +
-                         "candidate filing periods are typically still open. Re-run in about a week.",
-            };
-        }
-        else if (result.Elections.Count == 0)
-        {
-            result.NextRun = new
-            {
-                recommended_after = $"{_year + 1}-01-01",
-                reason = $"All elections listed for {_year} have already passed; nothing was collected this run. " +
-                         $"Re-run once {_year + 1} elections are listed.",
-            };
-        }
-        else
-        {
-            result.NextRun = new
-            {
-                recommended_after = $"{_year + 1}-01-01",
-                reason = $"All {_year} elections collected. Re-run once {_year + 1} elections are listed.",
-            };
-        }
+        var sources = result.Sources;
+        sources.Elections = [new SourceEntry(_config.ElectionsUrl(_year), "json")];
+        sources.StatewideCandidates = [new SourceEntry(_config.CandidatesUrl, "json (POST)")];
+        sources.VerificationOnly = [new SourceEntry("https://ballotpedia.org/Texas_elections," + _year, "html")];
+        sources.NextRun = _schedule.Recommend(result, _year);
     }
 }
