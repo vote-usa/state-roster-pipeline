@@ -1,0 +1,42 @@
+[
+  {
+    "state": "CA",
+    "election_date": "2026-08-04",
+    "election_type": "Special",
+    "jurisdiction": "Sutter County",
+    "ocd_division_id": "ocd-division/country:us/state:ca/county:sutter",
+    "name": "Sutter County - Special Fire (CSA-F) Election",
+    "election_id": "sutter-2026-08-04",
+    "source_url": "https://www.sos.ca.gov/elections/upcoming-elections/county-administered-elections"
+  },
+  {
+    "state": "CA",
+    "election_date": "2026-08-18",
+    "election_type": "Special General",
+    "jurisdiction": "Congressional District 14",
+    "ocd_division_id": "ocd-division/country:us/state:ca/cd:14",
+    "name": "Congressional District 14, Special General Election - August 18, 2026",
+    "election_id": "2026-cd14",
+    "source_url": "https://www.sos.ca.gov/elections/upcoming-elections/2026-cd14"
+  },
+  {
+    "state": "CA",
+    "election_date": "2026-08-25",
+    "election_type": "Special",
+    "jurisdiction": "Marin County",
+    "ocd_division_id": "ocd-division/country:us/state:ca/county:marin",
+    "name": "Marin County - Special Election",
+    "election_id": "marin-2026-08-25",
+    "source_url": "https://www.sos.ca.gov/elections/upcoming-elections/county-administered-elections"
+  },
+  {
+    "state": "CA",
+    "election_date": "2026-11-03",
+    "election_type": "General",
+    "jurisdiction": "state",
+    "ocd_division_id": "ocd-division/country:us/state:ca",
+    "name": "General Election - November 3, 2026",
+    "election_id": "general-election-november-3-2026",
+    "source_url": "https://www.sos.ca.gov/elections/upcoming-elections/general-election-november-3-2026"
+  }
+]

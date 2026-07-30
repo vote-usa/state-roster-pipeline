@@ -3,6 +3,7 @@ using StateBallot.Core;
 namespace StateBallot.States.Wa;
 
 /// <summary>Washington state collector, backed by VoteWA and sos.wa.gov.</summary>
+[StateCode("WA")]
 public sealed class WaCollector : IStateCollector
 {
     private static readonly string[] StatewideCategoryNames =
@@ -10,6 +11,7 @@ public sealed class WaCollector : IStateCollector
 
     private readonly HttpFetcher _fetcher;
     private readonly WaSourceConfig _config;
+    private readonly IPublishSchedule _schedule;
     private readonly int _year;
     private readonly string _stateDataDir;
 
@@ -22,6 +24,7 @@ public sealed class WaCollector : IStateCollector
         _year = year;
         _stateDataDir = stateDataDir;
         _config = config ?? new WaSourceConfig();
+        _schedule = new WaPublishSchedule();
     }
 
     public async Task<CollectResult> CollectAsync()
@@ -32,15 +35,7 @@ public sealed class WaCollector : IStateCollector
         var (allElections, countyCodes) = await electionScraper.FetchAsync();
         Console.WriteLine($"  Elections listed on VoteWA: {allElections.Count}; counties: {countyCodes.Count}");
 
-        // "Upcoming" = today or later within the target year. When back-filling a
-        // different year, take the whole year.
-        var today = DateOnly.FromDateTime(DateTime.UtcNow.Date);
-        var targetElections = allElections
-            .Where(e => e.ElectionDate.Year == _year)
-            .Where(e => _year != today.Year || e.ElectionDate >= today)
-            .OrderBy(e => e.ElectionDate)
-            .ThenBy(e => e.ElectionId, StringComparer.Ordinal)
-            .ToList();
+        var targetElections = ElectionFilters.ForTargetYear(allElections, _year);
 
         if (targetElections.Count == 0)
             throw new InvalidOperationException(
@@ -48,11 +43,8 @@ public sealed class WaCollector : IStateCollector
                 "If this is early in the year the dropdown may not list the year's elections yet.");
 
         var result = new CollectResult { CountyCodes = countyCodes };
-        foreach (var election in targetElections)
-        {
-            election.State = StateCode;
-            result.Elections.Add(election);
-        }
+        RowHelpers.StampState(targetElections, StateCode);
+        result.Elections.AddRange(targetElections);
 
         var guideClient = new VoterGuideClient(_fetcher, _config);
         var anyGuideData = false;
@@ -123,7 +115,7 @@ public sealed class WaCollector : IStateCollector
         {
             foreach (var measure in await measuresScraper.FetchAsync(_year))
             {
-                measure.State = StateCode;
+                RowHelpers.StampState(measure, StateCode);
                 result.StatewideProposedMeasures.Add(measure);
             }
         }
@@ -134,13 +126,11 @@ public sealed class WaCollector : IStateCollector
 
         var directoryScraper = new CountyDirectoryScraper(_fetcher, _config);
         var fipsPath = Path.Combine(_stateDataDir, "county_fips.json");
-        foreach (var row in await directoryScraper.FetchAsync(countyCodes.Values.ToList(), fipsPath))
-        {
-            row.State = StateCode;
-            result.CountyDirectory.Add(row);
-        }
+        var directory = await directoryScraper.FetchAsync(countyCodes.Values.ToList(), fipsPath);
+        RowHelpers.StampState(directory, StateCode);
+        result.CountyDirectory.AddRange(directory);
 
-        SortForDeterminism(result);
+        CollectResultSorter.Sort(result);
         BuildSourcesManifest(result);
         return result;
     }
@@ -169,8 +159,8 @@ public sealed class WaCollector : IStateCollector
             }
         }
 
-        ballot.Candidates.Sort(CompareCandidates);
-        ballot.Measures.Sort(CompareMeasures);
+        ballot.Candidates.Sort(CollectResultSorter.CompareCandidates);
+        ballot.Measures.Sort(CollectResultSorter.CompareMeasures);
         return ballot;
     }
 
@@ -211,113 +201,36 @@ public sealed class WaCollector : IStateCollector
         return null;
     }
 
-    private static void SortForDeterminism(CollectResult result)
-    {
-        result.Candidates.Sort(CompareCandidates);
-        result.Measures.Sort(CompareMeasures);
-        result.CountyBallots.Sort((a, b) =>
-        {
-            var c = string.CompareOrdinal(a.CountyName, b.CountyName);
-            return c != 0 ? c : string.CompareOrdinal(a.ElectionDate, b.ElectionDate);
-        });
-    }
-
-    private static int CompareCandidates(CandidateRow a, CandidateRow b)
-    {
-        var c = string.CompareOrdinal(a.ElectionDate, b.ElectionDate);
-        if (c != 0) return c;
-        c = string.CompareOrdinal(a.District ?? "", b.District ?? "");
-        if (c != 0) return c;
-        c = string.CompareOrdinal(a.Office, b.Office);
-        if (c != 0) return c;
-        return string.CompareOrdinal(a.CandidateName, b.CandidateName);
-    }
-
-    private static int CompareMeasures(MeasureRow a, MeasureRow b)
-    {
-        var c = string.CompareOrdinal(a.ElectionDate ?? "", b.ElectionDate ?? "");
-        if (c != 0) return c;
-        c = string.CompareOrdinal(a.County ?? "", b.County ?? "");
-        if (c != 0) return c;
-        return string.CompareOrdinal(a.MeasureId, b.MeasureId);
-    }
-
     private void BuildSourcesManifest(CollectResult result)
     {
         var publishedElections = result.Elections
             .Where(e => result.PendingElections.All(p => p.ElectionId != e.ElectionId))
             .ToList();
 
-        result.SourceGroups["elections"] = new[]
-        {
-            new { url = _config.CandidateListUrl, format = "html" },
-        };
-        result.SourceGroups["statewide_candidates"] = publishedElections
-            .Select(e => new { url = _config.VoterGuideUrl(e.ElectionId), format = "json" })
-            .ToArray();
-        result.SourceGroups["statewide_measures"] = new[]
-        {
-            new { url = _config.StatewideMeasuresUrl, format = "html" },
-        };
-        result.SourceGroups["local_measures"] = publishedElections
-            .Select(e => new { url = _config.VoterGuideUrl(e.ElectionId), format = "json" })
-            .ToArray();
-        result.SourceGroups["county_directory"] = new object[]
-        {
-            new { url = _config.CountyElectionsOfficesUrl, format = "html" },
-            new { url = "data/wa/county_fips.json (U.S. Census county FIPS codes)", format = "json" },
-        };
-        result.SourceGroups["county_ballots"] = result.CountyCodes.ToDictionary(
+        var sources = result.Sources;
+        sources.Elections = [new SourceEntry(_config.CandidateListUrl, "html")];
+        sources.StatewideCandidates = publishedElections
+            .Select(e => new SourceEntry(_config.VoterGuideUrl(e.ElectionId), "json"))
+            .ToList();
+        sources.StatewideMeasures = [new SourceEntry(_config.StatewideMeasuresUrl, "html")];
+        sources.LocalMeasures = publishedElections
+            .Select(e => new SourceEntry(_config.VoterGuideUrl(e.ElectionId), "json"))
+            .ToList();
+        sources.CountyDirectory =
+        [
+            new SourceEntry(_config.CountyElectionsOfficesUrl, "html"),
+            new SourceEntry("data/wa/county_fips.json (U.S. Census county FIPS codes)", "json"),
+        ];
+        sources.CountyBallots = result.CountyCodes.ToDictionary(
             kv => kv.Value,
             kv => publishedElections
-                .Select(e => new { url = _config.VoterGuideUrl(e.ElectionId, kv.Key), format = "json" })
-                .ToArray());
-        result.SourceGroups["verification_only"] = new[]
-        {
-            new { url = "https://ballotpedia.org/Washington_elections,_" + _year, format = "html" },
-        };
-
-        result.NextRun = ComputeNextRun(result);
-    }
-
-    private object ComputeNextRun(CollectResult result)
-    {
-        // Washington certifies primary results and statewide measures roughly two and
-        // a half weeks after the primary (RCW 29A.60.190/240); the online voters'
-        // guide for the general is populated once that happens.
-        if (result.PendingElections.Count > 0)
-        {
-            var earliestPending = result.PendingElections.MinBy(e => e.ElectionDate)!;
-            var lastPublished = result.Elections
-                .Where(e => result.PendingElections.All(p => p.ElectionId != e.ElectionId))
-                .Where(e => e.ElectionDate < earliestPending.ElectionDate)
-                .MaxBy(e => e.ElectionDate);
-
-            var recommendedAfter = lastPublished is not null
-                ? lastPublished.ElectionDate.AddDays(17)
-                : earliestPending.ElectionDate.AddDays(-45);
-
-            return new
-            {
-                recommended_after = recommendedAfter.ToString("yyyy-MM-dd"),
-                reason = lastPublished is not null
-                    ? $"{earliestPending.Name} ({earliestPending.ElectionDate:yyyy-MM-dd}) ballot data is not published yet. " +
-                      $"Washington certifies the {lastPublished.Name} results and statewide measures about 17 days after election day, " +
-                      "after which the VoteWA general-election guide and certified candidate list are populated."
-                    : $"{earliestPending.Name} ballot data is typically published about 45 days before election day.",
-                next_election_date = earliestPending.ElectionDate.ToString("yyyy-MM-dd"),
-                next_election_type = earliestPending.ElectionType,
-            };
-        }
-
-        var nextYear = _year + 1;
-        return new
-        {
-            recommended_after = $"{nextYear}-05-20",
-            reason = $"All {_year} elections collected. Washington's {nextYear} candidate filing week ends in mid-May; " +
-                     "the VoteWA candidate list is populated within days of filing week closing.",
-            next_election_date = (string?)null,
-            next_election_type = (string?)null,
-        };
+                .Select(e => new SourceEntry(_config.VoterGuideUrl(e.ElectionId, kv.Key), "json"))
+                .ToList(),
+            StringComparer.Ordinal);
+        sources.VerificationOnly =
+        [
+            new SourceEntry("https://ballotpedia.org/Washington_elections,_" + _year, "html"),
+        ];
+        sources.NextRun = _schedule.Recommend(result, _year);
     }
 }

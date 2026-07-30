@@ -23,14 +23,8 @@ public sealed class CollectResult
     /// <summary>Elections whose ballot data is not yet published by the source.</summary>
     public List<Election> PendingElections { get; init; } = new();
 
-    /// <summary>
-    /// Provenance manifest entries for sources.json: data group name => URL/format
-    /// descriptors. Populated by the state collector.
-    /// </summary>
-    public Dictionary<string, object?> SourceGroups { get; init; } = new();
-
-    /// <summary>Machine-readable re-run recommendation for sources.json.</summary>
-    public object? NextRun { get; set; }
+    /// <summary>Typed provenance written to sources.json.</summary>
+    public SourcesManifest Sources { get; set; } = new();
 
     public void PrintSummary(TextWriter writer)
     {
