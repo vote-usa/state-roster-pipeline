@@ -93,6 +93,10 @@ Notes on semantics:
 
 - `county` is null for statewide/federal/legislative/judicial rows; local races that
   span counties list all counties joined with `"; "`.
+- `ocd_division_id` is an [Open Civic Data](https://github.com/opencivicdata/ocd-division-ids)
+  division identifier derived from state/office/district/county/jurisdiction (e.g.
+  `ocd-division/country:us/state:ca/cd:14`). Null when the row's jurisdiction cannot
+  be mapped confidently (underspecified local elections).
 - `incumbent` is null where the source does not publish incumbency (VoteWA does not).
 - `party` reflects Washington's candidate-stated party preference (e.g. "Democratic
   Party", "GOP Party", "No Party Preference"); judicial and most local offices are

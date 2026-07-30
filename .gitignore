@@ -21,6 +21,7 @@
 bld/
 [Bb]in/
 [Oo]bj/
+logs/
 
 # Ignore bin and obj folders at any depth
 **/[Bb]in/
@@ -144,7 +145,7 @@ publish/
 *.[Pp]ublish.xml
 *.azurePubxml
 
-# TODO: Un-comment the next line if you do not want to checkin 
+# TODO: Un-comment the next line if you do not want to checkin
 # your web deploy settings because they may include unencrypted
 # passwords
 #*.pubxml

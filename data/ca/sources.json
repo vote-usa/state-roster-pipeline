@@ -47,7 +47,8 @@
   ],
   "gaps": [
     "General Election - November 3, 2026 (2026-11-03): certified candidate list is not posted yet at https://elections.cdn.sos.ca.gov/statewide-elections/2026-general/cert-list-candidates.pdf. California posts it 68 days before election day (2026-08-27); re-run after that.",
-    "Marin County - Special Election (2026-08-25): the SoS lists this county-administered election but does not publish its ballot content; see the county elections office site at https://www.marincounty.gov/departments/elections."
+    "Marin County - Special Election (2026-08-25): the SoS lists this county-administered election but does not publish its ballot content; see the county elections office site at https://www.marincounty.gov/departments/elections.",
+    "Sutter County - Special Fire (CSA-F) Election (2026-08-04): the SoS lists this county-administered election but does not publish its ballot content; see the county elections office site at http://www.co.sutter.ca.us/doc/government/depts/cr/elections/cr_elections_home."
   ],
   "next_run": {
     "recommended_after": "2026-08-28",

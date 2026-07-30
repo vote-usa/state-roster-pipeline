@@ -8,6 +8,7 @@
     "full_text_url": "https://elections.cdn.sos.ca.gov/ballot-measures/pdf/sb-417.pdf",
     "jurisdiction": "state",
     "county": null,
+    "ocd_division_id": "ocd-division/country:us/state:ca",
     "source_url": "https://www.sos.ca.gov/elections/ballot-measures/qualified-ballot-measures"
   },
   {
@@ -19,6 +20,7 @@
     "full_text_url": "https://elections.cdn.sos.ca.gov/ballot-measures/pdf/aca-20.pdf",
     "jurisdiction": "state",
     "county": null,
+    "ocd_division_id": "ocd-division/country:us/state:ca",
     "source_url": "https://www.sos.ca.gov/elections/ballot-measures/qualified-ballot-measures"
   },
   {
@@ -30,6 +32,7 @@
     "full_text_url": "https://oag.ca.gov/system/files/initiatives/pdfs/25-0016%20%28%26quot%3BThe%20California%20Children%26%23039%3Bs%20Education%20and%20Health%20Care%20Protection%20Act%20of%202026%26quot%3B%29.pdf",
     "jurisdiction": "state",
     "county": null,
+    "ocd_division_id": "ocd-division/country:us/state:ca",
     "source_url": "https://www.sos.ca.gov/elections/ballot-measures/qualified-ballot-measures"
   },
   {
@@ -41,6 +44,7 @@
     "full_text_url": "https://elections.cdn.sos.ca.gov/ballot-measures/pdf/sb-42.pdf",
     "jurisdiction": "state",
     "county": null,
+    "ocd_division_id": "ocd-division/country:us/state:ca",
     "source_url": "https://www.sos.ca.gov/elections/ballot-measures/qualified-ballot-measures"
   },
   {
@@ -52,6 +56,7 @@
     "full_text_url": "https://elections.cdn.sos.ca.gov/ballot-measures/pdf/sca-1-24.pdf",
     "jurisdiction": "state",
     "county": null,
+    "ocd_division_id": "ocd-division/country:us/state:ca",
     "source_url": "https://www.sos.ca.gov/elections/ballot-measures/qualified-ballot-measures"
   },
   {
@@ -63,6 +68,7 @@
     "full_text_url": "https://oag.ca.gov/system/files/initiatives/pdfs/25-0013A1%20%28%26quot%3BCalifornia%20Middle-Class%20Homeownership%20and%20Family%20Home%20Construction%20Act%20of%202026%26quot%3B%29_0.pdf",
     "jurisdiction": "state",
     "county": null,
+    "ocd_division_id": "ocd-division/country:us/state:ca",
     "source_url": "https://www.sos.ca.gov/elections/ballot-measures/qualified-ballot-measures"
   },
   {
@@ -74,6 +80,7 @@
     "full_text_url": "https://oag.ca.gov/system/files/initiatives/pdfs/25-0026A1%20%28Immunology%29.pdf",
     "jurisdiction": "state",
     "county": null,
+    "ocd_division_id": "ocd-division/country:us/state:ca",
     "source_url": "https://www.sos.ca.gov/elections/ballot-measures/qualified-ballot-measures"
   },
   {
@@ -85,6 +92,7 @@
     "full_text_url": "https://oag.ca.gov/system/files/initiatives/pdfs/25-0007A1%20%28%28Voter%20ID%29%29.pdf",
     "jurisdiction": "state",
     "county": null,
+    "ocd_division_id": "ocd-division/country:us/state:ca",
     "source_url": "https://www.sos.ca.gov/elections/ballot-measures/qualified-ballot-measures"
   },
   {
@@ -96,6 +104,7 @@
     "full_text_url": "https://oag.ca.gov/system/files/initiatives/pdfs/25-0024A1%20%28Billionaire%20Tax%20%29.pdf",
     "jurisdiction": "state",
     "county": null,
+    "ocd_division_id": "ocd-division/country:us/state:ca",
     "source_url": "https://www.sos.ca.gov/elections/ballot-measures/qualified-ballot-measures"
   },
   {
@@ -107,6 +116,7 @@
     "full_text_url": "https://oag.ca.gov/system/files/initiatives/pdfs/25-0040A1%20%28Gov.%20Efficiency%29.pdf",
     "jurisdiction": "state",
     "county": null,
+    "ocd_division_id": "ocd-division/country:us/state:ca",
     "source_url": "https://www.sos.ca.gov/elections/ballot-measures/qualified-ballot-measures"
   },
   {
@@ -118,6 +128,7 @@
     "full_text_url": "https://oag.ca.gov/system/files/initiatives/pdfs/25-0041A1%20%28Retirement%20Protection%20%29.pdf",
     "jurisdiction": "state",
     "county": null,
+    "ocd_division_id": "ocd-division/country:us/state:ca",
     "source_url": "https://www.sos.ca.gov/elections/ballot-measures/qualified-ballot-measures"
   },
   {
@@ -129,6 +140,7 @@
     "full_text_url": "https://elections.cdn.sos.ca.gov/ballot-measures/pdf/aca-22.pdf",
     "jurisdiction": "state",
     "county": null,
+    "ocd_division_id": "ocd-division/country:us/state:ca",
     "source_url": "https://www.sos.ca.gov/elections/ballot-measures/qualified-ballot-measures"
   },
   {
@@ -140,6 +152,7 @@
     "full_text_url": "https://oag.ca.gov/system/files/initiatives/pdfs/25-0008A1%20%28%26quot%3BClinic%20Funding%20Accountability%20and%20Transparency%20Act%26quot%3B%29.pdf",
     "jurisdiction": "state",
     "county": null,
+    "ocd_division_id": "ocd-division/country:us/state:ca",
     "source_url": "https://www.sos.ca.gov/elections/ballot-measures/qualified-ballot-measures"
   },
   {
@@ -151,6 +164,7 @@
     "full_text_url": "https://oag.ca.gov/system/files/initiatives/pdfs/25-0023A1%20%28%26quot%3BEssential%20Projects%26quot%3B%29.pdf",
     "jurisdiction": "state",
     "county": null,
+    "ocd_division_id": "ocd-division/country:us/state:ca",
     "source_url": "https://www.sos.ca.gov/elections/ballot-measures/qualified-ballot-measures"
   }
 ]

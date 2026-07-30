@@ -18,6 +18,7 @@ public sealed class ResultWriter
             election_date = e.ElectionDate.ToString("yyyy-MM-dd"),
             election_type = e.ElectionType,
             jurisdiction = e.Jurisdiction,
+            ocd_division_id = OcdDivisionId.ForElection(e.State, e.Jurisdiction, e.Name),
             name = e.Name,
             election_id = e.ElectionId,
             source_url = e.SourceUrl,
@@ -33,6 +34,7 @@ public sealed class ResultWriter
             office = c.Office,
             district = c.District,
             county = c.County,
+            ocd_division_id = OcdDivisionId.ForCandidate(c.State, c.Office, c.District, c.County),
             candidate_name = c.CandidateName,
             party = c.Party,
             incumbent = c.Incumbent,
@@ -51,6 +53,7 @@ public sealed class ResultWriter
             full_text_url = m.FullTextUrl,
             jurisdiction = m.Jurisdiction,
             county = m.County,
+            ocd_division_id = OcdDivisionId.ForMeasure(m.State, m.Jurisdiction, m.County),
             source_url = m.SourceUrl,
         }).ToList();
         OutputWriter.WriteJson(Path.Combine(_outDir, "measures.json"), measureRows);
@@ -61,6 +64,7 @@ public sealed class ResultWriter
             state = d.State,
             county_name = d.CountyName,
             county_fips = d.CountyFips,
+            ocd_division_id = OcdDivisionId.ForCounty(d.State, d.CountyName),
             elections_office_url = d.ElectionsOfficeUrl,
             address = d.Address,
             phone = d.Phone,
@@ -71,12 +75,14 @@ public sealed class ResultWriter
         {
             state = b.State,
             county = b.CountyName,
+            ocd_division_id = OcdDivisionId.ForCounty(b.State, b.CountyName),
             election_date = b.ElectionDate,
             election_type = b.ElectionType,
             candidates = b.Candidates.Select(c => new
             {
                 office = c.Office,
                 district = c.District,
+                ocd_division_id = OcdDivisionId.ForCandidate(c.State, c.Office, c.District, c.County),
                 candidate_name = c.CandidateName,
                 party = c.Party,
             }),
@@ -86,6 +92,7 @@ public sealed class ResultWriter
                 title = m.Title,
                 summary = m.Summary,
                 jurisdiction = m.Jurisdiction,
+                ocd_division_id = OcdDivisionId.ForMeasure(m.State, m.Jurisdiction, m.County),
             }),
             source_url = b.SourceUrl,
         }).ToList());
@@ -96,6 +103,8 @@ public sealed class ResultWriter
             {
                 State = b.State,
                 County = b.CountyName,
+                OcdDivisionId = OcdDivisionId.ForCandidate(c.State, c.Office, c.District, c.County)
+                               ?? OcdDivisionId.ForCounty(b.State, b.CountyName),
                 ElectionDate = b.ElectionDate,
                 ElectionType = b.ElectionType,
                 EntryType = "candidate",
@@ -108,6 +117,8 @@ public sealed class ResultWriter
             {
                 State = b.State,
                 County = b.CountyName,
+                OcdDivisionId = OcdDivisionId.ForMeasure(m.State, m.Jurisdiction, m.County)
+                               ?? OcdDivisionId.ForCounty(b.State, b.CountyName),
                 ElectionDate = b.ElectionDate,
                 ElectionType = b.ElectionType,
                 EntryType = "measure",
@@ -130,6 +141,7 @@ public sealed class CountyBallotCsvRow
 {
     public string State { get; set; } = "";
     public string County { get; set; } = "";
+    public string? OcdDivisionId { get; set; }
     public string ElectionDate { get; set; } = "";
     public string ElectionType { get; set; } = "";
     public string EntryType { get; set; } = "";
