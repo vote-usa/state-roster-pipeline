@@ -1,3 +1,0 @@
-state,election_date,election_type,office,district,county,ocd_division_id,candidate_name,party,incumbent,source_url
-CA,2026-08-18,Special General,United States Representative,14,,ocd-division/country:us/state:ca/cd:14,Aisha Wahab,Democratic,,https://elections.cdn.sos.ca.gov/special-elections/2026-cd14/cert-list-general.pdf
-CA,2026-08-18,Special General,United States Representative,14,,ocd-division/country:us/state:ca/cd:14,Melissa Hernandez,Democratic,,https://elections.cdn.sos.ca.gov/special-elections/2026-cd14/cert-list-general.pdf

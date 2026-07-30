@@ -17,7 +17,7 @@ public sealed class WaCollector : IStateCollector
 
     public string StateCode => "WA";
 
-    /// <param name="stateDataDir">Per-state data directory holding county_fips.json.</param>
+    /// <param name="stateDataDir">Per-state output directory (data/output/&lt;xx&gt;/). Inputs are under data/input/&lt;xx&gt;/.</param>
     public WaCollector(HttpFetcher fetcher, int year, string stateDataDir, WaSourceConfig? config = null)
     {
         _fetcher = fetcher;
@@ -138,7 +138,8 @@ public sealed class WaCollector : IStateCollector
         }
 
         var directoryScraper = new CountyDirectoryScraper(_fetcher, _config);
-        var fipsPath = Path.Combine(_stateDataDir, "county_fips.json");
+        var (dataRoot, _) = DataPaths.FromStateOutputDir(_stateDataDir);
+        var fipsPath = DataPaths.CountyFipsPath(dataRoot, StateCode);
         var directory = await directoryScraper.FetchAsync(countyCodes.Values.ToList(), fipsPath);
         RowHelpers.StampState(directory, StateCode);
         result.CountyDirectory.AddRange(directory);
@@ -232,7 +233,7 @@ public sealed class WaCollector : IStateCollector
         sources.CountyDirectory =
         [
             new SourceEntry(_config.CountyElectionsOfficesUrl, "html"),
-            new SourceEntry("data/wa/county_fips.json (U.S. Census county FIPS codes)", "json"),
+            new SourceEntry("data/input/wa/county_fips.json (U.S. Census county FIPS codes)", "json"),
         ];
         sources.CountyBallots = result.CountyCodes.ToDictionary(
             kv => kv.Value,

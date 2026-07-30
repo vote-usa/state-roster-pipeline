@@ -1,5 +1,0 @@
-state,election_date,election_type,jurisdiction,ocd_division_id,name,election_id,source_url
-CA,2026-08-04,Special,Sutter County,ocd-division/country:us/state:ca/county:sutter,Sutter County - Special Fire (CSA-F) Election,sutter-2026-08-04,https://www.sos.ca.gov/elections/upcoming-elections/county-administered-elections
-CA,2026-08-18,Special General,Congressional District 14,ocd-division/country:us/state:ca/cd:14,"Congressional District 14, Special General Election - August 18, 2026",2026-cd14,https://www.sos.ca.gov/elections/upcoming-elections/2026-cd14
-CA,2026-08-25,Special,Marin County,ocd-division/country:us/state:ca/county:marin,Marin County - Special Election,marin-2026-08-25,https://www.sos.ca.gov/elections/upcoming-elections/county-administered-elections
-CA,2026-11-03,General,state,ocd-division/country:us/state:ca,"General Election - November 3, 2026",general-election-november-3-2026,https://www.sos.ca.gov/elections/upcoming-elections/general-election-november-3-2026

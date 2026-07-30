@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 
 namespace StateBallot.Core;
 
-/// <summary>One entry in data/state_catalog.json.</summary>
+/// <summary>One entry in data/input/state_catalog.json.</summary>
 public sealed class StateCatalogEntry
 {
     public string Name { get; set; } = "";
@@ -48,9 +48,9 @@ public sealed class StateCatalog
         return new StateCatalog(raw);
     }
 
-    /// <summary>Walks up from a start directory to find data/state_catalog.json.</summary>
+    /// <summary>Walks up from a start directory to find data/input/state_catalog.json.</summary>
     public static StateCatalog LoadFromDataRoot(string dataRoot) =>
-        Load(Path.Combine(dataRoot, "state_catalog.json"));
+        Load(DataPaths.StateCatalogPath(dataRoot));
 
     public bool TryGet(string stateCode, out StateCatalogEntry entry) =>
         _entries.TryGetValue(stateCode, out entry!);

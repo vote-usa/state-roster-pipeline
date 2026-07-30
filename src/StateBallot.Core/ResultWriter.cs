@@ -10,8 +10,26 @@ namespace StateBallot.Core;
 public sealed class ResultWriter
 {
     private readonly string _outDir;
+    private readonly string _sourcesPath;
 
-    public ResultWriter(string outDir) => _outDir = outDir;
+    /// <param name="outDir">Per-state output directory (data/output/&lt;xx&gt;/).</param>
+    /// <param name="sourcesPath">
+    /// Path for sources.json. Defaults to data/input/&lt;xx&gt;/sources.json when
+    /// <paramref name="outDir"/> is data/output/&lt;xx&gt;/.
+    /// </param>
+    public ResultWriter(string outDir, string? sourcesPath = null)
+    {
+        _outDir = outDir;
+        if (sourcesPath is not null)
+        {
+            _sourcesPath = sourcesPath;
+        }
+        else
+        {
+            var (dataRoot, stateCode) = DataPaths.FromStateOutputDir(outDir);
+            _sourcesPath = DataPaths.SourcesPath(dataRoot, stateCode);
+        }
+    }
 
     public void WriteAll(CollectResult result)
     {
@@ -37,7 +55,7 @@ public sealed class ResultWriter
         var flatBallotRows = result.CountyBallots.SelectMany(FlattenBallot).ToList();
         OutputWriter.WriteCsv(Path.Combine(_outDir, "county_ballots.csv"), flatBallotRows);
 
-        OutputWriter.WriteJson(Path.Combine(_outDir, "sources.json"), result.Sources.ToJsonObject(result.Gaps));
+        OutputWriter.WriteJson(_sourcesPath, result.Sources.ToJsonObject(result.Gaps));
     }
 
     public static ElectionOut ToElectionOut(Election e) => new()

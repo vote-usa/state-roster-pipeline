@@ -44,7 +44,8 @@ public static class Runner
                         Options:
                           --state <XX>    Two-letter state code (default: WA; implemented: {ImplementedStates()})
                           --year <yyyy>   Target election year (default: current UTC year)
-                          --out <dir>     Output root; per-state files go in <dir>/<state> (default: data/)
+                          --out <dir>     Data root; roster files go in <dir>/output/<state>,
+                                          inputs expected under <dir>/input/ (default: data/)
                           --dry-run       Fetch sources and report counts without writing files
                         """);
                     return 0;
@@ -74,7 +75,7 @@ public static class Runner
         if (!catalog.TryGet(state, out var entry))
         {
             Console.Error.WriteLine(
-                $"State '{state}' is not in data/state_catalog.json. Known codes: {string.Join(", ", catalog.Codes.Order())}.");
+                $"State '{state}' is not in data/input/state_catalog.json. Known codes: {string.Join(", ", catalog.Codes.Order())}.");
             return 2;
         }
 
@@ -97,10 +98,11 @@ public static class Runner
             return 2;
         }
 
-        var stateDataDir = Path.Combine(dataRoot, state.ToLowerInvariant());
+        var stateOutputDir = DataPaths.StateOutputDir(dataRoot, state);
 
         using var fetcher = new HttpFetcher();
-        var collector = factory(fetcher, year, stateDataDir);
+        // Collectors receive the output dir; they resolve input paths via DataPaths.
+        var collector = factory(fetcher, year, stateOutputDir);
         var result = await collector.CollectAsync();
 
         result.PrintSummary(Console.Out);
@@ -111,8 +113,9 @@ public static class Runner
             return 0;
         }
 
-        new ResultWriter(stateDataDir).WriteAll(result);
-        Console.WriteLine($"\nOutputs written to {Path.GetFullPath(stateDataDir)}");
+        new ResultWriter(stateOutputDir, DataPaths.SourcesPath(dataRoot, state)).WriteAll(result);
+        Console.WriteLine($"\nOutputs written to {Path.GetFullPath(stateOutputDir)}");
+        Console.WriteLine($"Sources written to {Path.GetFullPath(DataPaths.SourcesPath(dataRoot, state))}");
         return 0;
     }
 

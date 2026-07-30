@@ -27,7 +27,7 @@
       "format": "html"
     },
     {
-      "url": "data/ca/county_fips.json (U.S. Census county FIPS codes)",
+      "url": "data/input/ca/county_fips.json (U.S. Census county FIPS codes)",
       "format": "json"
     }
   ],
