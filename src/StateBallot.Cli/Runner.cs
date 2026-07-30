@@ -6,19 +6,13 @@ namespace StateBallot.Cli;
 
 public static class Runner
 {
-    /// <summary>
-    /// Registry of implemented states. To add a state, implement IStateCollector
-    /// in a StateBallot.States.<Xx> project and register its factory here.
-    /// </summary>
-    private static readonly Dictionary<string, Func<HttpFetcher, int, string, IStateCollector>> StateCollectors =
-        new(StringComparer.OrdinalIgnoreCase)
-        {
-            ["CA"] = (fetcher, year, stateDataDir) => new CaCollector(fetcher, year, stateDataDir),
-            ["WA"] = (fetcher, year, stateDataDir) => new WaCollector(fetcher, year, stateDataDir),
-        };
+    // Keep project references rooted so state assemblies copy to the output directory.
+    private static readonly Type[] RootedCollectors = [typeof(CaCollector), typeof(WaCollector)];
 
     public static async Task<int> RunAsync(string[] args)
     {
+        _ = RootedCollectors;
+
         var state = "WA";
         int year = DateTime.UtcNow.Year;
         string? outRoot = null;
@@ -47,7 +41,7 @@ public static class Runner
                         Options:
                           --state <XX>    Two-letter state code (default: WA; implemented: {ImplementedStates()})
                           --year <yyyy>   Target election year (default: current UTC year)
-                          --out <dir>     Output root; per-state files go in <dir>/<state> (default: StateBallot/data)
+                          --out <dir>     Output root; per-state files go in <dir>/<state> (default: data/)
                           --dry-run       Fetch sources and report counts without writing files
                         """);
                     return 0;
@@ -57,14 +51,50 @@ public static class Runner
             }
         }
 
-        if (!StateCollectors.TryGetValue(state, out var factory))
+        var dataRoot = outRoot ?? FindDataRoot();
+        StateCatalog catalog;
+        try
+        {
+            catalog = StateCatalog.LoadFromDataRoot(dataRoot);
+        }
+        catch (InvalidOperationException ex)
+        {
+            var repoData = FindDataRoot();
+            if (repoData == dataRoot)
+            {
+                Console.Error.WriteLine(ex.Message);
+                return 2;
+            }
+            catalog = StateCatalog.LoadFromDataRoot(repoData);
+        }
+
+        if (!catalog.TryGet(state, out var entry))
         {
             Console.Error.WriteLine(
-                $"State '{state}' is not implemented yet. Implemented states: {ImplementedStates()}");
+                $"State '{state}' is not in data/state_catalog.json. Known codes: {string.Join(", ", catalog.Codes.Order())}.");
             return 2;
         }
 
-        var stateDataDir = Path.Combine(outRoot ?? FindDataRoot(), state.ToLowerInvariant());
+        if (!StateCatalog.IsImplemented(entry.Status))
+        {
+            Console.Error.WriteLine(
+                $"State '{state}' ({entry.Name}) is in the catalog but not implemented yet. " +
+                $"Implemented: {string.Join(", ", catalog.ImplementedCodes.Order())}. " +
+                "See logs/adding-a-state.md.");
+            return 2;
+        }
+
+        var collectors = CollectorDiscovery.Discover();
+        if (!collectors.TryGetValue(state, out var factory))
+        {
+            Console.Error.WriteLine(
+                $"State '{state}' is marked implemented in the catalog but no [StateCode(\"{state}\")] " +
+                "collector was discovered. Ensure the state project is referenced by the Cli and its DLL " +
+                "is copied to the output directory.");
+            return 2;
+        }
+
+        var stateDataDir = Path.Combine(dataRoot, state.ToLowerInvariant());
 
         using var fetcher = new HttpFetcher();
         var collector = factory(fetcher, year, stateDataDir);
@@ -83,9 +113,10 @@ public static class Runner
         return 0;
     }
 
-    private static string ImplementedStates() => string.Join(", ", StateCollectors.Keys.Order());
+    private static string ImplementedStates() =>
+        string.Join(", ", CollectorDiscovery.Discover().Keys.Order());
 
-    /// <summary>Walks up from the executable to the StateBallot root (has src/ and data/ side by side).</summary>
+    /// <summary>Walks up from the executable to the repo root (has src/ and data/ side by side).</summary>
     private static string FindDataRoot()
     {
         for (var d = new DirectoryInfo(AppContext.BaseDirectory); d is not null; d = d.Parent)

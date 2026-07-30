@@ -1,5 +1,4 @@
 using System.Globalization;
-using System.Text.RegularExpressions;
 using AngleSharp.Html.Parser;
 using StateBallot.Core;
 
@@ -13,12 +12,6 @@ namespace StateBallot.States.Ca;
 /// </summary>
 public sealed class SpecialElectionPageScraper
 {
-    private static readonly Regex SectionDate =
-        new(@"(?<date>[A-Z][a-z]+ \d{1,2}, \d{4})", RegexOptions.Compiled);
-
-    private static readonly Regex CertifiedListLinkText =
-        new(@"Certified List of Candidates", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-
     private readonly HttpFetcher _fetcher;
 
     public SpecialElectionPageScraper(HttpFetcher fetcher) => _fetcher = fetcher;
@@ -34,7 +27,7 @@ public sealed class SpecialElectionPageScraper
         {
             if (element.LocalName == "h2")
             {
-                var match = SectionDate.Match(element.TextContent);
+                var match = CaSelectors.SpecialElectionSectionDate.Match(element.TextContent);
                 if (match.Success && DateOnly.TryParseExact(match.Groups["date"].Value, "MMMM d, yyyy",
                         CultureInfo.InvariantCulture, DateTimeStyles.None, out var date))
                     currentSectionDate = date;
@@ -42,7 +35,7 @@ public sealed class SpecialElectionPageScraper
             }
 
             if (currentSectionDate == electionDate &&
-                CertifiedListLinkText.IsMatch(element.TextContent) &&
+                CaSelectors.CertifiedListLinkText.IsMatch(element.TextContent) &&
                 element.GetAttribute("href") is { } href &&
                 href.Contains(".pdf", StringComparison.OrdinalIgnoreCase))
             {

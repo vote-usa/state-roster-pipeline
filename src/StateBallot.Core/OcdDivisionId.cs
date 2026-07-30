@@ -159,14 +159,19 @@ public static partial class OcdDivisionId
 
     private static bool IsStateSenate(string officeKey) =>
         officeKey.Contains("state senator", StringComparison.Ordinal) ||
-        officeKey.Contains("state senate", StringComparison.Ordinal);
+        officeKey.Contains("state senate", StringComparison.Ordinal) ||
+        (officeKey.Contains("senator", StringComparison.Ordinal) &&
+         !officeKey.Contains("united states", StringComparison.Ordinal) &&
+         !officeKey.Contains("u s ", StringComparison.Ordinal) &&
+         !officeKey.Contains("us ", StringComparison.Ordinal));
 
     private static bool IsStateHouse(string officeKey) =>
         officeKey.Contains("state assembly", StringComparison.Ordinal) ||
         officeKey.Contains("member of the state assembly", StringComparison.Ordinal) ||
         officeKey.Contains("member of the assembly", StringComparison.Ordinal) ||
         officeKey.Contains("assemblymember", StringComparison.Ordinal) ||
-        officeKey.Contains("assembly member", StringComparison.Ordinal);
+        officeKey.Contains("assembly member", StringComparison.Ordinal) ||
+        officeKey.Contains("state representative", StringComparison.Ordinal);
 
     private static bool IsStatewideOffice(string officeKey)
     {

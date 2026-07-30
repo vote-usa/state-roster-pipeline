@@ -12,13 +12,13 @@ Currently implemented:
 ```
 state-roster-pipeline/
   src/
-    StateBallot.Core/        # state-agnostic: models, CollectResult, IStateCollector,
-                             # HttpFetcher, JSON/CSV writers, sources.json writer
-    StateBallot.States.{State}/   # scrapers, selectors, source config, collector
-    StateBallot.Cli/         # argument parsing + state registry
+    StateBallot.Core/        # models, output DTOs, catalog, discovery, filters/sort,
+                             # HttpFetcher, ResultWriter, OcdDivisionId
+    StateBallot.States.{Xx}/ # scrapers, selectors, source config, collector, schedule
+    StateBallot.Cli/         # args + catalog/discovery runner
   data/
-    wa/                      # per-state inputs (county_fips.json) and outputs
-    etc...
+    state_catalog.json       # all 50 states + DC (implemented | unimplemented)
+    ca/ wa/ …                # per-state county_fips.json + outputs
 ```
 
 ## Usage
@@ -36,24 +36,21 @@ Requires .NET 8 SDK. Projects are also included in the root `state-roster-pipeli
 
 ## Adding a state
 
-1. Create `StateBallot.States.<Xx>` (classlib, net8.0) referencing `StateBallot.Core`.
-2. Implement `IStateCollector`: fetch elections, candidates, measures, the county
-   directory, and per-county ballots from that state's official sources, fill
-   `CollectResult` (including `SourceGroups` provenance and `NextRun`), and follow the
-   conventions below.
-3. Add a `data/<xx>/county_fips.json` (county name => FIPS) and any other data files.
-4. Register the collector in the `StateCollectors` dictionary in
-   `StateBallot.Cli/Runner.cs`.
+1. Flip the state to `implemented` in [`data/state_catalog.json`](data/state_catalog.json).
+2. Create `StateBallot.States.<Xx>` with scrapers, `[StateCode("XX")]` collector,
+   and `IPublishSchedule`; reference it from the Cli project (discovery finds it).
+3. Add `data/<xx>/county_fips.json`.
+4. Use Core helpers (`ElectionFilters`, `CollectResultSorter`, `SourcesManifest`,
+   `RowHelpers`) — do not copy WA/CA private methods.
 
 Conventions every state collector must follow:
 
-- Target year is a parameter, never hardcoded; "upcoming" means election date >= today
-  in the target year (a non-current `--year` collects the whole year, for back-fills).
+- Target year is a parameter, never hardcoded; use `ElectionFilters` for "upcoming".
 - County lists come from data files or the state's site at runtime, not code.
 - CSS selectors/regexes centralized in one `Selectors` class; URLs in one config class.
 - Fail loudly (naming URL + selector) when a page yields zero rows; never write empty
   outputs silently. Data not yet published is recorded in `CollectResult.Gaps`.
-- Outputs deterministic: stable sorts, stable key order, so re-runs are idempotent.
+- Outputs deterministic via `CollectResultSorter.Sort`.
 - Ballotpedia is never a data source (verification only).
 - Unknown values are null - never invented.
 

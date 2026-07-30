@@ -31,14 +31,6 @@
       "format": "json"
     }
   ],
-  "county_ballots": {
-    "Alameda": [
-      {
-        "url": "https://www.sos.ca.gov/elections/upcoming-elections/county-administered-elections",
-        "format": "html"
-      }
-    ]
-  },
   "verification_only": [
     {
       "url": "https://ballotpedia.org/California_elections,_2026",
@@ -55,5 +47,13 @@
     "reason": "General Election - November 3, 2026 candidate list is not posted yet. California's Secretary of State certifies the list of candidates 68 days before election day (Elections Code s. 8148), i.e. by 2026-08-27 for this election.",
     "next_election_date": "2026-11-03",
     "next_election_type": "General"
+  },
+  "county_ballots": {
+    "Alameda": [
+      {
+        "url": "https://www.sos.ca.gov/elections/upcoming-elections/county-administered-elections",
+        "format": "html"
+      }
+    ]
   }
 }

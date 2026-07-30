@@ -46,6 +46,14 @@ public static class CaSelectors
     public static readonly Regex PhoneLine =
         new(@"^\(?\d{3}\)?[ .-]?\d{3}[ .-]?\d{4}", RegexOptions.Compiled);
 
+    // --- special-election detail pages (e.g. /elections/upcoming-elections/2026-cd14) ---
+    /// <summary>Date embedded in a round heading, e.g. "Special General Election, August 18, 2026".</summary>
+    public static readonly Regex SpecialElectionSectionDate =
+        new(@"(?<date>[A-Z][a-z]+ \d{1,2}, \d{4})", RegexOptions.Compiled);
+
+    public static readonly Regex CertifiedListLinkText =
+        new(@"Certified List of Candidates", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
     // --- certified list of candidates PDF ---
     /// <summary>Per-page header/footer lines to skip when parsing candidate pages.</summary>
     public static readonly Regex CertListSkipLine = new(
