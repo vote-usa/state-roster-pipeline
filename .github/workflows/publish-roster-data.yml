@@ -1,0 +1,120 @@
+name: Publish roster data
+
+on:
+  workflow_dispatch:
+    inputs:
+      year:
+        description: Election year
+        required: true
+        default: "2026"
+      states:
+        description: Space-separated state codes
+        required: true
+        default: "CA WA"
+      push:
+        description: Push commit to vote-usa/state-roster-data
+        type: boolean
+        default: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout pipeline
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Checkout state-roster-data
+        id: data_checkout
+        continue-on-error: true
+        uses: actions/checkout@v4
+        with:
+          repository: vote-usa/state-roster-data
+          path: state-roster-data
+          token: ${{ secrets.ROSTER_DATA_TOKEN || github.token }}
+
+      - name: Init empty data repo if checkout failed
+        if: steps.data_checkout.outcome != 'success'
+        run: |
+          set -euo pipefail
+          rm -rf state-roster-data
+          mkdir state-roster-data
+          git -C state-roster-data init -b main
+          git -C state-roster-data remote add origin \
+            "https://x-access-token:${TOKEN}@github.com/vote-usa/state-roster-data.git"
+        env:
+          TOKEN: ${{ secrets.ROSTER_DATA_TOKEN || github.token }}
+
+      - name: Collect into data repo
+        env:
+          YEAR: ${{ inputs.year }}
+          STATES: ${{ inputs.states }}
+        run: |
+          set -euo pipefail
+          for state in $STATES; do
+            dotnet run --project src/StateBallot.Cli -- \
+              --state "$state" \
+              --year "$YEAR" \
+              --input-root "$GITHUB_WORKSPACE/data" \
+              --output-root "$GITHUB_WORKSPACE/state-roster-data"
+          done
+
+      - name: Commit data repo (local to runner)
+        working-directory: state-roster-data
+        run: |
+          set -euo pipefail
+          if [[ ! -f README.md ]]; then
+            cat > README.md <<'EOF'
+          # state-roster-data
+
+          Published U.S. state ballot roster snapshots from state-roster-pipeline.
+          EOF
+          fi
+          git config user.name "roster-bot"
+          git config user.email "roster-bot@vote-usa.org"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No data changes."
+          else
+            git commit -m "Refresh roster snapshots (${{ inputs.year }})"
+          fi
+          echo "DATA_COMMIT=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+
+      - name: Update pipeline snapshot pointer
+        run: |
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          states = os.environ["STATES"].split()
+          doc = {
+              "repository": "https://github.com/vote-usa/state-roster-data.git",
+              "commit": os.environ.get("DATA_COMMIT"),
+              "generated_at": __import__("datetime").datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+              "year": int(os.environ["YEAR"]),
+              "states": states,
+          }
+          if os.environ.get("PUSH_DATA", "false").lower() != "true":
+              doc["note"] = "CI run without push; commit exists only on the runner unless push=true."
+          Path("data/input/snapshot.json").write_text(json.dumps(doc, indent=2) + "\n")
+          PY
+        env:
+          YEAR: ${{ inputs.year }}
+          STATES: ${{ inputs.states }}
+          PUSH_DATA: ${{ inputs.push }}
+
+      - name: Push state-roster-data
+        if: ${{ inputs.push }}
+        working-directory: state-roster-data
+        run: git push -u origin HEAD
+
+      - name: Upload snapshot artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: snapshot-json
+          path: data/input/snapshot.json
