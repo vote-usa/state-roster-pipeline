@@ -36,6 +36,18 @@ public sealed class WaPublishSchedule : IPublishSchedule
         }
 
         var nextYear = year + 1;
+
+        if (result.Elections.Count == 0)
+        {
+            return new NextRunInfo
+            {
+                RecommendedAfter = $"{nextYear}-05-20",
+                Reason = $"All elections listed for {year} have already passed; nothing was collected this run. " +
+                         $"Washington's {nextYear} candidate filing week ends in mid-May; the VoteWA candidate list " +
+                         "is populated within days of filing week closing.",
+            };
+        }
+
         return new NextRunInfo
         {
             RecommendedAfter = $"{nextYear}-05-20",

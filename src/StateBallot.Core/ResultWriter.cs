@@ -65,6 +65,19 @@ public sealed class ResultWriter
         Party = c.Party,
         Incumbent = c.Incumbent,
         SourceUrl = c.SourceUrl,
+        SourceCandidateId = c.SourceCandidateId,
+        FilingDate = c.FilingDate,
+        Email = c.Email,
+        Phone = c.Phone,
+        CampaignPhone = c.CampaignPhone,
+        Website = c.Website,
+        Occupation = c.Occupation,
+        MailingAddressLine = c.MailingAddressLine,
+        MailingCity = c.MailingCity,
+        MailingState = c.MailingState,
+        MailingZip = c.MailingZip,
+        ResidentialCity = c.ResidentialCity,
+        ResidentialCounty = c.ResidentialCounty,
     };
 
     public static MeasureOut ToMeasureOut(MeasureRow m) => new()

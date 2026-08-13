@@ -1,3 +1,5 @@
+using System.Net.Http.Json;
+
 namespace StateBallot.Core;
 
 /// <summary>HttpClient wrapper with a polite User-Agent, retries, and throttling.</summary>
@@ -15,7 +17,27 @@ public sealed class HttpFetcher : IDisposable
         _http.DefaultRequestHeaders.Accept.ParseAdd("text/html,application/json;q=0.9,*/*;q=0.8");
     }
 
-    public async Task<string> GetStringAsync(string url)
+    /// <summary>
+    /// Adds/overrides a default request header. For a source that needs
+    /// browser-like headers (e.g. a Cloudflare-fronted API expecting Origin/Referer),
+    /// a collector calls this once right after construction.
+    /// Mutates this instance for every subsequent request - callers must not share one
+    /// HttpFetcher across collectors for different sources within the same run.
+    /// </summary>
+    public void AddDefaultHeader(string name, string value)
+    {
+        _http.DefaultRequestHeaders.Remove(name);
+        _http.DefaultRequestHeaders.TryAddWithoutValidation(name, value);
+    }
+
+    public async Task<string> GetStringAsync(string url) =>
+        await SendWithRetryAsync(() => _http.GetAsync(url), url);
+
+    /// <summary>POSTs a JSON-serialized body; returns the raw response string (caller deserializes).</summary>
+    public async Task<string> PostJsonAsync<TRequest>(string url, TRequest body) =>
+        await SendWithRetryAsync(() => _http.PostAsJsonAsync(url, body), url);
+
+    private async Task<string> SendWithRetryAsync(Func<Task<HttpResponseMessage>> send, string url)
     {
         var sinceLast = DateTime.UtcNow - _lastRequestUtc;
         if (sinceLast < _delayBetweenRequests)
@@ -27,7 +49,7 @@ public sealed class HttpFetcher : IDisposable
             try
             {
                 _lastRequestUtc = DateTime.UtcNow;
-                using var response = await _http.GetAsync(url);
+                using var response = await send();
                 response.EnsureSuccessStatusCode();
                 return await response.Content.ReadAsStringAsync();
             }

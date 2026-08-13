@@ -260,8 +260,8 @@
   "TX": {
     "name": "Texas",
     "fips": "48",
-    "status": "unimplemented",
-    "project": null
+    "status": "implemented",
+    "project": "StateBallot.States.Tx"
   },
   "UT": {
     "name": "Utah",
@@ -290,8 +290,8 @@
   "WV": {
     "name": "West Virginia",
     "fips": "54",
-    "status": "unimplemented",
-    "project": null
+    "status": "implemented",
+    "project": "StateBallot.States.Wv"
   },
   "WI": {
     "name": "Wisconsin",

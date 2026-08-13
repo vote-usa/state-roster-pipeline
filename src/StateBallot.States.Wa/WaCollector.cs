@@ -35,19 +35,32 @@ public sealed class WaCollector : IStateCollector
         var (allElections, countyCodes) = await electionScraper.FetchAsync();
         Console.WriteLine($"  Elections listed on VoteWA: {allElections.Count}; counties: {countyCodes.Count}");
 
-        var targetElections = ElectionFilters.ForTargetYear(allElections, _year);
-
-        if (targetElections.Count == 0)
+        var electionsInYear = allElections.Where(e => e.ElectionDate.Year == _year).ToList();
+        if (electionsInYear.Count == 0)
             throw new InvalidOperationException(
-                $"No upcoming elections found for {_year} in the VoteWA election dropdown. " +
+                $"No elections found for {_year} in the VoteWA election dropdown. " +
                 "If this is early in the year the dropdown may not list the year's elections yet.");
 
+        var targetElections = ElectionFilters.ForTargetYear(allElections, _year);
+
         var result = new CollectResult { CountyCodes = countyCodes };
+
+        if (targetElections.Count == 0)
+        {
+            // Elections exist for the year, they've just all already happened as of
+            // today - not a broken source, nothing to fail loudly about.
+            result.Gaps.Add(
+                $"All {electionsInYear.Count} election(s) listed for {_year} have already passed as of " +
+                $"{DateOnly.FromDateTime(DateTime.UtcNow.Date):yyyy-MM-dd}; nothing upcoming to collect this run.");
+        }
+
         RowHelpers.StampState(targetElections, StateCode);
         result.Elections.AddRange(targetElections);
 
         var guideClient = new VoterGuideClient(_fetcher, _config);
-        var anyGuideData = false;
+        // Nothing to attempt when there are no target elections - don't treat that
+        // as a fetch failure (that's the case just handled above via Gaps).
+        var anyGuideData = targetElections.Count == 0;
 
         foreach (var election in targetElections)
         {

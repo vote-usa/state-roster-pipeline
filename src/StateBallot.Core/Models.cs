@@ -16,6 +16,10 @@ public sealed class Election
     public string SourceUrl { get; set; } = "";
 }
 
+/// <summary>
+/// Canonical candidate shape shared by every state. Fields a given state's source
+/// doesn't publish are left null - never invented (see README conventions).
+/// </summary>
 public sealed class CandidateRow
 {
     public string State { get; set; } = "";
@@ -28,6 +32,21 @@ public sealed class CandidateRow
     public string? Party { get; set; }
     public bool? Incumbent { get; set; }
     public string SourceUrl { get; set; } = "";
+
+    /// <summary>The source system's identifier for the candidate, e.g. TX idCandidate.</summary>
+    public string? SourceCandidateId { get; set; }
+    public string? FilingDate { get; set; }
+    public string? Email { get; set; }
+    public string? Phone { get; set; }
+    public string? CampaignPhone { get; set; }
+    public string? Website { get; set; }
+    public string? Occupation { get; set; }
+    public string? MailingAddressLine { get; set; }
+    public string? MailingCity { get; set; }
+    public string? MailingState { get; set; }
+    public string? MailingZip { get; set; }
+    public string? ResidentialCity { get; set; }
+    public string? ResidentialCounty { get; set; }
 }
 
 public sealed class MeasureRow

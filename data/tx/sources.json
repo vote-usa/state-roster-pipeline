@@ -1,0 +1,29 @@
+{
+  "elections": [
+    {
+      "url": "https://goelect.txelections.civixapps.com/api-ivis-cbp/api/cbp/getElectionsByYear/2025",
+      "format": "json"
+    }
+  ],
+  "statewide_candidates": [
+    {
+      "url": "https://goelect.txelections.civixapps.com/api-ivis-cbp/api/cbp/findQualifiedCandidates",
+      "format": "json (POST)"
+    }
+  ],
+  "statewide_measures": [],
+  "county_directory": [],
+  "verification_only": [
+    {
+      "url": "https://ballotpedia.org/Texas_elections,2025",
+      "format": "html"
+    }
+  ],
+  "gaps": [],
+  "next_run": {
+    "recommended_after": "2026-01-01",
+    "reason": "All 2025 elections collected. Re-run once 2026 elections are listed.",
+    "next_election_date": null,
+    "next_election_type": null
+  }
+}
