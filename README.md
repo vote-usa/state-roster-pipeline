@@ -21,8 +21,11 @@ state-roster-pipeline/
     StateBallot.States.{Xx}/ # scrapers, selectors, source config, collector, schedule
     StateBallot.Cli/         # args + catalog/discovery runner
   data/
-    state_catalog.json       # all 50 states + DC (implemented | unimplemented)
-    ca/ wa/ …                # per-state county_fips.json + outputs
+    input/
+      state_catalog.json     # all 50 states + DC (implemented | unimplemented)
+      ca/ wa/ …              # county_fips.json + sources.json (tracked)
+    output/
+      ca/ wa/ …              # generated roster outputs (gitignored)
 ```
 
 ## Usage
@@ -35,15 +38,16 @@ dotnet run --project StateBallot.Cli -- --year 2028        # back-fill a specifi
 dotnet run --project StateBallot.Cli -- --out /tmp/ballots # alternate output root
 ```
 
-Requires .NET 8 SDK. Projects are also included in the root `state-roster-pipeline.sln` under the
-`state-roster-pipeline` solution folder.
+Requires .NET 8 SDK. Roster outputs under `data/output/<xx>/` are gitignored —
+re-run the collector to refresh them. Tracked inputs live under `data/input/`
+(`state_catalog.json`, per-state `county_fips.json` and `sources.json`).
 
 ## Adding a state
 
-1. Flip the state to `implemented` in [`data/state_catalog.json`](data/state_catalog.json).
+1. Flip the state to `implemented` in [`data/input/state_catalog.json`](data/input/state_catalog.json).
 2. Create `StateBallot.States.<Xx>` with scrapers, `[StateCode("XX")]` collector,
    and `IPublishSchedule`; reference it from the Cli project (discovery finds it).
-3. Add `data/<xx>/county_fips.json`.
+3. Add `data/input/<xx>/county_fips.json`.
 4. Use Core helpers (`ElectionFilters`, `CollectResultSorter`, `SourcesManifest`,
    `RowHelpers`) — do not copy WA/CA private methods.
 
@@ -106,12 +110,14 @@ record carries its own election name/date/type, so `elections.*` is derived by g
 candidates on their `electionId`. `county` reflects the candidate's own residential
 county (a proxy for jurisdiction, not necessarily the race's actual jurisdiction).
 
-## Outputs (`data/<state>/`)
+## Outputs (`data/output/<state>/`) and inputs (`data/input/`)
 
-`elections.json|csv`, `candidates.json|csv`, `measures.json|csv` (statewide proposed +
-local measures), `county_directory.json`, `county_ballots.json|csv`, `sources.json`
-(provenance with URL + format per data group, known gaps, and a machine-readable
-`next_run` recommendation).
+Roster outputs (gitignored): `elections.json|csv`, `candidates.json|csv`,
+`measures.json|csv`, `county_directory.json`, `county_ballots.json|csv`.
+
+Tracked inputs: `data/input/state_catalog.json`, `data/input/<state>/county_fips.json`,
+and `data/input/<state>/sources.json` (provenance with URL + format per data group,
+known gaps, and a machine-readable `next_run` recommendation).
 
 `candidates.*` carries a canonical set of fields across every state (see
 `StateBallot.Core/Models.cs`'s `CandidateRow`): beyond the original WA-derived fields,

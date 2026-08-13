@@ -18,7 +18,7 @@ public sealed class CaCollector : IStateCollector
 
     public string StateCode => "CA";
 
-    /// <param name="stateDataDir">Per-state data directory holding county_fips.json.</param>
+    /// <param name="stateDataDir">Per-state output directory (data/output/&lt;xx&gt;/). Inputs are under data/input/&lt;xx&gt;/.</param>
     public CaCollector(HttpFetcher fetcher, int year, string stateDataDir, CaSourceConfig? config = null)
     {
         _fetcher = fetcher;
@@ -32,7 +32,8 @@ public sealed class CaCollector : IStateCollector
     {
         Console.WriteLine($"Collecting California ballot roster for {_year}...");
 
-        var fipsPath = Path.Combine(_stateDataDir, "county_fips.json");
+        var (dataRoot, _) = DataPaths.FromStateOutputDir(_stateDataDir);
+        var fipsPath = DataPaths.CountyFipsPath(dataRoot, StateCode);
         if (!File.Exists(fipsPath))
             throw new InvalidOperationException($"County FIPS data file not found at {fipsPath}.");
         var fips = JsonSerializer.Deserialize<SortedDictionary<string, string>>(File.ReadAllText(fipsPath))
@@ -215,7 +216,7 @@ public sealed class CaCollector : IStateCollector
         sources.CountyDirectory =
         [
             new SourceEntry(_config.CountyElectionsOfficesUrl, "html"),
-            new SourceEntry("data/ca/county_fips.json (U.S. Census county FIPS codes)", "json"),
+            new SourceEntry("data/input/ca/county_fips.json (U.S. Census county FIPS codes)", "json"),
         ];
         sources.CountyBallots = result.CountyBallots
             .GroupBy(b => b.CountyName)

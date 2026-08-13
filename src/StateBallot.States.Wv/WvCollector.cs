@@ -14,9 +14,9 @@ public sealed class WvCollector : IStateCollector
 
     public string StateCode => "WV";
 
-    // stateDataDir is unused here - accepted only to match Runner.cs's shared
-    // IStateCollector factory signature (WA needs it for county_fips.json; WV doesn't
-    // have any per-state reference data).
+    /// <param name="stateDataDir">Per-state output directory (data/output/&lt;xx&gt;/). Inputs are under data/input/&lt;xx&gt;/.</param>
+    // Unused today: WV has no per-state input files (no county_fips.json). Kept to match
+    // Runner.cs's shared IStateCollector factory signature.
     public WvCollector(HttpFetcher fetcher, int year, string stateDataDir, WvSourceConfig? config = null)
     {
         _fetcher = fetcher;

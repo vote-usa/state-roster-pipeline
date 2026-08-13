@@ -23,7 +23,7 @@
       "format": "html"
     },
     {
-      "url": "data/wa/county_fips.json (U.S. Census county FIPS codes)",
+      "url": "data/input/wa/county_fips.json (U.S. Census county FIPS codes)",
       "format": "json"
     }
   ],
