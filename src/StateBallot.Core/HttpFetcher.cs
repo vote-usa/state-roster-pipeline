@@ -11,7 +11,12 @@ public sealed class HttpFetcher : IDisposable
 
     public HttpFetcher()
     {
-        _http = new HttpClient { Timeout = TimeSpan.FromSeconds(60) };
+        var handler = new HttpClientHandler
+        {
+            // Decompress gzip/deflate/br responses (Wayback Machine captures send Content-Encoding regardless of Accept-Encoding).
+            AutomaticDecompression = System.Net.DecompressionMethods.All,
+        };
+        _http = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(60) };
         _http.DefaultRequestHeaders.UserAgent.ParseAdd(
             "StateBallotRoster/1.0 (+civic data collection; contact site operator via repository)");
         _http.DefaultRequestHeaders.Accept.ParseAdd("text/html,application/json;q=0.9,*/*;q=0.8");
@@ -30,12 +35,21 @@ public sealed class HttpFetcher : IDisposable
         _http.DefaultRequestHeaders.TryAddWithoutValidation(name, value);
     }
 
+    /// <summary>
+    /// Optional rewrite applied to every outgoing URL just before the request is
+    /// sent (e.g. Wayback Machine replay). Scrapers and provenance keep seeing
+    /// the original source URLs; only the wire request is redirected.
+    /// </summary>
+    public Func<string, string>? RewriteUrl { get; set; }
+
+    private string Rewrite(string url) => RewriteUrl?.Invoke(url) ?? url;
+
     public async Task<string> GetStringAsync(string url) =>
-        await SendWithRetryAsync(() => _http.GetAsync(url), url);
+        await SendWithRetryAsync(() => _http.GetAsync(Rewrite(url)), url);
 
     /// <summary>POSTs a JSON-serialized body; returns the raw response string (caller deserializes).</summary>
     public async Task<string> PostJsonAsync<TRequest>(string url, TRequest body) =>
-        await SendWithRetryAsync(() => _http.PostAsJsonAsync(url, body), url);
+        await SendWithRetryAsync(() => _http.PostAsJsonAsync(Rewrite(url), body), url);
 
     private async Task<string> SendWithRetryAsync(Func<Task<HttpResponseMessage>> send, string url)
     {
@@ -90,7 +104,7 @@ public sealed class HttpFetcher : IDisposable
             try
             {
                 _lastRequestUtc = DateTime.UtcNow;
-                using var response = await _http.GetAsync(url);
+                using var response = await _http.GetAsync(Rewrite(url));
                 if ((int)response.StatusCode is >= 400 and < 500)
                     return null;
                 response.EnsureSuccessStatusCode();
