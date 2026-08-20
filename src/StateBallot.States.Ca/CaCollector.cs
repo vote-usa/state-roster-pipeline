@@ -12,18 +12,26 @@ public sealed class CaCollector : IStateCollector
     private readonly IPublishSchedule _schedule;
     private readonly int _year;
     private readonly string _stateDataDir;
+    private readonly string _inputDataRoot;
 
     // Certified-list source per collected election, for the provenance manifest.
     private readonly Dictionary<string, string> _certifiedListUrls = new();
 
     public string StateCode => "CA";
 
-    /// <param name="stateDataDir">Per-state output directory (data/output/&lt;xx&gt;/). Inputs are under data/input/&lt;xx&gt;/.</param>
-    public CaCollector(HttpFetcher fetcher, int year, string stateDataDir, CaSourceConfig? config = null)
+    /// <param name="stateDataDir">Per-state output directory (e.g. data/output/ca or state-roster-data/ca).</param>
+    /// <param name="inputDataRoot">Pipeline data root containing input/. Inferred from data/output/&lt;xx&gt; when null.</param>
+    public CaCollector(
+        HttpFetcher fetcher,
+        int year,
+        string stateDataDir,
+        string? inputDataRoot = null,
+        CaSourceConfig? config = null)
     {
         _fetcher = fetcher;
         _year = year;
         _stateDataDir = stateDataDir;
+        _inputDataRoot = ResolveInputDataRoot(stateDataDir, inputDataRoot);
         _config = config ?? new CaSourceConfig();
         _schedule = new CaPublishSchedule();
     }
@@ -32,8 +40,7 @@ public sealed class CaCollector : IStateCollector
     {
         Console.WriteLine($"Collecting California ballot roster for {_year}...");
 
-        var (dataRoot, _) = DataPaths.FromStateOutputDir(_stateDataDir);
-        var fipsPath = DataPaths.CountyFipsPath(dataRoot, StateCode);
+        var fipsPath = DataPaths.CountyFipsPath(_inputDataRoot, StateCode);
         if (!File.Exists(fipsPath))
             throw new InvalidOperationException($"County FIPS data file not found at {fipsPath}.");
         var fips = JsonSerializer.Deserialize<SortedDictionary<string, string>>(File.ReadAllText(fipsPath))
@@ -231,5 +238,15 @@ public sealed class CaCollector : IStateCollector
             new SourceEntry($"https://ballotpedia.org/California_elections,_{_year}", "html"),
         ];
         sources.NextRun = _schedule.Recommend(result, _year);
+    }
+
+    private static string ResolveInputDataRoot(string stateDataDir, string? inputDataRoot)
+    {
+        if (!string.IsNullOrWhiteSpace(inputDataRoot))
+            return Path.GetFullPath(inputDataRoot);
+        return DataPaths.TryInferPipelineDataRoot(stateDataDir)
+            ?? throw new InvalidOperationException(
+                $"Cannot infer input data root from output dir '{stateDataDir}'. " +
+                "Pass inputDataRoot (CLI --input-root) when writing outside data/output/<xx>.");
     }
 }

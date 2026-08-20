@@ -14,15 +14,23 @@ public sealed class WaCollector : IStateCollector
     private readonly IPublishSchedule _schedule;
     private readonly int _year;
     private readonly string _stateDataDir;
+    private readonly string _inputDataRoot;
 
     public string StateCode => "WA";
 
-    /// <param name="stateDataDir">Per-state output directory (data/output/&lt;xx&gt;/). Inputs are under data/input/&lt;xx&gt;/.</param>
-    public WaCollector(HttpFetcher fetcher, int year, string stateDataDir, WaSourceConfig? config = null)
+    /// <param name="stateDataDir">Per-state output directory (e.g. data/output/wa or state-roster-data/wa).</param>
+    /// <param name="inputDataRoot">Pipeline data root containing input/. Inferred from data/output/&lt;xx&gt; when null.</param>
+    public WaCollector(
+        HttpFetcher fetcher,
+        int year,
+        string stateDataDir,
+        string? inputDataRoot = null,
+        WaSourceConfig? config = null)
     {
         _fetcher = fetcher;
         _year = year;
         _stateDataDir = stateDataDir;
+        _inputDataRoot = ResolveInputDataRoot(stateDataDir, inputDataRoot);
         _config = config ?? new WaSourceConfig();
         _schedule = new WaPublishSchedule();
     }
@@ -138,8 +146,7 @@ public sealed class WaCollector : IStateCollector
         }
 
         var directoryScraper = new CountyDirectoryScraper(_fetcher, _config);
-        var (dataRoot, _) = DataPaths.FromStateOutputDir(_stateDataDir);
-        var fipsPath = DataPaths.CountyFipsPath(dataRoot, StateCode);
+        var fipsPath = DataPaths.CountyFipsPath(_inputDataRoot, StateCode);
         var directory = await directoryScraper.FetchAsync(countyCodes.Values.ToList(), fipsPath);
         RowHelpers.StampState(directory, StateCode);
         result.CountyDirectory.AddRange(directory);
@@ -246,5 +253,15 @@ public sealed class WaCollector : IStateCollector
             new SourceEntry("https://ballotpedia.org/Washington_elections,_" + _year, "html"),
         ];
         sources.NextRun = _schedule.Recommend(result, _year);
+    }
+
+    private static string ResolveInputDataRoot(string stateDataDir, string? inputDataRoot)
+    {
+        if (!string.IsNullOrWhiteSpace(inputDataRoot))
+            return Path.GetFullPath(inputDataRoot);
+        return DataPaths.TryInferPipelineDataRoot(stateDataDir)
+            ?? throw new InvalidOperationException(
+                $"Cannot infer input data root from output dir '{stateDataDir}'. " +
+                "Pass inputDataRoot (CLI --input-root) when writing outside data/output/<xx>.");
     }
 }

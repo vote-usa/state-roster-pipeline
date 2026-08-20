@@ -11,6 +11,9 @@ Currently implemented:
 
 The structure is designed so additional states plug in without touching the shared code.
 
+Published roster snapshots: [vote-usa/state-roster-data](https://github.com/vote-usa/state-roster-data)
+(pointer: [`data/input/snapshot.json`](data/input/snapshot.json)).
+
 ## Structure
 
 ```
@@ -35,12 +38,35 @@ cd state-roster-pipeline/src
 dotnet run --project StateBallot.Cli                       # WA, current year
 dotnet run --project StateBallot.Cli -- --state TX --dry-run   # fetch + counts, no writes
 dotnet run --project StateBallot.Cli -- --year 2028        # back-fill a specific year
-dotnet run --project StateBallot.Cli -- --out /tmp/ballots # alternate output root
+dotnet run --project StateBallot.Cli -- --out /tmp/ballots # alternate data root (input/ + output/)
 ```
 
 Requires .NET 8 SDK. Roster outputs under `data/output/<xx>/` are gitignored —
 re-run the collector to refresh them. Tracked inputs live under `data/input/`
 (`state_catalog.json`, per-state `county_fips.json` and `sources.json`).
+
+## Published data repo
+
+Published snapshots go to
+[vote-usa/state-roster-data](https://github.com/vote-usa/state-roster-data)
+(`ca/`, `wa/`, … at the repo root). This repo keeps a pointer at
+`data/input/snapshot.json`.
+
+The manual GitHub Action **Publish roster data** collects into that repo and
+can push when `push` is checked. Pushing requires the `ROSTER_DATA_TOKEN` repo
+secret (a PAT with Contents write on `vote-usa/state-roster-data`).
+
+```bash
+# Sync local data/output into ../state-roster-data, commit, update snapshot.json
+# (does not push)
+./scripts/sync-roster-data.sh
+
+# Or collect straight into the data-repo checkout
+dotnet run --project src/StateBallot.Cli -- \
+  --state CA --input-root ./data --output-root ../state-roster-data
+```
+
+Details: [`logs/roster-data.md`](logs/roster-data.md).
 
 ## Adding a state
 
