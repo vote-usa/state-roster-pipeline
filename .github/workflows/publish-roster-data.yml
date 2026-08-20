@@ -30,26 +30,24 @@ jobs:
         with:
           dotnet-version: "8.0.x"
 
+      - name: Require ROSTER_DATA_TOKEN
+        env:
+          TOKEN: ${{ secrets.ROSTER_DATA_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${TOKEN}" ]]; then
+            echo "Repo secret ROSTER_DATA_TOKEN is not set." >&2
+            echo "It needs Contents: Read and write on vote-usa/state-roster-data." >&2
+            exit 1
+          fi
+
       - name: Checkout state-roster-data
-        id: data_checkout
-        continue-on-error: true
         uses: actions/checkout@v4
         with:
           repository: vote-usa/state-roster-data
           path: state-roster-data
-          token: ${{ secrets.ROSTER_DATA_TOKEN || github.token }}
-
-      - name: Init empty data repo if checkout failed
-        if: steps.data_checkout.outcome != 'success'
-        run: |
-          set -euo pipefail
-          rm -rf state-roster-data
-          mkdir state-roster-data
-          git -C state-roster-data init -b main
-          git -C state-roster-data remote add origin \
-            "https://x-access-token:${TOKEN}@github.com/vote-usa/state-roster-data.git"
-        env:
-          TOKEN: ${{ secrets.ROSTER_DATA_TOKEN || github.token }}
+          token: ${{ secrets.ROSTER_DATA_TOKEN }}
+          persist-credentials: true
 
       - name: Collect into data repo
         env:
@@ -111,7 +109,13 @@ jobs:
       - name: Push state-roster-data
         if: ${{ inputs.push }}
         working-directory: state-roster-data
-        run: git push -u origin HEAD
+        env:
+          TOKEN: ${{ secrets.ROSTER_DATA_TOKEN }}
+        run: |
+          set -euo pipefail
+          git remote set-url origin \
+            "https://x-access-token:${TOKEN}@github.com/vote-usa/state-roster-data.git"
+          git push -u origin HEAD
 
       - name: Upload snapshot artifact
         uses: actions/upload-artifact@v4
