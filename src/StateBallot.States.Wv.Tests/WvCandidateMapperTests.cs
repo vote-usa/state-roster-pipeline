@@ -73,6 +73,43 @@ public class WvCandidateMapperTests
     }
 
     [Fact]
+    public void ToCandidateRow_FormatsMailingAddress()
+    {
+        var election = WvCandidateMapper.ToElection(new WestVirginiaCandidate { ElectionId = 1, ElectionDate = "2026-05-12" });
+        var candidate = new WestVirginiaCandidate
+        {
+            CandidateBallotName = "Jane Public",
+            MailingAddress = new WestVirginiaAddress
+            {
+                StreetNumber = "123",
+                Street1 = "Main St",
+                City = "Charleston",
+                State = "WV",
+                Zip5 = "25301",
+            },
+        };
+
+        var data = WvCandidateMapper.ToCandidateRow(candidate, election, "https://example.com");
+
+        Assert.Equal("123 Main St", data.MailingAddressLine);
+        Assert.Equal("Charleston", data.MailingCity);
+        Assert.Equal("WV", data.MailingState);
+        Assert.Equal("25301", data.MailingZip);
+    }
+
+    [Fact]
+    public void ToCandidateRow_NoMailingAddress_LeavesAddressFieldsNull()
+    {
+        var election = WvCandidateMapper.ToElection(new WestVirginiaCandidate { ElectionId = 1, ElectionDate = "2026-05-12" });
+        var candidate = new WestVirginiaCandidate { CandidateBallotName = "Jane Public" };
+
+        var data = WvCandidateMapper.ToCandidateRow(candidate, election, "https://example.com");
+
+        Assert.Null(data.MailingAddressLine);
+        Assert.Null(data.MailingCity);
+    }
+
+    [Fact]
     public void DeduplicationKey_DistinguishesByFilingDate()
     {
         var a = new WestVirginiaCandidate { CandidateId = 1, CandidateBallotName = "X", ElectionId = 1, OfficeId = 1, FilingDate = "2026-01-01" };

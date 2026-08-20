@@ -16,6 +16,8 @@ public sealed record CountyElectionEntry(string CountyName, string? CountyUrl, D
 /// </summary>
 public sealed class CountyElectionsScraper
 {
+    private static readonly string[] DateFormats = { "MMMM d, yyyy" };
+
     private readonly HttpFetcher _fetcher;
     private readonly CaSourceConfig _config;
 
@@ -51,15 +53,14 @@ public sealed class CountyElectionsScraper
 
                 foreach (var item in sibling.QuerySelectorAll("li"))
                 {
-                    var text = Normalize(item.TextContent);
+                    var text = TextNormalization.CollapseWhitespace(item.TextContent);
                     if (text.Length == 0 ||
                         text.Contains(CaSelectors.NoElectionsScheduledText, StringComparison.OrdinalIgnoreCase))
                         continue;
 
                     var match = CaSelectors.CountyElectionLine.Match(text);
                     if (!match.Success ||
-                        !DateOnly.TryParseExact(match.Groups["date"].Value, "MMMM d, yyyy",
-                            CultureInfo.InvariantCulture, DateTimeStyles.None, out var date))
+                        !DateParsing.TryParseAny(match.Groups["date"].Value, DateFormats, out var date))
                         continue;
 
                     entries.Add(new CountyElectionEntry(
@@ -72,14 +73,10 @@ public sealed class CountyElectionsScraper
             }
         }
 
-        if (countiesSeen.Count == 0)
-            throw new InvalidOperationException(
-                $"No county sections found at {_config.CountyAdministeredElectionsUrl} " +
-                $"using selector '{CaSelectors.CountySectionHeading}'. The page markup may have changed.");
+        ScrapeGuard.RequireAny(countiesSeen, () =>
+            $"No county sections found at {_config.CountyAdministeredElectionsUrl} " +
+            $"using selector '{CaSelectors.CountySectionHeading}'. The page markup may have changed.");
 
         return entries;
     }
-
-    private static string Normalize(string text) =>
-        string.Join(' ', text.Replace('\u00a0', ' ').Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)).Trim();
 }

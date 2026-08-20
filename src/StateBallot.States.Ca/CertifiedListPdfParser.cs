@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using StateBallot.Core;
 using UglyToad.PdfPig;
 using UglyToad.PdfPig.DocumentLayoutAnalysis.TextExtractor;
@@ -57,17 +58,7 @@ public sealed class CertifiedListPdfParser
                 var match = CaSelectors.CertListCandidateLine.Match(line);
                 if (match.Success && office is not null)
                 {
-                    var party = match.Groups["party"].Value;
-                    candidates.Add(new CandidateRow
-                    {
-                        Office = OfficePart(office),
-                        District = DistrictPart(office),
-                        County = null,
-                        CandidateName = match.Groups["name"].Value.Trim(),
-                        Party = party == "Unknown" ? null : party,
-                        Incumbent = match.Groups["incumbent"].Success ? true : null,
-                        SourceUrl = sourceUrl,
-                    });
+                    candidates.Add(ToCandidateRow(match, office, sourceUrl));
                     expectDesignation = true;
                 }
                 else
@@ -79,12 +70,26 @@ public sealed class CertifiedListPdfParser
             }
         }
 
-        if (candidates.Count == 0)
-            throw new InvalidOperationException(
-                $"No candidates parsed from certified list PDF at {sourceUrl} " +
-                $"(candidate pattern '{CaSelectors.CertListCandidateLine}'). The PDF layout may have changed.");
+        ScrapeGuard.RequireAny(candidates, () =>
+            $"No candidates parsed from certified list PDF at {sourceUrl} " +
+            $"(candidate pattern '{CaSelectors.CertListCandidateLine}'). The PDF layout may have changed.");
 
         return candidates;
+    }
+
+    internal static CandidateRow ToCandidateRow(Match match, string office, string sourceUrl)
+    {
+        var party = match.Groups["party"].Value;
+        return new CandidateRow
+        {
+            Office = OfficePart(office),
+            District = DistrictPart(office),
+            County = null,
+            CandidateName = match.Groups["name"].Value.Trim(),
+            Party = party == "Unknown" ? null : party,
+            Incumbent = match.Groups["incumbent"].Success ? true : null,
+            SourceUrl = sourceUrl,
+        };
     }
 
     private static string OfficePart(string office)

@@ -62,7 +62,7 @@ public static class WvCandidateMapper
 
     private static DateOnly ParseElectionDate(string? raw, int electionId)
     {
-        if (raw is not null && DateOnly.TryParseExact(raw, KnownDateFormats, CultureInfo.InvariantCulture, DateTimeStyles.None, out var date))
+        if (raw is not null && DateParsing.TryParseAny(raw, KnownDateFormats, out var date))
             return date;
 
         throw new InvalidOperationException(
@@ -70,19 +70,8 @@ public static class WvCandidateMapper
             $"Expected one of: {string.Join(", ", KnownDateFormats)}.");
     }
 
-    private static string? FormatMailingLine(WestVirginiaAddress? address)
-    {
-        if (address is null)
-            return null;
-
-        var parts = new List<string>();
-        if (!string.IsNullOrWhiteSpace(address.StreetNumber))
-            parts.Add(address.StreetNumber);
-        if (!string.IsNullOrWhiteSpace(address.Street1))
-            parts.Add(address.Street1);
-        if (!string.IsNullOrWhiteSpace(address.Street2))
-            parts.Add(address.Street2);
-
-        return parts.Count == 0 ? null : string.Join(" ", parts);
-    }
+    private static string? FormatMailingLine(WestVirginiaAddress? address) =>
+        address is null
+            ? null
+            : AddressFormatting.FormatMailingLine(address.StreetNumber, address.Street1, address.Street2);
 }

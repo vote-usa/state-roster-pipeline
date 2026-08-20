@@ -65,10 +65,9 @@ public sealed class StatewideMeasuresScraper
             });
         }
 
-        if (measures.Count == 0)
-            throw new InvalidOperationException(
-                $"No statewide measures parsed from {_config.StatewideMeasuresUrl} using heading selector '{Selectors.MeasureHeading}'. " +
-                "Either no measures are filed yet for the year or the page markup changed; verify the page manually.");
+        ScrapeGuard.RequireAny(measures, () =>
+            $"No statewide measures parsed from {_config.StatewideMeasuresUrl} using heading selector '{Selectors.MeasureHeading}'. " +
+            "Either no measures are filed yet for the year or the page markup changed; verify the page manually.");
 
         return measures.OrderBy(m => m.MeasureId, StringComparer.Ordinal).ToList();
     }

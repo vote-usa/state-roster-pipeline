@@ -1,4 +1,3 @@
-using System.Text.Json;
 using System.Text.RegularExpressions;
 using AngleSharp.Html.Parser;
 using StateBallot.Core;
@@ -25,17 +24,14 @@ public sealed class CountyDirectoryScraper
     /// <param name="fipsFilePath">JSON file mapping county name to FIPS code.</param>
     public async Task<List<CountyDirectoryRow>> FetchAsync(ICollection<string> expectedCounties, string fipsFilePath)
     {
-        var fips = File.Exists(fipsFilePath)
-            ? JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText(fipsFilePath)) ?? new()
-            : new Dictionary<string, string>();
+        var fips = CountyFipsLoader.LoadOrEmpty(fipsFilePath);
 
         var html = await _fetcher.GetStringAsync(_config.CountyElectionsOfficesUrl);
         var doc = await new HtmlParser().ParseDocumentAsync(html);
 
-        var rows = doc.QuerySelectorAll(Selectors.CountyOfficeRows);
-        if (rows.Length == 0)
-            throw new InvalidOperationException(
-                $"No county office rows found at {_config.CountyElectionsOfficesUrl} using selector '{Selectors.CountyOfficeRows}'.");
+        var rows = doc.QuerySelectorAll(Selectors.CountyOfficeRows).ToList();
+        ScrapeGuard.RequireAny(rows, () =>
+            $"No county office rows found at {_config.CountyElectionsOfficesUrl} using selector '{Selectors.CountyOfficeRows}'.");
 
         // The table can contain multiple offices per county; keep the first (primary) office.
         var byCounty = new SortedDictionary<string, CountyDirectoryRow>(StringComparer.OrdinalIgnoreCase);

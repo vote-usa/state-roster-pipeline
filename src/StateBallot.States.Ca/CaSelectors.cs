@@ -7,6 +7,19 @@ namespace StateBallot.States.Ca;
 /// candidate list PDFs, centralized so markup drift next year only requires
 /// updating this file.
 /// </summary>
+/// <remarks>
+/// Deliberate exception to the rest of the codebase's mapper-class convention:
+/// unlike TX/WV (a dedicated <c>*CandidateMapper</c> class) or WA (mapping
+/// inlined once in the collector), CA's DTO-to-canonical-row construction for
+/// each row type is inseparable from its own parser (PDF line regex vs.
+/// AngleSharp DOM traversal vs. multi-paragraph content gathering), so it stays
+/// as an <c>internal static ToXyzRow(...)</c> method inside each scraper/parser
+/// file (<see cref="CertifiedListPdfParser"/>, <see cref="QualifiedMeasuresScraper"/>,
+/// <see cref="UpcomingElectionsScraper"/>, <see cref="CountyDirectoryScraper"/>)
+/// rather than being centralized into one <c>CaMapper</c> file. Grep for
+/// "ToCandidateRow"/"ToMeasureRow"/"ToElection"/"ToCountyDirectoryRow" to find
+/// the mapping step for each row type.
+/// </remarks>
 public static class CaSelectors
 {
     // --- sos.ca.gov/elections/upcoming-elections ---

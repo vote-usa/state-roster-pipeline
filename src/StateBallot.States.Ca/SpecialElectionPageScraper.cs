@@ -12,6 +12,8 @@ namespace StateBallot.States.Ca;
 /// </summary>
 public sealed class SpecialElectionPageScraper
 {
+    private static readonly string[] DateFormats = { "MMMM d, yyyy" };
+
     private readonly HttpFetcher _fetcher;
 
     public SpecialElectionPageScraper(HttpFetcher fetcher) => _fetcher = fetcher;
@@ -28,8 +30,7 @@ public sealed class SpecialElectionPageScraper
             if (element.LocalName == "h2")
             {
                 var match = CaSelectors.SpecialElectionSectionDate.Match(element.TextContent);
-                if (match.Success && DateOnly.TryParseExact(match.Groups["date"].Value, "MMMM d, yyyy",
-                        CultureInfo.InvariantCulture, DateTimeStyles.None, out var date))
+                if (match.Success && DateParsing.TryParseAny(match.Groups["date"].Value, DateFormats, out var date))
                     currentSectionDate = date;
                 continue;
             }

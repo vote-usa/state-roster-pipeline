@@ -106,12 +106,14 @@ public sealed class WaCollector : IStateCollector
                     var county = AttributeCounty(race, raceCounties, isStatewideCategory);
                     if (isMeasureCategory)
                     {
-                        result.Measures.Add(ToMeasureRow(election, race, county));
+                        result.Measures.Add(WaMapper.ToMeasureRow(
+                            StateCode, election, race, county, _config.VoterGuideUrl(election.ElectionId)));
                     }
                     else
                     {
                         foreach (var candidate in race.Candidates.Where(c => !string.IsNullOrWhiteSpace(c.BallotName)))
-                            result.Candidates.Add(ToCandidateRow(election, race, candidate, county));
+                            result.Candidates.Add(WaMapper.ToCandidateRow(
+                                StateCode, election, race, candidate, county, _config.VoterGuideUrl(election.ElectionId)));
                     }
                 }
             }
@@ -166,10 +168,12 @@ public sealed class WaCollector : IStateCollector
             foreach (var race in category.Races)
             {
                 if (isMeasureCategory)
-                    ballot.Measures.Add(ToMeasureRow(election, race, countyName));
+                    ballot.Measures.Add(WaMapper.ToMeasureRow(
+                        StateCode, election, race, countyName, _config.VoterGuideUrl(election.ElectionId)));
                 else
                     foreach (var candidate in race.Candidates.Where(c => !string.IsNullOrWhiteSpace(c.BallotName)))
-                        ballot.Candidates.Add(ToCandidateRow(election, race, candidate, countyName));
+                        ballot.Candidates.Add(WaMapper.ToCandidateRow(
+                            StateCode, election, race, candidate, countyName, _config.VoterGuideUrl(election.ElectionId)));
             }
         }
 
@@ -177,33 +181,6 @@ public sealed class WaCollector : IStateCollector
         ballot.Measures.Sort(CollectResultSorter.CompareMeasures);
         return ballot;
     }
-
-    private CandidateRow ToCandidateRow(Election election, GuideRace race, GuideCandidate candidate, string? county) => new()
-    {
-        State = StateCode,
-        ElectionDate = election.ElectionDate.ToString("yyyy-MM-dd"),
-        ElectionType = election.ElectionType,
-        Office = race.Name?.Trim() ?? "",
-        District = string.IsNullOrWhiteSpace(race.Jurisdiction) ? null : race.Jurisdiction.Trim(),
-        County = county,
-        CandidateName = candidate.BallotName!.Trim(),
-        Party = VoterGuideClient.NormalizeParty(candidate.PartyName),
-        Incumbent = null, // not published by VoteWA
-        SourceUrl = _config.VoterGuideUrl(election.ElectionId),
-    };
-
-    private MeasureRow ToMeasureRow(Election election, GuideRace race, string? county) => new()
-    {
-        State = StateCode,
-        ElectionDate = election.ElectionDate.ToString("yyyy-MM-dd"),
-        MeasureId = race.RaceID ?? "",
-        Title = (race.BallotTitle ?? race.MeasureName ?? race.Name ?? "").Trim(),
-        Summary = VoterGuideClient.StripHtml(race.ShortDescription),
-        FullTextUrl = null,
-        Jurisdiction = string.IsNullOrWhiteSpace(race.Jurisdiction) ? "local" : race.Jurisdiction.Trim(),
-        County = county,
-        SourceUrl = _config.VoterGuideUrl(election.ElectionId),
-    };
 
     private static string? AttributeCounty(
         GuideRace race, Dictionary<string, SortedSet<string>> raceCounties, bool isStatewideCategory)

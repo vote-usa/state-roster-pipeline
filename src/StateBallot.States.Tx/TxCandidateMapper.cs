@@ -14,11 +14,14 @@ public static class TxCandidateMapper
         ["R"] = "Runoff",
     };
 
+    private static readonly string[] ElectionDateFormats = { "yyyy-MM-dd" };
+
     public static Election ToElection(TexasElection e)
     {
-        var date = DateOnly.ParseExact(
-            e.DtElectionDate ?? throw new InvalidOperationException($"Election {e.IdElection} has no dtElectionDate"),
-            "yyyy-MM-dd", CultureInfo.InvariantCulture);
+        var raw = e.DtElectionDate ?? throw new InvalidOperationException($"Election {e.IdElection} has no dtElectionDate");
+        if (!DateParsing.TryParseAny(raw, ElectionDateFormats, out var date))
+            throw new InvalidOperationException(
+                $"Election {e.IdElection} has an unrecognized dtElectionDate format: '{raw}'. Expected 'yyyy-MM-dd'.");
 
         return new Election
         {
@@ -64,19 +67,8 @@ public static class TxCandidateMapper
             (c.DtFiled ?? "").Trim()
         );
 
-    private static string? FormatMailingLine(TexasMailingAddress? address)
-    {
-        if (address is null)
-            return null;
-
-        var parts = new List<string>();
-        if (!string.IsNullOrWhiteSpace(address.TxStreetNumber))
-            parts.Add(address.TxStreetNumber);
-        if (!string.IsNullOrWhiteSpace(address.TxStreetName))
-            parts.Add(address.TxStreetName);
-        if (!string.IsNullOrWhiteSpace(address.TxStreetName2))
-            parts.Add(address.TxStreetName2);
-
-        return parts.Count == 0 ? null : string.Join(" ", parts);
-    }
+    private static string? FormatMailingLine(TexasMailingAddress? address) =>
+        address is null
+            ? null
+            : AddressFormatting.FormatMailingLine(address.TxStreetNumber, address.TxStreetName, address.TxStreetName2);
 }

@@ -1,4 +1,3 @@
-using System.Text.Json;
 using AngleSharp.Dom;
 using AngleSharp.Html.Parser;
 using StateBallot.Core;
@@ -26,11 +25,7 @@ public sealed class CountyDirectoryScraper
     /// <param name="fipsFilePath">JSON file mapping county name to FIPS code; also defines the expected county set.</param>
     public async Task<List<CountyDirectoryRow>> FetchAsync(string fipsFilePath)
     {
-        if (!File.Exists(fipsFilePath))
-            throw new InvalidOperationException(
-                $"County FIPS data file not found at {fipsFilePath}; it defines California's expected county list.");
-        var fips = JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText(fipsFilePath))
-                   ?? throw new InvalidOperationException($"County FIPS data file {fipsFilePath} is empty.");
+        var fips = CountyFipsLoader.LoadRequired(fipsFilePath);
 
         var html = await _fetcher.GetStringAsync(_config.CountyElectionsOfficesUrl);
         var doc = await new HtmlParser().ParseDocumentAsync(html);
@@ -57,15 +52,7 @@ public sealed class CountyDirectoryScraper
                     .Select(a => a.GetAttribute("href"))
                     .FirstOrDefault();
 
-            byCounty[countyName] = new CountyDirectoryRow
-            {
-                CountyName = countyName,
-                CountyFips = fips[countyName],
-                ElectionsOfficeUrl = websiteUrl,
-                Address = ExtractAddress(lines),
-                Phone = lines.Select(l => CaSelectors.PhoneLine.Match(l))
-                    .FirstOrDefault(m => m.Success)?.Value.Trim(),
-            };
+            byCounty[countyName] = ToCountyDirectoryRow(countyName, fips[countyName], websiteUrl, lines);
         }
 
         var missing = fips.Keys.Where(c => !byCounty.ContainsKey(c)).OrderBy(c => c, StringComparer.Ordinal).ToList();
@@ -76,6 +63,17 @@ public sealed class CountyDirectoryScraper
 
         return byCounty.Values.ToList();
     }
+
+    internal static CountyDirectoryRow ToCountyDirectoryRow(
+        string countyName, string countyFips, string? websiteUrl, List<string> lines) => new()
+    {
+        CountyName = countyName,
+        CountyFips = countyFips,
+        ElectionsOfficeUrl = websiteUrl,
+        Address = ExtractAddress(lines),
+        Phone = lines.Select(l => CaSelectors.PhoneLine.Match(l))
+            .FirstOrDefault(m => m.Success)?.Value.Trim(),
+    };
 
     private static IEnumerable<IElement> FollowingParagraphs(IElement heading)
     {
@@ -97,9 +95,8 @@ public sealed class CountyDirectoryScraper
             br.ReplaceWith(clone.Owner!.CreateTextNode("\n"));
 
         return clone.TextContent
-            .Replace('\u00a0', ' ')
             .Split('\n')
-            .Select(l => string.Join(' ', l.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)).Trim())
+            .Select(TextNormalization.CollapseWhitespace)
             .Where(l => l.Length > 0)
             .ToList();
     }

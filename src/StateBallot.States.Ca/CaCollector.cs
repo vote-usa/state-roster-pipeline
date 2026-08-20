@@ -1,4 +1,3 @@
-using System.Text.Json;
 using StateBallot.Core;
 
 namespace StateBallot.States.Ca;
@@ -34,10 +33,7 @@ public sealed class CaCollector : IStateCollector
 
         var (dataRoot, _) = DataPaths.FromStateOutputDir(_stateDataDir);
         var fipsPath = DataPaths.CountyFipsPath(dataRoot, StateCode);
-        if (!File.Exists(fipsPath))
-            throw new InvalidOperationException($"County FIPS data file not found at {fipsPath}.");
-        var fips = JsonSerializer.Deserialize<SortedDictionary<string, string>>(File.ReadAllText(fipsPath))
-                   ?? throw new InvalidOperationException($"County FIPS data file {fipsPath} is empty.");
+        var fips = CountyFipsLoader.LoadRequired(fipsPath);
 
         var result = new CollectResult
         {
