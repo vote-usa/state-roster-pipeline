@@ -60,6 +60,9 @@ Caveats:
 - Works best for HTML/PDF GET sources (CA, and the WA SoS pages). POST APIs
   (TX, WV) and query-string APIs (WA's voters' guide) are rarely captured, and
   Wayback matches query strings exactly - expect gaps or 404 failures there.
+- API-backed states usually don't need Wayback at all: VoteWA's election list
+  and voters' guide serve past years directly, so `--state WA --year 2024`
+  back-fills against the live API (verified back to 2020).
 - Check capture coverage first via the CDX API, e.g.
   `https://web.archive.org/cdx/search/cdx?url=<url>&fl=timestamp,statuscode`.
 - Pair `--wayback` with `--year` matching the era being replayed, and `--dry-run`
