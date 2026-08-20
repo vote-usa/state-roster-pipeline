@@ -52,6 +52,10 @@ Published snapshots go to
 (`ca/`, `wa/`, … at the repo root). This repo keeps a pointer at
 `data/input/snapshot.json`.
 
+The manual GitHub Action **Publish roster data** collects into that repo and
+can push when `push` is checked. Pushing requires the `ROSTER_DATA_TOKEN` repo
+secret (a PAT with Contents write on `vote-usa/state-roster-data`).
+
 ```bash
 # Sync local data/output into ../state-roster-data, commit, update snapshot.json
 # (does not push)
