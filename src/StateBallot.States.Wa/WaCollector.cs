@@ -134,7 +134,12 @@ public sealed class WaCollector : IStateCollector
         var measuresScraper = new StatewideMeasuresScraper(_fetcher, _config);
         try
         {
-            foreach (var measure in await measuresScraper.FetchAsync(_year))
+            var statewideMeasures = await measuresScraper.FetchAsync(_year);
+            if (statewideMeasures.Count == 0)
+                result.Gaps.Add(
+                    $"Statewide measures: the SoS proposed-measures page lists no measures for {_year} " +
+                    "(it only covers the current filing cycle, so back-fill years come up empty).");
+            foreach (var measure in statewideMeasures)
             {
                 RowHelpers.StampState(measure, StateCode);
                 result.StatewideProposedMeasures.Add(measure);
