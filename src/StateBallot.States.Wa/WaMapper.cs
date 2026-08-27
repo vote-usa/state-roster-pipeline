@@ -6,7 +6,8 @@ namespace StateBallot.States.Wa;
 public static class WaMapper
 {
     public static CandidateRow ToCandidateRow(
-        string stateCode, Election election, GuideRace race, GuideCandidate candidate, string? county, string sourceUrl) => new()
+        string stateCode, Election election, GuideRace race, GuideCandidate candidate, string? county, string sourceUrl,
+        Selectors selectors) => new()
     {
         State = stateCode,
         ElectionDate = election.ElectionDate.ToString("yyyy-MM-dd"),
@@ -15,7 +16,7 @@ public static class WaMapper
         District = string.IsNullOrWhiteSpace(race.Jurisdiction) ? null : race.Jurisdiction.Trim(),
         County = county,
         CandidateName = candidate.BallotName!.Trim(),
-        Party = VoterGuideClient.NormalizeParty(candidate.PartyName),
+        Party = VoterGuideClient.NormalizeParty(candidate.PartyName, selectors),
         Incumbent = null, // not published by VoteWA
         SourceUrl = sourceUrl,
     };

@@ -12,15 +12,18 @@ namespace StateBallot.States.Ca;
 /// </summary>
 public sealed class UpcomingElectionsScraper
 {
-    private static readonly string[] DateFormats = { "MMMM d, yyyy" };
-
     private readonly HttpFetcher _fetcher;
     private readonly CaSourceConfig _config;
+    private readonly string[] _dateFormats;
+    private readonly CaSelectors _selectors;
 
-    public UpcomingElectionsScraper(HttpFetcher fetcher, CaSourceConfig config)
+    /// <param name="dateFormats">Accepted date formats, from data/input/ca/date_formats.json.</param>
+    public UpcomingElectionsScraper(HttpFetcher fetcher, CaSourceConfig config, string[] dateFormats, CaSelectors selectors)
     {
         _fetcher = fetcher;
         _config = config;
+        _dateFormats = dateFormats;
+        _selectors = selectors;
     }
 
     public async Task<List<Election>> FetchAsync()
@@ -30,7 +33,7 @@ public sealed class UpcomingElectionsScraper
 
         var elections = new List<Election>();
         string? currentSection = null;
-        foreach (var element in doc.QuerySelectorAll($"{CaSelectors.UpcomingSectionHeading}, ul"))
+        foreach (var element in doc.QuerySelectorAll($"{_selectors.UpcomingSectionHeading}, ul"))
         {
             if (element.LocalName is "h2" or "h3")
             {
@@ -38,19 +41,19 @@ public sealed class UpcomingElectionsScraper
                 continue;
             }
 
-            var isStatewide = string.Equals(currentSection, CaSelectors.StatewideSectionTitle, StringComparison.OrdinalIgnoreCase);
-            var isSpecialVacancy = string.Equals(currentSection, CaSelectors.SpecialVacancySectionTitle, StringComparison.OrdinalIgnoreCase);
+            var isStatewide = string.Equals(currentSection, _selectors.StatewideSectionTitle, StringComparison.OrdinalIgnoreCase);
+            var isSpecialVacancy = string.Equals(currentSection, _selectors.SpecialVacancySectionTitle, StringComparison.OrdinalIgnoreCase);
             if (!isStatewide && !isSpecialVacancy)
                 continue;
 
             foreach (var anchor in element.QuerySelectorAll("li a"))
             {
                 var text = anchor.TextContent.Trim();
-                var match = CaSelectors.ElectionLinkText.Match(text);
+                var match = _selectors.ElectionLinkText.Match(text);
                 if (!match.Success)
                     continue; // e.g. link to the county-administered elections page
 
-                if (!DateParsing.TryParseAny(match.Groups["date"].Value, DateFormats, out var date))
+                if (!DateParsing.TryParseAny(match.Groups["date"].Value, _dateFormats, out var date))
                     continue;
 
                 var name = match.Groups["name"].Value.Trim().TrimEnd(',');
@@ -61,8 +64,8 @@ public sealed class UpcomingElectionsScraper
 
         ScrapeGuard.RequireAny(elections, () =>
             $"No elections parsed from {_config.UpcomingElectionsUrl} " +
-            $"(sections '{CaSelectors.StatewideSectionTitle}' / '{CaSelectors.SpecialVacancySectionTitle}', " +
-            $"pattern '{CaSelectors.ElectionLinkText}'). The page markup may have changed.");
+            $"(sections '{_selectors.StatewideSectionTitle}' / '{_selectors.SpecialVacancySectionTitle}', " +
+            $"pattern '{_selectors.ElectionLinkText}'). The page markup may have changed.");
 
         return elections;
     }

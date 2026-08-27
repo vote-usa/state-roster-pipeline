@@ -2,6 +2,16 @@ namespace StateBallot.States.Tx.Tests;
 
 public class TxCandidateMapperTests
 {
+    private static readonly string[] DateFormats = { "yyyy-MM-dd" };
+
+    private static readonly Dictionary<string, string> ElectionTypeNames = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["P"] = "Primary",
+        ["G"] = "General",
+        ["S"] = "Special",
+        ["R"] = "Runoff",
+    };
+
     [Fact]
     public void ToElection_ParsesDateAndNormalizesType()
     {
@@ -13,7 +23,7 @@ public class TxCandidateMapperTests
             DtElectionDate = "2026-03-03",
         };
 
-        var election = TxCandidateMapper.ToElection(raw);
+        var election = TxCandidateMapper.ToElection(raw, DateFormats, ElectionTypeNames);
 
         Assert.Equal("TX", election.State);
         Assert.Equal("53814", election.ElectionId);
@@ -26,7 +36,7 @@ public class TxCandidateMapperTests
     {
         var raw = new TexasElection { IdElection = 1, DtElectionDate = "2026-11-03", CdElectionType = "X" };
 
-        var election = TxCandidateMapper.ToElection(raw);
+        var election = TxCandidateMapper.ToElection(raw, DateFormats, ElectionTypeNames);
 
         Assert.Equal("X", election.ElectionType);
     }
@@ -39,7 +49,7 @@ public class TxCandidateMapperTests
             IdElection = 56181,
             DtElectionDate = "2026-04-15",
             CdElectionType = "S",
-        });
+        }, DateFormats, ElectionTypeNames);
 
         var candidate = new TexasCandidate
         {
@@ -85,7 +95,8 @@ public class TxCandidateMapperTests
     [Fact]
     public void ToCandidateRow_NoMailingAddress_LeavesAddressFieldsNull()
     {
-        var election = TxCandidateMapper.ToElection(new TexasElection { IdElection = 1, DtElectionDate = "2026-11-03" });
+        var election = TxCandidateMapper.ToElection(
+            new TexasElection { IdElection = 1, DtElectionDate = "2026-11-03" }, DateFormats, ElectionTypeNames);
         var candidate = new TexasCandidate { IdCandidate = 1, TxFullNameBallot = "JANE DOE" };
 
         var data = TxCandidateMapper.ToCandidateRow(candidate, election, "https://example.com");

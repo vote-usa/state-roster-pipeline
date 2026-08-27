@@ -14,15 +14,18 @@ namespace StateBallot.States.Ca;
 /// </summary>
 public sealed class QualifiedMeasuresScraper
 {
-    private static readonly string[] DateFormats = { "MMMM d, yyyy" };
-
     private readonly HttpFetcher _fetcher;
     private readonly CaSourceConfig _config;
+    private readonly string[] _dateFormats;
+    private readonly CaSelectors _selectors;
 
-    public QualifiedMeasuresScraper(HttpFetcher fetcher, CaSourceConfig config)
+    /// <param name="dateFormats">Accepted date formats, from data/input/ca/date_formats.json.</param>
+    public QualifiedMeasuresScraper(HttpFetcher fetcher, CaSourceConfig config, string[] dateFormats, CaSelectors selectors)
     {
         _fetcher = fetcher;
         _config = config;
+        _dateFormats = dateFormats;
+        _selectors = selectors;
     }
 
     public async Task<List<MeasureRow>> FetchAsync()
@@ -41,14 +44,14 @@ public sealed class QualifiedMeasuresScraper
 
             if (element.LocalName == "h2")
             {
-                var headingMatch = CaSelectors.MeasuresElectionHeading.Match(text);
+                var headingMatch = _selectors.MeasuresElectionHeading.Match(text);
                 if (headingMatch.Success &&
-                    DateParsing.TryParseAny(headingMatch.Groups["date"].Value, DateFormats, out var date))
+                    DateParsing.TryParseAny(headingMatch.Groups["date"].Value, _dateFormats, out var date))
                     currentElectionDate = date;
                 continue;
             }
 
-            var propMatch = CaSelectors.PropositionHeading.Match(text);
+            var propMatch = _selectors.PropositionHeading.Match(text);
             if (!propMatch.Success || currentElectionDate is null)
                 continue;
 
@@ -60,7 +63,7 @@ public sealed class QualifiedMeasuresScraper
             {
                 var next = elements[j];
                 var nextText = TextNormalization.CollapseWhitespace(next.TextContent);
-                if (next.LocalName is "h2" or "hr" || CaSelectors.PropositionHeading.IsMatch(nextText))
+                if (next.LocalName is "h2" or "hr" || _selectors.PropositionHeading.IsMatch(nextText))
                     break;
                 if (nextText.Length == 0 || nextText.StartsWith("Note:", StringComparison.OrdinalIgnoreCase))
                     continue;
@@ -75,7 +78,7 @@ public sealed class QualifiedMeasuresScraper
 
         ScrapeGuard.RequireAny(measures, () =>
             $"No qualified measures parsed from {_config.QualifiedMeasuresUrl} " +
-            $"(heading pattern '{CaSelectors.MeasuresElectionHeading}', proposition pattern '{CaSelectors.PropositionHeading}'). " +
+            $"(heading pattern '{_selectors.MeasuresElectionHeading}', proposition pattern '{_selectors.PropositionHeading}'). " +
             "The page markup may have changed, or no measures have qualified yet.");
 
         return measures;

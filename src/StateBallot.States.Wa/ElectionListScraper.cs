@@ -12,15 +12,18 @@ namespace StateBallot.States.Wa;
 /// </summary>
 public sealed class ElectionListScraper
 {
-    private static readonly string[] DateFormats = { "MM/dd/yyyy" };
-
     private readonly HttpFetcher _fetcher;
     private readonly WaSourceConfig _config;
+    private readonly string[] _dateFormats;
+    private readonly Selectors _selectors;
 
-    public ElectionListScraper(HttpFetcher fetcher, WaSourceConfig config)
+    /// <param name="dateFormats">Accepted date formats, from data/input/wa/date_formats.json.</param>
+    public ElectionListScraper(HttpFetcher fetcher, WaSourceConfig config, string[] dateFormats, Selectors selectors)
     {
         _fetcher = fetcher;
         _config = config;
+        _dateFormats = dateFormats;
+        _selectors = selectors;
     }
 
     public async Task<(List<Election> Elections, SortedDictionary<string, string> CountyCodes)> FetchAsync()
@@ -28,21 +31,21 @@ public sealed class ElectionListScraper
         var html = await _fetcher.GetStringAsync(_config.CandidateListUrl);
         var doc = await new HtmlParser().ParseDocumentAsync(html);
 
-        var electionOptions = doc.QuerySelectorAll($"{Selectors.ElectionDropdown} option")
+        var electionOptions = doc.QuerySelectorAll($"{_selectors.ElectionDropdown} option")
             .OfType<IHtmlOptionElement>()
             .ToList();
         ScrapeGuard.RequireAny(electionOptions, () =>
-            $"No election options found at {_config.CandidateListUrl} using selector '{Selectors.ElectionDropdown}'. The page markup may have changed.");
+            $"No election options found at {_config.CandidateListUrl} using selector '{_selectors.ElectionDropdown}'. The page markup may have changed.");
 
         var elections = new List<Election>();
         foreach (var option in electionOptions)
         {
             var text = option.TextContent.Trim();
-            var match = Selectors.ElectionOptionText.Match(text);
+            var match = _selectors.ElectionOptionText.Match(text);
             if (!match.Success)
                 continue; // placeholder rows
 
-            if (!DateParsing.TryParseAny(match.Groups["date"].Value, DateFormats, out var electionDate))
+            if (!DateParsing.TryParseAny(match.Groups["date"].Value, _dateFormats, out var electionDate))
                 throw new InvalidOperationException(
                     $"Election option '{text}' at {_config.CandidateListUrl} has an unrecognized date format. " +
                     "Expected 'MM/dd/yyyy'.");
@@ -61,11 +64,11 @@ public sealed class ElectionListScraper
         }
 
         ScrapeGuard.RequireAny(elections, () =>
-            $"Election dropdown at {_config.CandidateListUrl} had options but none matched pattern '{Selectors.ElectionOptionText}'.");
+            $"Election dropdown at {_config.CandidateListUrl} had options but none matched pattern '{_selectors.ElectionOptionText}'.");
 
         // County codes: "01" => "Adams". Code "99" is the synthetic "State" entry.
         var countyCodes = new SortedDictionary<string, string>(StringComparer.Ordinal);
-        foreach (var option in doc.QuerySelectorAll($"{Selectors.CountyDropdown} option").OfType<IHtmlOptionElement>())
+        foreach (var option in doc.QuerySelectorAll($"{_selectors.CountyDropdown} option").OfType<IHtmlOptionElement>())
         {
             var code = option.Value.Trim();
             var name = option.TextContent.Trim();
@@ -75,7 +78,7 @@ public sealed class ElectionListScraper
         }
 
         ScrapeGuard.RequireAny(countyCodes, () =>
-            $"No county options found at {_config.CandidateListUrl} using selector '{Selectors.CountyDropdown}'.");
+            $"No county options found at {_config.CandidateListUrl} using selector '{_selectors.CountyDropdown}'.");
 
         return (elections, countyCodes);
     }

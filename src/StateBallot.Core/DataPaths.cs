@@ -2,7 +2,7 @@ namespace StateBallot.Core;
 
 /// <summary>
 /// Resolves input vs output paths under the data root.
-/// Inputs: data/input/ (catalog, county_fips, sources).
+/// Inputs: data/input/ (catalog, county_fips, sources, date_formats, election_type_names).
 /// Outputs: data/output/&lt;xx&gt;/ (candidates, elections, …).
 /// </summary>
 public static class DataPaths
@@ -27,6 +27,15 @@ public static class DataPaths
 
     public static string SourcesPath(string dataRoot, string stateCode) =>
         Path.Combine(StateInputDir(dataRoot, stateCode), "sources.json");
+
+    public static string DateFormatsPath(string dataRoot, string stateCode) =>
+        Path.Combine(StateInputDir(dataRoot, stateCode), "date_formats.json");
+
+    public static string ElectionTypeNamesPath(string dataRoot, string stateCode) =>
+        Path.Combine(StateInputDir(dataRoot, stateCode), "election_type_names.json");
+
+    public static string SelectorsPath(string dataRoot, string stateCode) =>
+        Path.Combine(StateInputDir(dataRoot, stateCode), "selectors.json");
 
     /// <summary>
     /// When a collector is given only the per-state output dir (data/output/ca),

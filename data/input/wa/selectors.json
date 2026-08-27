@@ -1,0 +1,17 @@
+{
+  "electionDropdown": "select#ddlElection, select[name$='ddlElection']",
+  "countyDropdown": "select#ddlCounty, select[name$='ddlCounty']",
+  "electionOptionText": "^(?<name>.+?)\\s*\\((?<date>\\d{2}/\\d{2}/\\d{4})\\)\\s*\\((?<type>[^)]+)\\)\\s*$",
+  "partyPreference": "^\\(?\\s*(?:States No Party Preference|Prefers\\s+(?<party>.+?))\\s*\\)?$",
+  "measuresYearHeading": "h2",
+  "measureHeading": "h3",
+  "measureHeadingText": "(?<kind>Initiative|Referendum|Senate Joint Resolution|House Joint Resolution|Engrossed.+?Resolution)\\s*(?:Measure\\s*)?(?:No\\.?\\s*)?(?<id>[A-Z]{0,4}\\d[\\w-]*)",
+  "measurePdfLink": "a[href$='.pdf' i]",
+  "fullTextLink": "full\\s*text",
+  "countyOfficeRows": "#officegrid table tbody tr, table.cols-4 tbody tr",
+  "countyOfficeCountyCell": "td[headers*='county'], td.views-field-field-county",
+  "countyOfficeAddressCell": "td[headers*='address'], td.views-field-field-address",
+  "countyOfficeContactCell": "td[headers*='nothing'], td.views-field-nothing",
+  "countyOfficeWebsiteLink": "a[href^='http']",
+  "phoneLine": "P:\\s*(?<phone>[\\d()\\- .]{7,})"
+}

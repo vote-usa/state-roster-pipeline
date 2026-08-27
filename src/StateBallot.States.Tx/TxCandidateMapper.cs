@@ -6,22 +6,15 @@ namespace StateBallot.States.Tx;
 /// <summary>Projects raw CivixApps DTOs onto the canonical Core shapes.</summary>
 public static class TxCandidateMapper
 {
-    private static readonly Dictionary<string, string> ElectionTypeNames = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ["P"] = "Primary",
-        ["G"] = "General",
-        ["S"] = "Special",
-        ["R"] = "Runoff",
-    };
-
-    private static readonly string[] ElectionDateFormats = { "yyyy-MM-dd" };
-
-    public static Election ToElection(TexasElection e)
+    /// <param name="dateFormats">Accepted formats for dtElectionDate, from data/input/tx/date_formats.json.</param>
+    /// <param name="electionTypeNames">Election type code -> canonical name, from data/input/tx/election_type_names.json.</param>
+    public static Election ToElection(TexasElection e, string[] dateFormats, IReadOnlyDictionary<string, string> electionTypeNames)
     {
         var raw = e.DtElectionDate ?? throw new InvalidOperationException($"Election {e.IdElection} has no dtElectionDate");
-        if (!DateParsing.TryParseAny(raw, ElectionDateFormats, out var date))
+        if (!DateParsing.TryParseAny(raw, dateFormats, out var date))
             throw new InvalidOperationException(
-                $"Election {e.IdElection} has an unrecognized dtElectionDate format: '{raw}'. Expected 'yyyy-MM-dd'.");
+                $"Election {e.IdElection} has an unrecognized dtElectionDate format: '{raw}'. " +
+                $"Expected one of: {string.Join(", ", dateFormats)}.");
 
         return new Election
         {
@@ -29,13 +22,13 @@ public static class TxCandidateMapper
             ElectionId = e.IdElection.ToString(CultureInfo.InvariantCulture),
             Name = e.TxElectionName ?? "",
             ElectionDate = date,
-            ElectionType = NormalizeElectionType(e.CdElectionType),
+            ElectionType = NormalizeElectionType(e.CdElectionType, electionTypeNames),
             SourceUrl = "",
         };
     }
 
-    private static string NormalizeElectionType(string? code) =>
-        code is not null && ElectionTypeNames.TryGetValue(code, out var name) ? name : code ?? "";
+    private static string NormalizeElectionType(string? code, IReadOnlyDictionary<string, string> electionTypeNames) =>
+        code is not null && electionTypeNames.TryGetValue(code, out var name) ? name : code ?? "";
 
     public static CandidateRow ToCandidateRow(TexasCandidate c, Election election, string sourceUrl) => new()
     {

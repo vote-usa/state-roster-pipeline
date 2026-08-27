@@ -15,11 +15,13 @@ public sealed class CountyDirectoryScraper
 {
     private readonly HttpFetcher _fetcher;
     private readonly CaSourceConfig _config;
+    private readonly CaSelectors _selectors;
 
-    public CountyDirectoryScraper(HttpFetcher fetcher, CaSourceConfig config)
+    public CountyDirectoryScraper(HttpFetcher fetcher, CaSourceConfig config, CaSelectors selectors)
     {
         _fetcher = fetcher;
         _config = config;
+        _selectors = selectors;
     }
 
     /// <param name="fipsFilePath">JSON file mapping county name to FIPS code; also defines the expected county set.</param>
@@ -31,7 +33,7 @@ public sealed class CountyDirectoryScraper
         var doc = await new HtmlParser().ParseDocumentAsync(html);
 
         var byCounty = new SortedDictionary<string, CountyDirectoryRow>(StringComparer.OrdinalIgnoreCase);
-        foreach (var heading in doc.QuerySelectorAll(CaSelectors.CountySectionHeading))
+        foreach (var heading in doc.QuerySelectorAll(_selectors.CountySectionHeading))
         {
             var countyName = heading.TextContent.Trim();
             if (!fips.ContainsKey(countyName) || byCounty.ContainsKey(countyName))
@@ -52,7 +54,7 @@ public sealed class CountyDirectoryScraper
                     .Select(a => a.GetAttribute("href"))
                     .FirstOrDefault();
 
-            byCounty[countyName] = ToCountyDirectoryRow(countyName, fips[countyName], websiteUrl, lines);
+            byCounty[countyName] = ToCountyDirectoryRow(countyName, fips[countyName], websiteUrl, lines, _selectors);
         }
 
         var missing = fips.Keys.Where(c => !byCounty.ContainsKey(c)).OrderBy(c => c, StringComparer.Ordinal).ToList();
@@ -65,13 +67,13 @@ public sealed class CountyDirectoryScraper
     }
 
     internal static CountyDirectoryRow ToCountyDirectoryRow(
-        string countyName, string countyFips, string? websiteUrl, List<string> lines) => new()
+        string countyName, string countyFips, string? websiteUrl, List<string> lines, CaSelectors selectors) => new()
     {
         CountyName = countyName,
         CountyFips = countyFips,
         ElectionsOfficeUrl = websiteUrl,
-        Address = ExtractAddress(lines),
-        Phone = lines.Select(l => CaSelectors.PhoneLine.Match(l))
+        Address = ExtractAddress(lines, selectors),
+        Phone = lines.Select(l => selectors.PhoneLine.Match(l))
             .FirstOrDefault(m => m.Success)?.Value.Trim(),
     };
 
@@ -105,11 +107,11 @@ public sealed class CountyDirectoryScraper
     /// Street address = the lines between the official's name (line 0) and the
     /// first phone / mailing-address / hours line.
     /// </summary>
-    private static string? ExtractAddress(List<string> lines)
+    private static string? ExtractAddress(List<string> lines, CaSelectors selectors)
     {
         var addressLines = lines
             .Skip(1)
-            .TakeWhile(l => !CaSelectors.PhoneLine.IsMatch(l)
+            .TakeWhile(l => !selectors.PhoneLine.IsMatch(l)
                             && !l.StartsWith("Mailing Address", StringComparison.OrdinalIgnoreCase)
                             && !l.StartsWith("Hours", StringComparison.OrdinalIgnoreCase))
             .ToList();

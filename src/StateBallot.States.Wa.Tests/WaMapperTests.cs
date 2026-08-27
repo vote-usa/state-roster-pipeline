@@ -19,7 +19,8 @@ public class WaMapperTests
         var race = new GuideRace { Name = " Governor ", Jurisdiction = null };
         var candidate = new GuideCandidate { BallotName = " Jane Q. Public ", PartyName = "(Prefers Democratic Party)" };
 
-        var row = WaMapper.ToCandidateRow("WA", Election(), race, candidate, county: null, sourceUrl: "https://example.com/guide");
+        var row = WaMapper.ToCandidateRow(
+            "WA", Election(), race, candidate, county: null, sourceUrl: "https://example.com/guide", selectors: Selectors.Default);
 
         Assert.Equal("WA", row.State);
         Assert.Equal("2026-11-03", row.ElectionDate);
@@ -39,7 +40,7 @@ public class WaMapperTests
         var race = new GuideRace { Name = "State Senator", Jurisdiction = " District 5 " };
         var candidate = new GuideCandidate { BallotName = "Jane Public", PartyName = "States No Party Preference" };
 
-        var row = WaMapper.ToCandidateRow("WA", Election(), race, candidate, "King", "https://example.com/guide");
+        var row = WaMapper.ToCandidateRow("WA", Election(), race, candidate, "King", "https://example.com/guide", Selectors.Default);
 
         Assert.Equal("District 5", row.District);
         Assert.Equal("King", row.County);

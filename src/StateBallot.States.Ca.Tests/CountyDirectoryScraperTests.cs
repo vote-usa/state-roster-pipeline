@@ -14,7 +14,7 @@ public class CountyDirectoryScraperTests
             "Mailing Address: PO Box 1234",
         };
 
-        var row = CountyDirectoryScraper.ToCountyDirectoryRow("Alameda", "06001", "https://acgov.org", lines);
+        var row = CountyDirectoryScraper.ToCountyDirectoryRow("Alameda", "06001", "https://acgov.org", lines, CaSelectors.Default);
 
         Assert.Equal("Alameda", row.CountyName);
         Assert.Equal("06001", row.CountyFips);
@@ -26,7 +26,7 @@ public class CountyDirectoryScraperTests
     [Fact]
     public void ToCountyDirectoryRow_NoLines_LeavesAddressAndPhoneNull()
     {
-        var row = CountyDirectoryScraper.ToCountyDirectoryRow("Alpine", "06003", null, new List<string>());
+        var row = CountyDirectoryScraper.ToCountyDirectoryRow("Alpine", "06003", null, new List<string>(), CaSelectors.Default);
 
         Assert.Null(row.Address);
         Assert.Null(row.Phone);

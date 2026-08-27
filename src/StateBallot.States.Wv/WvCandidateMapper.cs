@@ -6,19 +6,18 @@ namespace StateBallot.States.Wv;
 /// <summary>Projects raw WV SOS DTOs onto the canonical Core shapes.</summary>
 public static class WvCandidateMapper
 {
-    private static readonly string[] KnownDateFormats = { "yyyy-MM-dd", "yyyy-MM-ddTHH:mm:ss", "M/d/yyyy", "MM/dd/yyyy" };
-
     /// <summary>
     /// WV's candidate API has no standalone election-catalog endpoint - each candidate
     /// record carries its own election fields, so an Election is derived from one
     /// representative candidate in each (electionId) group.
     /// </summary>
-    public static Election ToElection(WestVirginiaCandidate c) => new()
+    /// <param name="dateFormats">Accepted formats for electionDate, from data/input/wv/date_formats.json.</param>
+    public static Election ToElection(WestVirginiaCandidate c, string[] dateFormats) => new()
     {
         State = "WV",
         ElectionId = c.ElectionId.ToString(CultureInfo.InvariantCulture),
         Name = c.ElectionName ?? "",
-        ElectionDate = ParseElectionDate(c.ElectionDate, c.ElectionId),
+        ElectionDate = ParseElectionDate(c.ElectionDate, c.ElectionId, dateFormats),
         ElectionType = c.ElectionType ?? "",
         SourceUrl = "",
     };
@@ -60,14 +59,14 @@ public static class WvCandidateMapper
         return string.Join(" ", parts);
     }
 
-    private static DateOnly ParseElectionDate(string? raw, int electionId)
+    private static DateOnly ParseElectionDate(string? raw, int electionId, string[] dateFormats)
     {
-        if (raw is not null && DateParsing.TryParseAny(raw, KnownDateFormats, out var date))
+        if (raw is not null && DateParsing.TryParseAny(raw, dateFormats, out var date))
             return date;
 
         throw new InvalidOperationException(
             $"Election {electionId} has an unrecognized electionDate format: '{raw}'. " +
-            $"Expected one of: {string.Join(", ", KnownDateFormats)}.");
+            $"Expected one of: {string.Join(", ", dateFormats)}.");
     }
 
     private static string? FormatMailingLine(WestVirginiaAddress? address) =>

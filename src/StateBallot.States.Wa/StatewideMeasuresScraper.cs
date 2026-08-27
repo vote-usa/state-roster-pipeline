@@ -13,11 +13,13 @@ public sealed class StatewideMeasuresScraper
 {
     private readonly HttpFetcher _fetcher;
     private readonly WaSourceConfig _config;
+    private readonly Selectors _selectors;
 
-    public StatewideMeasuresScraper(HttpFetcher fetcher, WaSourceConfig config)
+    public StatewideMeasuresScraper(HttpFetcher fetcher, WaSourceConfig config, Selectors selectors)
     {
         _fetcher = fetcher;
         _config = config;
+        _selectors = selectors;
     }
 
     public async Task<List<MeasureRow>> FetchAsync(int year)
@@ -28,10 +30,10 @@ public sealed class StatewideMeasuresScraper
 
         var measures = new List<MeasureRow>();
 
-        foreach (var heading in doc.QuerySelectorAll(Selectors.MeasureHeading))
+        foreach (var heading in doc.QuerySelectorAll(_selectors.MeasureHeading))
         {
             var headingText = heading.TextContent.Trim();
-            var match = Selectors.MeasureHeadingText.Match(headingText);
+            var match = _selectors.MeasureHeadingText.Match(headingText);
             if (!match.Success)
                 continue;
 
@@ -44,9 +46,9 @@ public sealed class StatewideMeasuresScraper
 
             string? fullTextUrl = null;
             string? titleLetterUrl = null;
-            foreach (var link in CollectLinksUntilNextHeading(heading, baseUri))
+            foreach (var link in CollectLinksUntilNextHeading(heading, baseUri, _selectors))
             {
-                if (Selectors.FullTextLink.IsMatch(link.Text))
+                if (_selectors.FullTextLink.IsMatch(link.Text))
                     fullTextUrl = link.Href;
                 else
                     titleLetterUrl ??= link.Href;
@@ -66,7 +68,7 @@ public sealed class StatewideMeasuresScraper
         }
 
         ScrapeGuard.RequireAny(measures, () =>
-            $"No statewide measures parsed from {_config.StatewideMeasuresUrl} using heading selector '{Selectors.MeasureHeading}'. " +
+            $"No statewide measures parsed from {_config.StatewideMeasuresUrl} using heading selector '{_selectors.MeasureHeading}'. " +
             "Either no measures are filed yet for the year or the page markup changed; verify the page manually.");
 
         return measures.OrderBy(m => m.MeasureId, StringComparer.Ordinal).ToList();
@@ -83,13 +85,14 @@ public sealed class StatewideMeasuresScraper
         return null;
     }
 
-    private static IEnumerable<(string Text, string Href)> CollectLinksUntilNextHeading(IElement heading, Uri baseUri)
+    private static IEnumerable<(string Text, string Href)> CollectLinksUntilNextHeading(
+        IElement heading, Uri baseUri, Selectors selectors)
     {
         for (var node = heading.NextElementSibling; node is not null; node = node.NextElementSibling)
         {
             if (node.TagName is "H2" or "H3")
                 yield break;
-            foreach (var a in node.QuerySelectorAll(Selectors.MeasurePdfLink))
+            foreach (var a in node.QuerySelectorAll(selectors.MeasurePdfLink))
             {
                 var href = a.GetAttribute("href");
                 if (!string.IsNullOrEmpty(href))

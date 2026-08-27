@@ -88,11 +88,11 @@ public sealed class VoterGuideClient
     }
 
     /// <summary>"(Prefers Democratic Party)" => "Democratic Party"; nonpartisan/empty => null.</summary>
-    public static string? NormalizeParty(string? partyName)
+    public static string? NormalizeParty(string? partyName, Selectors selectors)
     {
         if (string.IsNullOrWhiteSpace(partyName))
             return null;
-        var match = Selectors.PartyPreference.Match(partyName.Trim());
+        var match = selectors.PartyPreference.Match(partyName.Trim());
         if (!match.Success)
             return partyName.Trim();
         var party = match.Groups["party"].Value.Trim();

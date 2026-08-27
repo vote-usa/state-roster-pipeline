@@ -5,9 +5,9 @@ public class CertifiedListPdfParserTests
     [Fact]
     public void ToCandidateRow_SplitsOfficeAndDistrict_MarksIncumbent()
     {
-        var match = CaSelectors.CertListCandidateLine.Match("Aisha Wahab* Democratic");
+        var match = CaSelectors.Default.CertListCandidateLine.Match("Aisha Wahab* Democratic");
 
-        var row = CertifiedListPdfParser.ToCandidateRow(match, "United States Representative District 14", "https://example.com/cert.pdf");
+        var row = CertifiedListPdfParser.ToCandidateRow(match, "United States Representative District 14", "https://example.com/cert.pdf", CaSelectors.Default);
 
         Assert.Equal("United States Representative", row.Office);
         Assert.Equal("14", row.District);
@@ -20,9 +20,9 @@ public class CertifiedListPdfParserTests
     [Fact]
     public void ToCandidateRow_NoIncumbentMarker_LeavesIncumbentNull()
     {
-        var match = CaSelectors.CertListCandidateLine.Match("Naomi Bar-Lev No Party Preference");
+        var match = CaSelectors.Default.CertListCandidateLine.Match("Naomi Bar-Lev No Party Preference");
 
-        var row = CertifiedListPdfParser.ToCandidateRow(match, "Governor", "https://example.com/cert.pdf");
+        var row = CertifiedListPdfParser.ToCandidateRow(match, "Governor", "https://example.com/cert.pdf", CaSelectors.Default);
 
         Assert.Null(row.District);
         Assert.Equal("Governor", row.Office);
@@ -34,9 +34,9 @@ public class CertifiedListPdfParserTests
     [Fact]
     public void ToCandidateRow_UnknownParty_MapsToNull()
     {
-        var match = CaSelectors.CertListCandidateLine.Match("Some Candidate Unknown");
+        var match = CaSelectors.Default.CertListCandidateLine.Match("Some Candidate Unknown");
 
-        var row = CertifiedListPdfParser.ToCandidateRow(match, "Superintendent of Public Instruction", "https://example.com/cert.pdf");
+        var row = CertifiedListPdfParser.ToCandidateRow(match, "Superintendent of Public Instruction", "https://example.com/cert.pdf", CaSelectors.Default);
 
         Assert.Null(row.Party);
     }

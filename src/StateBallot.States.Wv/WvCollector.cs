@@ -11,18 +11,21 @@ public sealed class WvCollector : IStateCollector
     private readonly WvSourceConfig _config;
     private readonly IPublishSchedule _schedule;
     private readonly int _year;
+    private readonly string[] _dateFormats;
 
     public string StateCode => "WV";
 
-    /// <param name="stateDataDir">Per-state output directory (data/output/&lt;xx&gt;/). Inputs are under data/input/&lt;xx&gt;/.</param>
-    // Unused today: WV has no per-state input files (no county_fips.json). Kept to match
-    // Runner.cs's shared IStateCollector factory signature.
+    /// <param name="stateDataDir">Per-state output directory (data/output/&lt;xx&gt;/). Inputs are under data/input/&lt;xx&gt;/,
+    /// including date_formats.json.</param>
     public WvCollector(HttpFetcher fetcher, int year, string stateDataDir, WvSourceConfig? config = null)
     {
         _fetcher = fetcher;
         _year = year;
         _config = config ?? new WvSourceConfig();
         _schedule = new WvPublishSchedule();
+
+        var (dataRoot, _) = DataPaths.FromStateOutputDir(stateDataDir);
+        _dateFormats = DateFormatConfig.Load(DataPaths.DateFormatsPath(dataRoot, StateCode));
     }
 
     public async Task<CollectResult> CollectAsync()
@@ -48,7 +51,7 @@ public sealed class WvCollector : IStateCollector
 
         var elections = deduped
             .GroupBy(c => c.ElectionId)
-            .Select(g => WvCandidateMapper.ToElection(g.First()))
+            .Select(g => WvCandidateMapper.ToElection(g.First(), _dateFormats))
             .OrderBy(e => e.ElectionDate)
             .ThenBy(e => e.ElectionId, StringComparer.Ordinal)
             .ToList();
