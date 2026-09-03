@@ -47,6 +47,24 @@ public sealed class CandidateRow
     public string? MailingZip { get; set; }
     public string? ResidentialCity { get; set; }
     public string? ResidentialCounty { get; set; }
+
+    /// <summary>
+    /// The source system's identifier for the office/race (e.g. TX idOffice, WV officeId,
+    /// VoteWA RaceID). Used to alias scraped offices to VoteUSA office keys.
+    /// </summary>
+    public string? SourceOfficeId { get; set; }
+
+    /// <summary>The source system's office classification code or name, verbatim (e.g. TX cdOfficeType, VoteWA CategoryCode).</summary>
+    public string? SourceOfficeType { get; set; }
+
+    /// <summary>Local jurisdiction name as published by the source for sub-county races (e.g. "City Of Quincy").</summary>
+    public string? LocalJurisdiction { get; set; }
+
+    /// <summary>Name parts as published by the source; null when the source only publishes a ballot name.</summary>
+    public string? FirstName { get; set; }
+    public string? MiddleName { get; set; }
+    public string? LastName { get; set; }
+    public string? Suffix { get; set; }
 }
 
 public sealed class MeasureRow

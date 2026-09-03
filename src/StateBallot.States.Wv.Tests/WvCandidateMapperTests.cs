@@ -38,9 +38,14 @@ public class WvCandidateMapperTests
         var candidate = new WestVirginiaCandidate
         {
             CandidateId = 5,
+            OfficeId = 77,
+            ElectionCategory = "STATEWIDE",
+            OfficeDescription = "STATE RACE",
             CandidateBallotName = "JANE Q. PUBLIC",
             CandidateFirstName = "Jane",
+            CandidateMiddleName = "Q.",
             CandidateLastName = "Public",
+            CandidateSuffixName = "Jr.",
             PartyDescription = "Democrat",
             OfficeName = "Governor",
             CandidateEmail = "jane@example.com",
@@ -54,22 +59,47 @@ public class WvCandidateMapperTests
         Assert.Equal("5", data.SourceCandidateId);
         Assert.Equal("jane@example.com", data.Email);
         Assert.Equal("304-555-0100", data.Phone);
+        Assert.Equal("77", data.SourceOfficeId);
+        Assert.Equal("STATE RACE", data.SourceOfficeType);
+        Assert.Equal("Jane", data.FirstName);
+        Assert.Equal("Q.", data.MiddleName);
+        Assert.Equal("Public", data.LastName);
+        Assert.Equal("Jr.", data.Suffix);
+        Assert.Null(data.LocalJurisdiction);
     }
 
     [Fact]
-    public void ToCandidateRow_FallsBackToNameParts_WhenNoBallotName()
+    public void ToCandidateRow_MunicipalElection_AppendsCategory_AndIgnoresTownName()
     {
-        var election = WvCandidateMapper.ToElection(new WestVirginiaCandidate { ElectionId = 1, ElectionDate = "2026-05-12" });
+        var election = WvCandidateMapper.ToElection(new WestVirginiaCandidate { ElectionId = 1, ElectionDate = "2026-06-09" });
         var candidate = new WestVirginiaCandidate
         {
-            CandidateFirstName = "Jane",
-            CandidateMiddleName = "Q.",
-            CandidateLastName = "Public",
+            CandidateId = 6,
+            OfficeId = 0,
+            ElectionCategory = "MUNICIPAL",
+            OfficeDescription = "COUNTY",
+            TownName = "LINCOLN", // county name in practice, not a municipality
+            CandidateBallotName = "JOHN DOE",
         };
 
         var data = WvCandidateMapper.ToCandidateRow(candidate, election, "https://example.com");
 
-        Assert.Equal("Jane Q. Public", data.CandidateName);
+        Assert.Null(data.SourceOfficeId);
+        Assert.Equal("COUNTY/MUNICIPAL", data.SourceOfficeType);
+        Assert.Null(data.LocalJurisdiction);
+        Assert.Null(data.Suffix);
+    }
+
+    [Theory]
+    [InlineData("FEDERAL", "STATEWIDE", "FEDERAL")]
+    [InlineData("COUNTY RACE", "STATEWIDE", "COUNTY RACE")]
+    [InlineData(null, "MUNICIPAL", "MUNICIPAL")]
+    [InlineData(" ", " ", null)]
+    public void SourceOfficeType_PrefersOfficeDescription(string? description, string? category, string? expected)
+    {
+        var raw = new WestVirginiaCandidate { OfficeDescription = description, ElectionCategory = category };
+
+        Assert.Equal(expected, WvCandidateMapper.SourceOfficeType(raw));
     }
 
     [Fact]
