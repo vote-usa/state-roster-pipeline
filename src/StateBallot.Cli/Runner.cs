@@ -1,4 +1,5 @@
 using StateBallot.Core;
+using StateBallot.Staging;
 using StateBallot.States.Ca;
 using StateBallot.States.Tx;
 using StateBallot.States.Wa;
@@ -24,6 +25,7 @@ public static class Runner
         string? outRoot = null;
         var dryRun = false;
         string? wayback = null;
+        var migrate = false;
 
         for (var i = 0; i < args.Length; i++)
         {
@@ -50,6 +52,9 @@ public static class Runner
                 case "--wayback" when i + 1 < args.Length:
                     wayback = args[++i];
                     break;
+                case "--migrate":
+                    migrate = true;
+                    break;
                 case "--help" or "-h":
                     Console.WriteLine($"""
                         StateBallot.Cli - state ballot roster collector
@@ -63,6 +68,8 @@ public static class Runner
                           --dry-run            Fetch sources and report counts without writing files
                           --wayback <ts>       Replay sources via web.archive.org at this timestamp
                                                (yyyyMMdd or yyyyMMddHHmmss; nearest capture is served)
+                          --migrate            Apply db/migrations/*.sql to the staging schema and exit
+                                               (connection from ROSTER_STAGING_CONNECTION; local Docker default)
 
                         Snapshot publishes use --input-root pointing at this repo's data/ and
                         --output-root pointing at a checkout of vote-usa/state-roster-data.
@@ -73,6 +80,9 @@ public static class Runner
                     return 2;
             }
         }
+
+        if (migrate)
+            return await MigrateAsync();
 
         var pipelineDataRoot = inputRootArg ?? outRoot ?? FindDataRoot();
         var outputRoot = outputRootArg
@@ -147,6 +157,16 @@ public static class Runner
         new ResultWriter(stateOutputDir, DataPaths.SourcesPath(inputDataRoot, state)).WriteAll(result);
         Console.WriteLine($"\nOutputs written to {Path.GetFullPath(stateOutputDir)}");
         Console.WriteLine($"Sources written to {Path.GetFullPath(DataPaths.SourcesPath(inputDataRoot, state))}");
+        return 0;
+    }
+
+    private static async Task<int> MigrateAsync()
+    {
+        var db = StagingDb.FromEnvironment();
+        var dir = Migrator.FindMigrationsDir();
+        Console.WriteLine($"Migrating {StagingDb.Describe(db.StagingConnectionString)} from {dir}");
+        var report = await new Migrator(db.StagingConnectionString, dir).ApplyAsync(Console.Out);
+        Console.WriteLine($"Applied: {report.Applied.Count}; already applied: {report.AlreadyApplied.Count}.");
         return 0;
     }
 

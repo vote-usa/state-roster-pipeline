@@ -1,0 +1,28 @@
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: roster-vote-test
+    environment:
+      MYSQL_ROOT_PASSWORD: roster
+      MYSQL_DATABASE: vote
+      MYSQL_USER: roster
+      MYSQL_PASSWORD: roster
+    ports:
+      - "3307:3306"
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    volumes:
+      - roster-vote-data:/var/lib/mysql
+      - ./00-grants.sql:/docker-entrypoint-initdb.d/00-grants.sql:ro
+      - ./schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./smoke.sql:/docker-entrypoint-initdb.d/02-smoke.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-proster"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+
+volumes:
+  roster-vote-data:
