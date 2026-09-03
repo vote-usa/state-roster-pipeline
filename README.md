@@ -8,8 +8,18 @@ Currently implemented:
 1. California (CA)
 1. Texas (TX)
 1. West Virginia (WV)
+1. Maryland (MD)
+1. North Carolina (NC)
+1. Wyoming (WY)
+1. Hawaii (HI)
+1. Mississippi (MS)
 
 The structure is designed so additional states plug in without touching the shared code.
+For the full architecture (config-driven surfaces, shared parsing/fetch primitives, the
+mapper-class convention) and per-state implementation detail, see
+[`configDrivenPipelineInfo.md`](configDrivenPipelineInfo.md). For what's next (remaining
+states, fetch-strategy tiering, the field-mapping engine), see
+[`configDrivenPipelinePlan.md`](configDrivenPipelinePlan.md).
 
 ## Structure
 
@@ -17,15 +27,21 @@ The structure is designed so additional states plug in without touching the shar
 state-roster-pipeline/
   src/
     StateBallot.Core/        # models, output DTOs, catalog, discovery, filters/sort,
-                             # HttpFetcher, ResultWriter, OcdDivisionId
-    StateBallot.States.{Xx}/ # scrapers, selectors, source config, collector, schedule
+                             # HttpFetcher, ResultWriter, OcdDivisionId, generic
+                             # CSV/XLSX parsers, WebFormsPostback, config loaders
+    StateBallot.Core.Tests/  # tests for the shared Core primitives above
+    StateBallot.States.{Xx}/ # scrapers, selectors, source config, mapper, collector,
+                             # schedule - one project per implemented state
+    StateBallot.States.{Xx}.Tests/  # mapper/parsing tests - one project per state
     StateBallot.Cli/         # args + catalog/discovery runner
   data/
     input/
       state_catalog.json     # all 50 states + DC (implemented | unimplemented)
-      ca/ wa/ …              # county_fips.json + sources.json (tracked)
+      ca/ wa/ …               # county_fips.json, sources.json (tracked), plus
+                              # per-state date_formats.json / selectors.json /
+                              # election_type_names.json where that state uses them
     output/
-      ca/ wa/ …              # generated roster outputs (gitignored)
+      ca/ wa/ …               # generated roster outputs (gitignored)
 ```
 
 ## Usage
@@ -40,16 +56,31 @@ dotnet run --project StateBallot.Cli -- --out /tmp/ballots # alternate output ro
 
 Requires .NET 8 SDK. Roster outputs under `data/output/<xx>/` are gitignored —
 re-run the collector to refresh them. Tracked inputs live under `data/input/`
-(`state_catalog.json`, per-state `county_fips.json` and `sources.json`).
+(`state_catalog.json`, and per-state `county_fips.json`, `sources.json`, and
+whichever of `date_formats.json` / `selectors.json` / `election_type_names.json`
+that state's collector loads - see `configDrivenPipelineInfo.md` for which).
 
 ## Adding a state
 
 1. Flip the state to `implemented` in [`data/input/state_catalog.json`](data/input/state_catalog.json).
-2. Create `StateBallot.States.<Xx>` with scrapers, `[StateCode("XX")]` collector,
-   and `IPublishSchedule`; reference it from the Cli project (discovery finds it).
-3. Add `data/input/<xx>/county_fips.json`.
-4. Use Core helpers (`ElectionFilters`, `CollectResultSorter`, `SourcesManifest`,
-   `RowHelpers`) — do not copy WA/CA private methods.
+2. Create `StateBallot.States.<Xx>` with a `SourceConfig` (URLs), a `Selectors`
+   class (CSS selectors/regexes), a mapper (`ToElection`/`ToCandidateRow`, pure
+   functions - see the mapper-class convention in `configDrivenPipelineInfo.md`),
+   a `[StateCode("XX")]` collector, and an `IPublishSchedule`; reference it from
+   the Cli project (`CollectorDiscovery` finds it via reflection - see
+   `IStateCollector`'s doc comment for the required constructor shape).
+3. Add `data/input/<xx>/date_formats.json` (required - `DateFormatConfig.Load`
+   fails loudly if it's missing/empty) and `county_fips.json`.
+4. If the source is a flat CSV/TSV or XLSX file, use `DelimitedTableParser` /
+   `XlsxTableParser` (Core) rather than writing a new parser. If it's
+   bot-blocked behind a WebForms postback (not a plain static file), see
+   `WebFormsPostback` (Core).
+5. Use Core helpers (`ElectionFilters`, `CollectResultSorter`, `SourcesManifest`,
+   `RowHelpers`, `ScrapeGuard`, `TextNormalization`, `AddressFormatting`,
+   `DateParsing`) - do not copy another state's private methods.
+6. Write a `StateBallot.States.<Xx>.Tests` project covering the mapper logic,
+   and live-verify the collector against the real source (dry-run + a real
+   write, field-by-field) before considering the state done.
 
 Conventions every state collector must follow:
 
@@ -62,53 +93,50 @@ Conventions every state collector must follow:
 - Ballotpedia is never a data source (verification only).
 - Unknown values are null - never invented.
 
-## Washington sources (`StateBallot.States.Wa`)
+## Sources by state
 
-| Data | Source | Format |
-| --- | --- | --- |
-| Elections + county codes | `voter.votewa.gov/CandidateList.aspx` (dropdowns) | HTML |
-| Candidates + local measures | `voter.votewa.gov/elections/voterguide.ashx` (VoteWA voters' guide API) | JSON |
-| Statewide measures | `sos.wa.gov/so/node/12667` (Proposed Ballot Measure Information) | HTML (links to PDFs) |
-| County elections offices | `sos.wa.gov/elections/voters/voter-registration/county-elections-offices` | HTML |
+Full per-state detail (fetch mechanism, format quirks, what's out of scope) is in
+[`configDrivenPipelineInfo.md`](configDrivenPipelineInfo.md#2-implemented-states).
+Quick reference:
 
-## California sources (`StateBallot.States.Ca`)
+| State | Data | Source | Format |
+| --- | --- | --- | --- |
+| WA | Elections + county codes | `voter.votewa.gov/CandidateList.aspx` | HTML |
+| WA | Candidates + local measures | `voter.votewa.gov/elections/voterguide.ashx` | JSON |
+| WA | Statewide measures | `sos.wa.gov/so/node/12667` | HTML → PDF |
+| WA | County elections offices | `sos.wa.gov/.../county-elections-offices` | HTML |
+| CA | Statewide + special elections | `sos.ca.gov/elections/upcoming-elections` | HTML |
+| CA | Candidates | `elections.cdn.sos.ca.gov/.../cert-list-candidates.pdf` | PDF |
+| CA | Statewide measures | `sos.ca.gov/elections/ballot-measures/qualified-ballot-measures` | HTML → PDF |
+| CA | County-administered elections + offices | `sos.ca.gov/elections/...` | HTML |
+| TX | Elections | `goelect.txelections.civixapps.com` `getElectionsByYear` | JSON |
+| TX | Candidates | `goelect.txelections.civixapps.com` `findQualifiedCandidates` | JSON (POST) |
+| WV | Candidates (elections derived) | `candidates.wvsos.gov/candidate-web-api/candidates` | JSON (POST, paginated) |
+| MD | Candidates (primary + general) | `elections.maryland.gov/elections/{year}/...` | CSV |
+| MD | Election dates | `elections.maryland.gov/elections/{year}/index.html` | HTML |
+| NC | Candidates + county ballots | `s3.amazonaws.com/dl.ncsbe.gov/Elections/{year}/...` | CSV |
+| WY | Candidates (primary + general) | `.../2026_WY_{Primary,General}_Election_Candidates.csv` | CSV |
+| WY | Election dates | Elections info page's embedded JSON-LD | HTML (JSON-LD) |
+| HI | Candidates (single export) | `olvr.hawaii.gov/Controls/CandidateFiling.aspx`, "Export to CSV" | CSV (via WebForms POST) |
+| HI | Election dates | `elections.hawaii.gov` home-page text widget | HTML |
+| MS | Candidates (single export, elections derived) | `sos.ms.gov/content/CandidateQualifying/default.aspx`, "Download CSV" | CSV (via WebForms POST) |
 
-| Data | Source | Format |
-| --- | --- | --- |
-| Statewide + special vacancy elections | `sos.ca.gov/elections/upcoming-elections` | HTML |
-| Candidates | `elections.cdn.sos.ca.gov/statewide-elections/{year}-{primary\|general}/cert-list-candidates.pdf`; special elections link their certified list from their detail page | PDF |
-| Statewide measures | `sos.ca.gov/elections/ballot-measures/qualified-ballot-measures` | HTML (links to full-text PDFs) |
-| County-administered (local) elections | `sos.ca.gov/elections/upcoming-elections/county-administered-elections` | HTML |
-| County elections offices | `sos.ca.gov/elections/voting-resources/county-elections-offices` | HTML |
+Notable per-state quirks (see `configDrivenPipelineInfo.md` for the rest):
 
-California notes: statewide certified candidate lists post 68 days before election
-day (Elections Code s. 8148); before that the election is recorded in `gaps` and
-`next_run` points at the posting date. The SoS lists county-administered elections
-but not their ballot content - those elections appear in `elections.*` with a gap
-entry pointing at the county elections office site.
-
-## Texas sources (`StateBallot.States.Tx`)
-
-| Data | Source | Format |
-| --- | --- | --- |
-| Elections | `goelect.txelections.civixapps.com` `getElectionsByYear` (CivixApps CBP API) | JSON |
-| Candidates | `goelect.txelections.civixapps.com` `findQualifiedCandidates` (CivixApps CBP API) | JSON (POST) |
-
-Texas notes: the API is Cloudflare-fronted and requires browser-like headers
-(`TxSourceConfig.ExtraHeaders`, applied once per run - see `HttpFetcher.AddDefaultHeader`).
-No county or district attribution is published; `county`/`district` are always null.
-`party` is the raw single-letter source code (e.g. "R"/"D"), not expanded to a full name.
-
-## West Virginia sources (`StateBallot.States.Wv`)
-
-| Data | Source | Format |
-| --- | --- | --- |
-| Candidates (elections derived from these) | `candidates.wvsos.gov/candidate-web-api/candidates` | JSON (POST, paginated) |
-
-West Virginia notes: there is no standalone election-catalog endpoint - each candidate
-record carries its own election name/date/type, so `elections.*` is derived by grouping
-candidates on their `electionId`. `county` reflects the candidate's own residential
-county (a proxy for jurisdiction, not necessarily the race's actual jurisdiction).
+- **TX** is Cloudflare-fronted and needs browser-like headers
+  (`TxSourceConfig.ExtraHeaders`); no county/district attribution; `party` is
+  the raw single-letter code, not expanded.
+- **WV** has no election-catalog endpoint - elections are derived by grouping
+  candidates on their own `electionId`.
+- **CA** reconciles two separate election sources and is the one state whose
+  mapper logic is *not* centralized into one file (see the mapper-class
+  convention exception, documented on `CaSelectors`).
+- **HI** and **MS** are fetched via a simulated WebForms form-POST rather
+  than a plain GET against a static file (see `WebFormsPostback`, Core).
+- **MS** sits behind a bot rule that blocks realistic browser User-Agent
+  strings (the opposite of TX's Cloudflare check, which blocks the *absence*
+  of one) - `MsSourceConfig.ExtraHeaders` overrides the UA to a curl-like
+  string instead.
 
 ## Outputs (`data/output/<state>/`) and inputs (`data/input/`)
 
@@ -117,12 +145,15 @@ Roster outputs (gitignored): `elections.json|csv`, `candidates.json|csv`,
 
 Tracked inputs: `data/input/state_catalog.json`, `data/input/<state>/county_fips.json`,
 and `data/input/<state>/sources.json` (provenance with URL + format per data group,
-known gaps, and a machine-readable `next_run` recommendation).
+known gaps, and a machine-readable `next_run` recommendation) - plus, for states that
+use them, `date_formats.json`, `selectors.json`, and `election_type_names.json` (see
+`configDrivenPipelineInfo.md` for what each does and its fail-loud/permissive policy).
 
 `candidates.*` carries a canonical set of fields across every state (see
-`StateBallot.Core/Models.cs`'s `CandidateRow`): beyond the original WA-derived fields,
-it also includes `source_candidate_id`, `filing_date`, `email`, `phone`,
-`campaign_phone`, `website`, `occupation`, and mailing/residential address fields -
+`StateBallot.Core/Models.cs`'s `CandidateRow`): `source_candidate_id`, `filing_date`,
+`email`, `phone`, `campaign_phone`, `website`, `occupation`, mailing/residential
+address fields, and `status` (raw source text, e.g. `"Withdrawn - 02/19/2026"` -
+not normalized into a closed set, since the vocabulary varies per state) -
 populated where a state's source publishes them, null otherwise.
 
 Notes on semantics:
@@ -134,8 +165,7 @@ Notes on semantics:
   `ocd-division/country:us/state:ca/cd:14`). Null when the row's jurisdiction cannot
   be mapped confidently (underspecified local elections).
 - `incumbent` is null where the source does not publish incumbency (VoteWA does not).
-- `party` reflects Washington's candidate-stated party preference (e.g. "Democratic
-  Party", "GOP Party", "No Party Preference"); judicial and most local offices are
-  nonpartisan (null).
-- Statewide proposed measures have a null `election_date` until the Secretary of State
-  certifies them to a ballot.
+- `party` reflects each state's own source vocabulary as-published (e.g. WA's full
+  "Democratic Party"/"No Party Preference" strings, TX's raw single-letter code);
+  judicial and most local offices are nonpartisan (null).
+- Statewide proposed measures have a null `election_date` until certified to a ballot.

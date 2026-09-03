@@ -146,8 +146,8 @@
   "MS": {
     "name": "Mississippi",
     "fips": "28",
-    "status": "unimplemented",
-    "project": null
+    "status": "implemented",
+    "project": "StateBallot.States.Ms"
   },
   "MO": {
     "name": "Missouri",
