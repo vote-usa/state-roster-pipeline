@@ -16,6 +16,13 @@ public class NeCandidateMapperTests
         return row;
     }
 
+    // Mirrors data/input/ne/candidate_field_map.json.
+    private static Dictionary<string, string> FieldMap() => new()
+    {
+        ["Party"] = "Party (if applicable)",
+        ["ResidentialCity"] = "City of Residence",
+    };
+
     [Fact]
     public void ToElection_BuildsIdNameAndType()
     {
@@ -33,7 +40,7 @@ public class NeCandidateMapperTests
     {
         var row = Row(("Office", "For United States Senator"), ("Candidate Name", "Pete Ricketts"), ("Party (if applicable)", "Republican"));
 
-        var candidate = NeCandidateMapper.ToCandidateRow(row, GeneralElection(), "https://example.com/candidates.xlsx");
+        var candidate = NeCandidateMapper.ToCandidateRow(row, GeneralElection(), "https://example.com/candidates.xlsx", FieldMap());
 
         Assert.Equal("United States Senator", candidate.Office);
         Assert.Equal("Pete Ricketts", candidate.CandidateName);
@@ -46,7 +53,7 @@ public class NeCandidateMapperTests
         // Doesn't start with "For " at all - the ^For\s+ anchor must not touch it.
         var row = Row(("Office", "Central Community College For Board of Governors"), ("Candidate Name", "Roger P. Davis"));
 
-        var candidate = NeCandidateMapper.ToCandidateRow(row, GeneralElection(), "https://example.com/candidates.xlsx");
+        var candidate = NeCandidateMapper.ToCandidateRow(row, GeneralElection(), "https://example.com/candidates.xlsx", FieldMap());
 
         Assert.Equal("Central Community College For Board of Governors", candidate.Office);
     }
@@ -56,7 +63,7 @@ public class NeCandidateMapperTests
     {
         var row = Row(("Office", "For Member of the Legislature"), ("Candidate Name", "Dean Helmick"), ("Party (if applicable)", ""));
 
-        var candidate = NeCandidateMapper.ToCandidateRow(row, GeneralElection(), "https://example.com/candidates.xlsx");
+        var candidate = NeCandidateMapper.ToCandidateRow(row, GeneralElection(), "https://example.com/candidates.xlsx", FieldMap());
 
         Assert.Null(candidate.Party);
     }
@@ -69,7 +76,7 @@ public class NeCandidateMapperTests
     {
         var row = Row(("Office", "For Governor"), ("Candidate Name", "Jim Pillen"), ("Incumbency Status", raw));
 
-        var candidate = NeCandidateMapper.ToCandidateRow(row, GeneralElection(), "https://example.com/candidates.xlsx");
+        var candidate = NeCandidateMapper.ToCandidateRow(row, GeneralElection(), "https://example.com/candidates.xlsx", FieldMap());
 
         Assert.Equal(expected, candidate.Incumbent);
     }
@@ -81,7 +88,7 @@ public class NeCandidateMapperTests
             ("Office", "For United States Senator"), ("Candidate Name", "Dan Osborn"),
             ("Mailing Address", "15418 Weir St., #160\nOmaha NE 68137"));
 
-        var candidate = NeCandidateMapper.ToCandidateRow(row, GeneralElection(), "https://example.com/candidates.xlsx");
+        var candidate = NeCandidateMapper.ToCandidateRow(row, GeneralElection(), "https://example.com/candidates.xlsx", FieldMap());
 
         Assert.Equal("15418 Weir St., #160", candidate.MailingAddressLine);
         Assert.Equal("Omaha", candidate.MailingCity);
@@ -94,7 +101,7 @@ public class NeCandidateMapperTests
     {
         var row = Row(("Office", "For Attorney General"), ("Candidate Name", "Mike Hilgers"), ("Mailing Address", "\n"));
 
-        var candidate = NeCandidateMapper.ToCandidateRow(row, GeneralElection(), "https://example.com/candidates.xlsx");
+        var candidate = NeCandidateMapper.ToCandidateRow(row, GeneralElection(), "https://example.com/candidates.xlsx", FieldMap());
 
         Assert.Null(candidate.MailingAddressLine);
         Assert.Null(candidate.MailingCity);
@@ -107,7 +114,7 @@ public class NeCandidateMapperTests
     {
         var row = Row(("Office", "For Governor"), ("Candidate Name", "Someone"), ("Mailing Address", "Some unparseable text"));
 
-        var candidate = NeCandidateMapper.ToCandidateRow(row, GeneralElection(), "https://example.com/candidates.xlsx");
+        var candidate = NeCandidateMapper.ToCandidateRow(row, GeneralElection(), "https://example.com/candidates.xlsx", FieldMap());
 
         Assert.Equal("Some unparseable text", candidate.MailingAddressLine);
         Assert.Null(candidate.MailingCity);
@@ -120,7 +127,7 @@ public class NeCandidateMapperTests
             ("Office", "For United States Senator"), ("Candidate Name", "Pete Ricketts"),
             ("Phone/Email", "(402) 413-8595\ninfo@senatorricketts.com"));
 
-        var candidate = NeCandidateMapper.ToCandidateRow(row, GeneralElection(), "https://example.com/candidates.xlsx");
+        var candidate = NeCandidateMapper.ToCandidateRow(row, GeneralElection(), "https://example.com/candidates.xlsx", FieldMap());
 
         Assert.Equal("(402) 413-8595", candidate.Phone);
         Assert.Equal("info@senatorricketts.com", candidate.Email);
@@ -131,7 +138,7 @@ public class NeCandidateMapperTests
     {
         var row = Row(("Office", "For Attorney General"), ("Candidate Name", "Mike Hilgers"), ("Phone/Email", "(402) 916-0892\n"));
 
-        var candidate = NeCandidateMapper.ToCandidateRow(row, GeneralElection(), "https://example.com/candidates.xlsx");
+        var candidate = NeCandidateMapper.ToCandidateRow(row, GeneralElection(), "https://example.com/candidates.xlsx", FieldMap());
 
         Assert.Equal("(402) 916-0892", candidate.Phone);
         Assert.Null(candidate.Email);
@@ -144,7 +151,7 @@ public class NeCandidateMapperTests
             ("Office", "For University of Nebraska Board of Regents"), ("Candidate Name", "Jeremy Hosein"),
             ("Phone/Email", "\ninfo@drhoseinforregent.com"));
 
-        var candidate = NeCandidateMapper.ToCandidateRow(row, GeneralElection(), "https://example.com/candidates.xlsx");
+        var candidate = NeCandidateMapper.ToCandidateRow(row, GeneralElection(), "https://example.com/candidates.xlsx", FieldMap());
 
         Assert.Null(candidate.Phone);
         Assert.Equal("info@drhoseinforregent.com", candidate.Email);
@@ -155,7 +162,7 @@ public class NeCandidateMapperTests
     {
         var row = Row(("Office", "For United States Senator"), ("Candidate Name", "Pete Ricketts"), ("City of Residence", "Omaha"));
 
-        var candidate = NeCandidateMapper.ToCandidateRow(row, GeneralElection(), "https://example.com/candidates.xlsx");
+        var candidate = NeCandidateMapper.ToCandidateRow(row, GeneralElection(), "https://example.com/candidates.xlsx", FieldMap());
 
         Assert.Equal("Omaha", candidate.ResidentialCity);
     }
@@ -165,7 +172,7 @@ public class NeCandidateMapperTests
     {
         var row = Row(("Office", "For Governor"), ("Candidate Name", "  Jim   Pillen  "));
 
-        var candidate = NeCandidateMapper.ToCandidateRow(row, GeneralElection(), "https://example.com/candidates.xlsx");
+        var candidate = NeCandidateMapper.ToCandidateRow(row, GeneralElection(), "https://example.com/candidates.xlsx", FieldMap());
 
         Assert.Equal("Jim Pillen", candidate.CandidateName);
     }

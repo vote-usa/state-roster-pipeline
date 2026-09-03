@@ -1,0 +1,9 @@
+{
+  "Party": "Office Political Party",
+  "FilingDate": "Filing Type and Date",
+  "Email": "Email",
+  "Phone": "Public Phone",
+  "Website": "Website",
+  "MailingAddressLine": "Campaign Mailing Address",
+  "Status": "Candidate Status"
+}

@@ -18,7 +18,10 @@ public static class NeCandidateMapper
     };
 
     /// <param name="row">One workbook row, keyed by NE's column headers (see XlsxTableParser).</param>
-    public static CandidateRow ToCandidateRow(Dictionary<string, string> row, Election election, string sourceUrl)
+    /// <param name="fieldMap">data/input/ne/candidate_field_map.json - canonical field -> NE's own column
+    /// name, for the fields that are a plain single-column passthrough (see CandidateFieldMapper).</param>
+    public static CandidateRow ToCandidateRow(
+        Dictionary<string, string> row, Election election, string sourceUrl, Dictionary<string, string> fieldMap)
     {
         var (mailingLine, city, state, zip) = SplitMailingAddress(row.GetValueOrDefault("Mailing Address", ""));
         var (phone, email) = SplitPhoneEmail(row.GetValueOrDefault("Phone/Email", ""));
@@ -32,7 +35,7 @@ public static class NeCandidateMapper
             District = NullIfEmpty(row.GetValueOrDefault("District Name (if applicable)")),
             County = null, // not published - NE's sub-state jurisdictions here are legislative/judicial/special-district numbers, not counties
             CandidateName = TextNormalization.CollapseWhitespace(row.GetValueOrDefault("Candidate Name", "")),
-            Party = NullIfEmpty(row.GetValueOrDefault("Party (if applicable)")), // blank for NE's nonpartisan races (Legislature, education/regents/community-college boards, special districts)
+            Party = CandidateFieldMapper.Get(fieldMap, row, nameof(CandidateRow.Party)), // blank for NE's nonpartisan races (Legislature, education/regents/community-college boards, special districts)
             Incumbent = row.GetValueOrDefault("Incumbency Status", "").Trim() switch
             {
                 "Incumbent" => true,
@@ -48,7 +51,7 @@ public static class NeCandidateMapper
             MailingCity = city,
             MailingState = state,
             MailingZip = zip,
-            ResidentialCity = NullIfEmpty(row.GetValueOrDefault("City of Residence")),
+            ResidentialCity = CandidateFieldMapper.Get(fieldMap, row, nameof(CandidateRow.ResidentialCity)),
             // "Term" (years) and "Vote For" (seats up per race) are both published
             // columns with no matching CandidateRow field - not carried through
             // rather than overloading an unrelated field.

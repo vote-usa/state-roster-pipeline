@@ -45,12 +45,24 @@ public class HiCandidateMapperTests
         return row;
     }
 
+    // Mirrors data/input/hi/candidate_field_map.json.
+    private static Dictionary<string, string> FieldMap() => new()
+    {
+        ["Party"] = "Party",
+        ["FilingDate"] = "FilingDate",
+        ["Email"] = "Email",
+        ["Phone"] = "Phone",
+        ["Website"] = "Website",
+        ["MailingAddressLine"] = "MailingAddress",
+        ["Status"] = "Status",
+    };
+
     [Fact]
     public void ToCandidateRow_NoDistrict_LeavesOfficeAsIs()
     {
         var row = Row(("Contests", "GOVERNOR"), ("BallotName", "AKANA, Kelei"), ("Party", "DEMOCRATIC"));
 
-        var candidate = HiCandidateMapper.ToCandidateRow(row, GeneralElection(), "https://example.com/candidates");
+        var candidate = HiCandidateMapper.ToCandidateRow(row, GeneralElection(), "https://example.com/candidates", FieldMap());
 
         Assert.Equal("GOVERNOR", candidate.Office);
         Assert.Null(candidate.District);
@@ -68,7 +80,7 @@ public class HiCandidateMapperTests
     {
         var row = Row(("Contests", contest), ("BallotName", "Jane Doe"));
 
-        var candidate = HiCandidateMapper.ToCandidateRow(row, GeneralElection(), "https://example.com/candidates");
+        var candidate = HiCandidateMapper.ToCandidateRow(row, GeneralElection(), "https://example.com/candidates", FieldMap());
 
         Assert.Equal(expectedOffice, candidate.Office);
         Assert.Equal(expectedDistrict, candidate.District);
@@ -79,7 +91,7 @@ public class HiCandidateMapperTests
     {
         var row = Row(("Contests", "MAUI COUNCILMEMBER (EAST MAUI)"), ("BallotName", "Jane Doe"));
 
-        var candidate = HiCandidateMapper.ToCandidateRow(row, GeneralElection(), "https://example.com/candidates");
+        var candidate = HiCandidateMapper.ToCandidateRow(row, GeneralElection(), "https://example.com/candidates", FieldMap());
 
         Assert.Equal("MAUI COUNCILMEMBER (EAST MAUI)", candidate.Office);
         Assert.Null(candidate.District);
@@ -94,7 +106,7 @@ public class HiCandidateMapperTests
             ("MailingAddress", "87-266 MAALOA ST."),
             ("CityStateZip", "WAIANAE, HI 96792"));
 
-        var candidate = HiCandidateMapper.ToCandidateRow(row, GeneralElection(), "https://example.com/candidates");
+        var candidate = HiCandidateMapper.ToCandidateRow(row, GeneralElection(), "https://example.com/candidates", FieldMap());
 
         Assert.Equal("87-266 MAALOA ST.", candidate.MailingAddressLine);
         Assert.Equal("WAIANAE", candidate.MailingCity);
@@ -111,7 +123,7 @@ public class HiCandidateMapperTests
             ("Status", "Withdrawn"),
             ("FilingDate", "6/1/2026 12:00:00 AM"));
 
-        var candidate = HiCandidateMapper.ToCandidateRow(row, GeneralElection(), "https://example.com/candidates");
+        var candidate = HiCandidateMapper.ToCandidateRow(row, GeneralElection(), "https://example.com/candidates", FieldMap());
 
         Assert.Equal("Withdrawn", candidate.Status);
         Assert.Equal("6/1/2026 12:00:00 AM", candidate.FilingDate);
@@ -122,7 +134,7 @@ public class HiCandidateMapperTests
     {
         var row = Row(("Contests", "GOVERNOR"));
 
-        var candidate = HiCandidateMapper.ToCandidateRow(row, GeneralElection(), "https://example.com/candidates");
+        var candidate = HiCandidateMapper.ToCandidateRow(row, GeneralElection(), "https://example.com/candidates", FieldMap());
 
         Assert.Equal("", candidate.CandidateName);
         Assert.Null(candidate.Party);

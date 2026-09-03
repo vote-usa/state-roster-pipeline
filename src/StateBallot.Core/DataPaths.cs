@@ -34,6 +34,9 @@ public static class DataPaths
     public static string ElectionTypeNamesPath(string dataRoot, string stateCode) =>
         Path.Combine(StateInputDir(dataRoot, stateCode), "election_type_names.json");
 
+    public static string CandidateFieldMapPath(string dataRoot, string stateCode) =>
+        Path.Combine(StateInputDir(dataRoot, stateCode), "candidate_field_map.json");
+
     public static string SelectorsPath(string dataRoot, string stateCode) =>
         Path.Combine(StateInputDir(dataRoot, stateCode), "selectors.json");
 

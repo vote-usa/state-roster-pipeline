@@ -18,7 +18,10 @@ public static class MdCandidateMapper
     };
 
     /// <param name="row">One CSV row, keyed by MD's column headers (see DelimitedTableParser).</param>
-    public static CandidateRow ToCandidateRow(Dictionary<string, string> row, Election election, string sourceUrl)
+    /// <param name="fieldMap">data/input/md/candidate_field_map.json - canonical field -> MD's own column
+    /// name, for the fields that are a plain single-column passthrough (see CandidateFieldMapper).</param>
+    public static CandidateRow ToCandidateRow(
+        Dictionary<string, string> row, Election election, string sourceUrl, Dictionary<string, string> fieldMap)
     {
         var first = row.GetValueOrDefault("Candidate First Name and Middle Name", "").Trim();
         var last = row.GetValueOrDefault("Candidate Ballot Last Name and Suffix", "").Trim();
@@ -35,20 +38,20 @@ public static class MdCandidateMapper
             District = DistrictFrom(contest),
             County = null, // statewide list only; MD's separate "all_counties" export isn't covered yet
             CandidateName = $"{first} {last}".Trim(),
-            Party = NullIfEmpty(row.GetValueOrDefault("Office Political Party")),
+            Party = CandidateFieldMapper.Get(fieldMap, row, nameof(CandidateRow.Party)),
             Incumbent = null, // not published in this export
             SourceUrl = sourceUrl,
             SourceCandidateId = null, // no source-provided id in this export
-            FilingDate = NullIfEmpty(row.GetValueOrDefault("Filing Type and Date")), // raw "Type - MM/DD/YYYY", not split
-            Email = NullIfEmpty(row.GetValueOrDefault("Email")),
-            Phone = NullIfEmpty(row.GetValueOrDefault("Public Phone")),
-            Website = NullIfEmpty(row.GetValueOrDefault("Website")),
-            MailingAddressLine = NullIfEmpty(row.GetValueOrDefault("Campaign Mailing Address")),
+            FilingDate = CandidateFieldMapper.Get(fieldMap, row, nameof(CandidateRow.FilingDate)), // raw "Type - MM/DD/YYYY", not split
+            Email = CandidateFieldMapper.Get(fieldMap, row, nameof(CandidateRow.Email)),
+            Phone = CandidateFieldMapper.Get(fieldMap, row, nameof(CandidateRow.Phone)),
+            Website = CandidateFieldMapper.Get(fieldMap, row, nameof(CandidateRow.Website)),
+            MailingAddressLine = CandidateFieldMapper.Get(fieldMap, row, nameof(CandidateRow.MailingAddressLine)),
             MailingCity = cszMatch.Success ? cszMatch.Groups["city"].Value.Trim() : null,
             MailingState = cszMatch.Success ? cszMatch.Groups["state"].Value : null,
             MailingZip = cszMatch.Success ? cszMatch.Groups["zip"].Value : null,
             ResidentialCounty = StripCountySuffix(row.GetValueOrDefault("Candidate Residential Jurisdiction")),
-            Status = NullIfEmpty(row.GetValueOrDefault("Candidate Status")),
+            Status = CandidateFieldMapper.Get(fieldMap, row, nameof(CandidateRow.Status)),
         };
     }
 
@@ -67,7 +70,4 @@ public static class MdCandidateMapper
             ? trimmed[..^" County".Length]
             : trimmed;
     }
-
-    private static string? NullIfEmpty(string? value) =>
-        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }

@@ -40,6 +40,7 @@ public sealed class NcCollector : IStateCollector
 
         var (dataRoot, _) = DataPaths.FromStateOutputDir(_stateDataDir);
         var dateFormats = DateFormatConfig.Load(DataPaths.DateFormatsPath(dataRoot, StateCode));
+        var fieldMap = LookupTableLoader.Load(DataPaths.CandidateFieldMapPath(dataRoot, StateCode));
 
         var url = _config.CandidateListingUrl(_year);
         var csvText = await _fetcher.GetStringAsync(url);
@@ -58,8 +59,8 @@ public sealed class NcCollector : IStateCollector
             var electionRows = rows.Where(r => MatchesElectionDate(r, election, dateFormats)).ToList();
             Console.WriteLine($"  {election.Name} ({election.ElectionDate:yyyy-MM-dd}): {electionRows.Count} ballot lines");
 
-            CollectStatewideCandidates(electionRows, election, url, result);
-            CollectCountyBallots(electionRows, election, url, result);
+            CollectStatewideCandidates(electionRows, election, url, result, fieldMap);
+            CollectCountyBallots(electionRows, election, url, result, fieldMap);
         }
 
         if (result.Candidates.Count == 0)
@@ -100,7 +101,8 @@ public sealed class NcCollector : IStateCollector
     /// here.
     /// </summary>
     private static void CollectStatewideCandidates(
-        List<Dictionary<string, string>> electionRows, Election election, string sourceUrl, CollectResult result)
+        List<Dictionary<string, string>> electionRows, Election election, string sourceUrl, CollectResult result,
+        Dictionary<string, string> fieldMap)
     {
         var groups = electionRows.GroupBy(r => (
             Contest: r.GetValueOrDefault("contest_name", ""),
@@ -112,14 +114,15 @@ public sealed class NcCollector : IStateCollector
             if (counties <= 1)
                 continue;
 
-            var candidate = NcCandidateMapper.ToCandidateRow(group.First(), election, sourceUrl, county: null);
+            var candidate = NcCandidateMapper.ToCandidateRow(group.First(), election, sourceUrl, county: null, fieldMap);
             RowHelpers.StampState(candidate, "NC");
             result.Candidates.Add(candidate);
         }
     }
 
     private static void CollectCountyBallots(
-        List<Dictionary<string, string>> electionRows, Election election, string sourceUrl, CollectResult result)
+        List<Dictionary<string, string>> electionRows, Election election, string sourceUrl, CollectResult result,
+        Dictionary<string, string> fieldMap)
     {
         foreach (var countyGroup in electionRows.GroupBy(r => r.GetValueOrDefault("county_name", "")))
         {
@@ -135,7 +138,7 @@ public sealed class NcCollector : IStateCollector
                 SourceUrl = sourceUrl,
             };
             foreach (var row in countyGroup)
-                ballot.Candidates.Add(NcCandidateMapper.ToCandidateRow(row, election, sourceUrl, ballot.CountyName));
+                ballot.Candidates.Add(NcCandidateMapper.ToCandidateRow(row, election, sourceUrl, ballot.CountyName, fieldMap));
 
             ballot.Candidates.Sort(CollectResultSorter.CompareCandidates);
             result.CountyBallots.Add(ballot);

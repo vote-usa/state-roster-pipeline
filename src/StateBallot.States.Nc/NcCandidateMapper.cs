@@ -30,7 +30,10 @@ public static class NcCandidateMapper
     /// underlying row is mapped once per county for CountyBallots, and once
     /// county-less for the top-level Candidates list, when it spans &gt;1 county).
     /// </param>
-    public static CandidateRow ToCandidateRow(Dictionary<string, string> row, Election election, string sourceUrl, string? county)
+    /// <param name="fieldMap">data/input/nc/candidate_field_map.json - canonical field -> NC's own column
+    /// name, for the fields that are a plain single-column passthrough (see CandidateFieldMapper).</param>
+    public static CandidateRow ToCandidateRow(
+        Dictionary<string, string> row, Election election, string sourceUrl, string? county, Dictionary<string, string> fieldMap)
     {
         var (office, district) = SplitContest(row.GetValueOrDefault("contest_name", "").Trim());
 
@@ -43,20 +46,21 @@ public static class NcCandidateMapper
             District = district,
             County = county,
             CandidateName = row.GetValueOrDefault("name_on_ballot", "").Trim(),
-            Party = NullIfEmpty(row.GetValueOrDefault("party_candidate")), // raw 3-letter code (DEM/REP/GRE/LIB/UNA/...)
+            Party = CandidateFieldMapper.Get(fieldMap, row, nameof(CandidateRow.Party)), // raw 3-letter code (DEM/REP/GRE/LIB/UNA/...)
             Incumbent = null, // not published
             SourceUrl = sourceUrl,
             SourceCandidateId = null, // no source-provided id in this export
-            FilingDate = NullIfEmpty(row.GetValueOrDefault("candidacy_dt")), // raw MM/DD/YYYY, not reformatted
-            Email = NullIfEmpty(row.GetValueOrDefault("email")),
+            FilingDate = CandidateFieldMapper.Get(fieldMap, row, nameof(CandidateRow.FilingDate)), // raw MM/DD/YYYY, not reformatted
+            Email = CandidateFieldMapper.Get(fieldMap, row, nameof(CandidateRow.Email)),
             // Three raw phone-like columns (phone/office_phone/business_phone) map onto CandidateRow's
             // one generic Phone slot - none of them is labeled as specifically "campaign" contact info,
-            // so CampaignPhone is left null rather than guessing which raw column that would be.
+            // so CampaignPhone is left null rather than guessing which raw column that would be. A
+            // coalesce like this can't be expressed as a single field-map entry, so it stays hand-written.
             Phone = FirstNonEmpty(row.GetValueOrDefault("phone"), row.GetValueOrDefault("business_phone"), row.GetValueOrDefault("office_phone")),
-            MailingAddressLine = NullIfEmpty(row.GetValueOrDefault("street_address")),
-            MailingCity = NullIfEmpty(row.GetValueOrDefault("city")),
-            MailingState = NullIfEmpty(row.GetValueOrDefault("state")),
-            MailingZip = NullIfEmpty(row.GetValueOrDefault("zip_code")),
+            MailingAddressLine = CandidateFieldMapper.Get(fieldMap, row, nameof(CandidateRow.MailingAddressLine)),
+            MailingCity = CandidateFieldMapper.Get(fieldMap, row, nameof(CandidateRow.MailingCity)),
+            MailingState = CandidateFieldMapper.Get(fieldMap, row, nameof(CandidateRow.MailingState)),
+            MailingZip = CandidateFieldMapper.Get(fieldMap, row, nameof(CandidateRow.MailingZip)),
         };
     }
 

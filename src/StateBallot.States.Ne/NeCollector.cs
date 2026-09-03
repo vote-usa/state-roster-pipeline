@@ -42,6 +42,7 @@ public sealed class NeCollector : IStateCollector
 
         var (dataRoot, _) = DataPaths.FromStateOutputDir(_stateDataDir);
         var dateFormats = DateFormatConfig.Load(DataPaths.DateFormatsPath(dataRoot, StateCode));
+        var fieldMap = LookupTableLoader.Load(DataPaths.CandidateFieldMapPath(dataRoot, StateCode));
 
         var (primary, general) = await new ElectionDateScraper(_fetcher, _config, dateFormats).FetchAsync(_year);
         Console.WriteLine($"  {primary.Name} ({primary.ElectionDate:yyyy-MM-dd}), {general.Name} ({general.ElectionDate:yyyy-MM-dd})");
@@ -78,7 +79,7 @@ public sealed class NeCollector : IStateCollector
 
         foreach (var row in candidateRows)
         {
-            var candidate = NeCandidateMapper.ToCandidateRow(row, candidateElection, url);
+            var candidate = NeCandidateMapper.ToCandidateRow(row, candidateElection, url, fieldMap);
             RowHelpers.StampState(candidate, StateCode);
             result.Candidates.Add(candidate);
         }

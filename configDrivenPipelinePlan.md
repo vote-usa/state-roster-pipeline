@@ -160,16 +160,31 @@ begun yet:
    rather than deferred once 50-state diversity became concrete — should
    consume the primitives Phases 0-2 already extracted (date formats,
    lookup tables, selectors) as the configurable "value transformers" a
-   mapping UI would expose per field. Four real states' worth of recurring
-   patterns now exist to design it against: party-suffix stripping,
-   district-number splitting, city/state/zip splitting, phone-column
-   selection.
+   mapping UI would expose per field. The plain-passthrough slice of this is
+   now done (`CandidateFieldMapper` + `candidate_field_map.json`, one per
+   CSV/XLSX-backed state — see `configDrivenPipelineInfo.md`); what's left is
+   the *transform*-needing fields it deliberately doesn't cover: party-suffix
+   stripping, district-number splitting, city/state/zip splitting, phone-
+   column coalescing/selection - a UI would need to expose these as
+   composable value transformers, not just column pickers.
 3. **`SourceEntry` party attribute**, for states that split sources by party
    rather than by row.
-4. **A shared "CSV-backed state" abstraction.** MD, NC, WY, and HI are four
-   independent hand-written collectors sharing a parser but not a
-   collector-level abstraction — worth extracting once a fifth data point
-   confirms the shape, not before.
+4. **A shared "CSV-backed state" collector abstraction — investigated
+   2026-09-03, not built.** Six data points (MD, NC, WY, HI, MS, NE) turned
+   out to disconfirm one shared collector shape more than confirm it: at
+   least four genuinely different election-discovery algorithms (HTML
+   `<dt>/<dd>` scrape, JSON-LD tree walk, plain-text regex, two different
+   "derive from the file itself" mechanisms) and two different row-attribution
+   rules exist across just these six. A full collector-level abstraction
+   would either grow an escape-hatch interface with as many strategy slots as
+   states (a config table in name only) or force real algorithmic
+   differences to pretend to be interchangeable. What *was* real and
+   low-risk got extracted instead: the field-mapping table above (Tier 2),
+   and collapsing the identical `IPublishSchedule` implementations six
+   states share verbatim is flagged as the next easy win, not yet done.
+   Election discovery, row→election attribution, and the office/district
+   split cascade stay hand-written per state - see the full analysis this
+   date recorded in conversation for the complete stage-by-stage breakdown.
 
 ## Working conventions (unchanged throughout every phase)
 

@@ -31,7 +31,10 @@ public static class HiCandidateMapper
         status.Contains("General", StringComparison.OrdinalIgnoreCase) ? general : primary;
 
     /// <param name="row">One CSV row, keyed by HI's column headers (see DelimitedTableParser).</param>
-    public static CandidateRow ToCandidateRow(Dictionary<string, string> row, Election election, string sourceUrl)
+    /// <param name="fieldMap">data/input/hi/candidate_field_map.json - canonical field -> HI's own column
+    /// name, for the fields that are a plain single-column passthrough (see CandidateFieldMapper).</param>
+    public static CandidateRow ToCandidateRow(
+        Dictionary<string, string> row, Election election, string sourceUrl, Dictionary<string, string> fieldMap)
     {
         var (office, district) = SplitContest(row.GetValueOrDefault("Contests", "").Trim());
         var cszMatch = HiSelectors.CityStateZip.Match(row.GetValueOrDefault("CityStateZip", ""));
@@ -45,19 +48,20 @@ public static class HiCandidateMapper
             District = district,
             County = null, // HI's export has no county concept (its "counties" are the county-level offices/contests themselves)
             CandidateName = row.GetValueOrDefault("BallotName", "").Trim(),
-            Party = NullIfEmpty(row.GetValueOrDefault("Party")), // raw value (DEMOCRATIC/REPUBLICAN/NONPARTISAN/GREEN/LIBERTARIAN/...)
+            Party = CandidateFieldMapper.Get(fieldMap, row, nameof(CandidateRow.Party)), // raw value (DEMOCRATIC/REPUBLICAN/NONPARTISAN/GREEN/LIBERTARIAN/...)
             Incumbent = null, // not published
             SourceUrl = sourceUrl,
             SourceCandidateId = null, // no source-provided id in this export
-            FilingDate = NullIfEmpty(row.GetValueOrDefault("FilingDate")), // raw "M/d/yyyy 12:00:00 AM", not reformatted
-            Email = NullIfEmpty(row.GetValueOrDefault("Email")),
-            Phone = NullIfEmpty(row.GetValueOrDefault("Phone")),
-            Website = NullIfEmpty(row.GetValueOrDefault("Website")),
-            MailingAddressLine = NullIfEmpty(row.GetValueOrDefault("MailingAddress")),
+            FilingDate = CandidateFieldMapper.Get(fieldMap, row, nameof(CandidateRow.FilingDate)), // raw "M/d/yyyy 12:00:00 AM", not reformatted
+            Email = CandidateFieldMapper.Get(fieldMap, row, nameof(CandidateRow.Email)),
+            Phone = CandidateFieldMapper.Get(fieldMap, row, nameof(CandidateRow.Phone)),
+            Website = CandidateFieldMapper.Get(fieldMap, row, nameof(CandidateRow.Website)),
+            MailingAddressLine = CandidateFieldMapper.Get(fieldMap, row, nameof(CandidateRow.MailingAddressLine)),
             MailingCity = cszMatch.Success ? cszMatch.Groups["city"].Value.Trim() : null,
             MailingState = cszMatch.Success ? cszMatch.Groups["state"].Value : null,
             MailingZip = cszMatch.Success ? cszMatch.Groups["zip"].Value : null,
-            Status = NullIfEmpty(row.GetValueOrDefault("Status")), // raw: Issued/Filed/In Primary/In General/Withdrawn/Void/Elected After Primary
+            // raw: Issued/Filed/In Primary/In General/Withdrawn/Void/Elected After Primary
+            Status = CandidateFieldMapper.Get(fieldMap, row, nameof(CandidateRow.Status)),
         };
     }
 
@@ -68,7 +72,4 @@ public static class HiCandidateMapper
             ? (match.Groups["office"].Value.Trim(), match.Groups["district"].Value.Trim())
             : (contest, null);
     }
-
-    private static string? NullIfEmpty(string? value) =>
-        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }

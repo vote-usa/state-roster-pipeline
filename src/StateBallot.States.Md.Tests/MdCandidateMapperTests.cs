@@ -6,6 +6,18 @@ public class MdCandidateMapperTests
 {
     private static Election Election() => MdCandidateMapper.ToElection(2026, "General", new DateOnly(2026, 11, 3), "https://example.com/elections");
 
+    // Mirrors data/input/md/candidate_field_map.json.
+    private static Dictionary<string, string> FieldMap() => new()
+    {
+        ["Party"] = "Office Political Party",
+        ["FilingDate"] = "Filing Type and Date",
+        ["Email"] = "Email",
+        ["Phone"] = "Public Phone",
+        ["Website"] = "Website",
+        ["MailingAddressLine"] = "Campaign Mailing Address",
+        ["Status"] = "Candidate Status",
+    };
+
     [Fact]
     public void ToElection_BuildsIdNameAndType()
     {
@@ -38,7 +50,7 @@ public class MdCandidateMapperTests
             ("Office Political Party", "Democratic"),
             ("Candidate Status", "Active"));
 
-        var candidate = MdCandidateMapper.ToCandidateRow(row, Election(), "https://example.com/candidates.csv");
+        var candidate = MdCandidateMapper.ToCandidateRow(row, Election(), "https://example.com/candidates.csv", FieldMap());
 
         Assert.Equal("MD", candidate.State);
         Assert.Equal("2026-11-03", candidate.ElectionDate);
@@ -60,7 +72,7 @@ public class MdCandidateMapperTests
             ("Candidate First Name and Middle Name", "Dan"),
             ("Candidate Ballot Last Name and Suffix", "Duggan"));
 
-        var candidate = MdCandidateMapper.ToCandidateRow(row, Election(), "https://example.com/candidates.csv");
+        var candidate = MdCandidateMapper.ToCandidateRow(row, Election(), "https://example.com/candidates.csv", FieldMap());
 
         Assert.Equal("Legislative District 1A", candidate.District);
     }
@@ -76,7 +88,7 @@ public class MdCandidateMapperTests
             ("Campaign Mailing Address", "12138 Central Avenue #671"),
             ("Campaign Mailing City State and Zip", "Bowie MD 20721"));
 
-        var candidate = MdCandidateMapper.ToCandidateRow(row, Election(), "https://example.com/candidates.csv");
+        var candidate = MdCandidateMapper.ToCandidateRow(row, Election(), "https://example.com/candidates.csv", FieldMap());
 
         Assert.Equal("12138 Central Avenue #671", candidate.MailingAddressLine);
         Assert.Equal("Bowie", candidate.MailingCity);
@@ -93,7 +105,7 @@ public class MdCandidateMapperTests
             ("Candidate Ballot Last Name and Suffix", "Doe"),
             ("Campaign Mailing City State and Zip", ""));
 
-        var candidate = MdCandidateMapper.ToCandidateRow(row, Election(), "https://example.com/candidates.csv");
+        var candidate = MdCandidateMapper.ToCandidateRow(row, Election(), "https://example.com/candidates.csv", FieldMap());
 
         Assert.Null(candidate.MailingCity);
         Assert.Null(candidate.MailingState);
@@ -109,7 +121,7 @@ public class MdCandidateMapperTests
             ("Candidate Ballot Last Name and Suffix", "Brown"),
             ("Candidate Residential Jurisdiction", "Prince George's County"));
 
-        var candidate = MdCandidateMapper.ToCandidateRow(row, Election(), "https://example.com/candidates.csv");
+        var candidate = MdCandidateMapper.ToCandidateRow(row, Election(), "https://example.com/candidates.csv", FieldMap());
 
         Assert.Equal("Prince George's", candidate.ResidentialCounty);
     }
@@ -123,7 +135,7 @@ public class MdCandidateMapperTests
             ("Candidate Ballot Last Name and Suffix", "Doe"),
             ("Candidate Residential Jurisdiction", "Baltimore City"));
 
-        var candidate = MdCandidateMapper.ToCandidateRow(row, Election(), "https://example.com/candidates.csv");
+        var candidate = MdCandidateMapper.ToCandidateRow(row, Election(), "https://example.com/candidates.csv", FieldMap());
 
         Assert.Equal("Baltimore City", candidate.ResidentialCounty);
     }
@@ -133,11 +145,23 @@ public class MdCandidateMapperTests
     {
         var row = Row(("Office Name", "Attorney General"));
 
-        var candidate = MdCandidateMapper.ToCandidateRow(row, Election(), "https://example.com/candidates.csv");
+        var candidate = MdCandidateMapper.ToCandidateRow(row, Election(), "https://example.com/candidates.csv", FieldMap());
 
         Assert.Equal("", candidate.CandidateName);
         Assert.Null(candidate.Party);
         Assert.Null(candidate.Status);
         Assert.Null(candidate.Email);
+    }
+
+    [Fact]
+    public void ToCandidateRow_FieldMapMissingKey_LeavesThatFieldNull()
+    {
+        var row = Row(("Office Name", "Attorney General"), ("Public Phone", "410-555-0100"));
+
+        var candidate = MdCandidateMapper.ToCandidateRow(row, Election(), "https://example.com/candidates.csv", fieldMap: []);
+
+        // Even though the row has a value, an empty field map means "don't look" -
+        // confirms the mapping goes through candidate_field_map.json, not a hardcoded column name.
+        Assert.Null(candidate.Phone);
     }
 }

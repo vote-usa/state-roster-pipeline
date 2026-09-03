@@ -1,0 +1,9 @@
+{
+  "Party": "Party",
+  "FilingDate": "FilingDate",
+  "Email": "Email",
+  "Phone": "Phone",
+  "Website": "Website",
+  "MailingAddressLine": "MailingAddress",
+  "Status": "Status"
+}

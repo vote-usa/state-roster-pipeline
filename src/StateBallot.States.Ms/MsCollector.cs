@@ -50,6 +50,7 @@ public sealed class MsCollector : IStateCollector
 
         var (dataRoot, _) = DataPaths.FromStateOutputDir(_stateDataDir);
         var dateFormats = DateFormatConfig.Load(DataPaths.DateFormatsPath(dataRoot, StateCode));
+        var fieldMap = LookupTableLoader.Load(DataPaths.CandidateFieldMapPath(dataRoot, StateCode));
 
         var url = _config.CandidateQualifyingListUrl;
         var html = await _fetcher.GetStringAsync(url);
@@ -71,7 +72,7 @@ public sealed class MsCollector : IStateCollector
         foreach (var row in rows)
         {
             var election = MsCandidateMapper.DetermineElection(row, elections, today, dateFormats);
-            var candidate = MsCandidateMapper.ToCandidateRow(row, election, url);
+            var candidate = MsCandidateMapper.ToCandidateRow(row, election, url, fieldMap);
             RowHelpers.StampState(candidate, StateCode);
             result.Candidates.Add(candidate);
         }

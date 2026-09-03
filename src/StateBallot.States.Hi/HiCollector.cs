@@ -39,6 +39,7 @@ public sealed class HiCollector : IStateCollector
 
         var (dataRoot, _) = DataPaths.FromStateOutputDir(_stateDataDir);
         var dateFormats = DateFormatConfig.Load(DataPaths.DateFormatsPath(dataRoot, StateCode));
+        var fieldMap = LookupTableLoader.Load(DataPaths.CandidateFieldMapPath(dataRoot, StateCode));
 
         var (primary, general) = await new ElectionDateScraper(_fetcher, _config, dateFormats).FetchAsync(_year);
         Console.WriteLine($"  {primary.Name} ({primary.ElectionDate:yyyy-MM-dd}), {general.Name} ({general.ElectionDate:yyyy-MM-dd})");
@@ -54,7 +55,7 @@ public sealed class HiCollector : IStateCollector
         foreach (var row in rows)
         {
             var election = HiCandidateMapper.DetermineElection(row.GetValueOrDefault("Status", ""), primary, general);
-            var candidate = HiCandidateMapper.ToCandidateRow(row, election, pageUrl);
+            var candidate = HiCandidateMapper.ToCandidateRow(row, election, pageUrl, fieldMap);
             RowHelpers.StampState(candidate, StateCode);
             result.Candidates.Add(candidate);
         }

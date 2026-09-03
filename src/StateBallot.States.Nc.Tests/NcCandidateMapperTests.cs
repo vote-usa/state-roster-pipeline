@@ -38,12 +38,24 @@ public class NcCandidateMapperTests
         return row;
     }
 
+    // Mirrors data/input/nc/candidate_field_map.json.
+    private static Dictionary<string, string> FieldMap() => new()
+    {
+        ["Party"] = "party_candidate",
+        ["FilingDate"] = "candidacy_dt",
+        ["Email"] = "email",
+        ["MailingAddressLine"] = "street_address",
+        ["MailingCity"] = "city",
+        ["MailingState"] = "state",
+        ["MailingZip"] = "zip_code",
+    };
+
     [Fact]
     public void ToCandidateRow_NoDistrictSuffix_LeavesOfficeAndDistrictAsIs()
     {
         var row = Row(("contest_name", "US SENATE"), ("name_on_ballot", "Roy Cooper"), ("party_candidate", "DEM"));
 
-        var candidate = NcCandidateMapper.ToCandidateRow(row, GeneralElection(), "https://example.com/candidates.csv", county: null);
+        var candidate = NcCandidateMapper.ToCandidateRow(row, GeneralElection(), "https://example.com/candidates.csv", county: null, FieldMap());
 
         Assert.Equal("US SENATE", candidate.Office);
         Assert.Null(candidate.District);
@@ -57,7 +69,7 @@ public class NcCandidateMapperTests
     {
         var row = Row(("contest_name", "US HOUSE OF REPRESENTATIVES DISTRICT 09"), ("name_on_ballot", "Jane Doe"));
 
-        var candidate = NcCandidateMapper.ToCandidateRow(row, GeneralElection(), "https://example.com/candidates.csv", county: null);
+        var candidate = NcCandidateMapper.ToCandidateRow(row, GeneralElection(), "https://example.com/candidates.csv", county: null, FieldMap());
 
         Assert.Equal("US HOUSE OF REPRESENTATIVES", candidate.Office);
         Assert.Equal("09", candidate.District);
@@ -68,7 +80,7 @@ public class NcCandidateMapperTests
     {
         var row = Row(("contest_name", "NC SUPREME COURT ASSOCIATE JUSTICE SEAT 01"), ("name_on_ballot", "Jane Doe"));
 
-        var candidate = NcCandidateMapper.ToCandidateRow(row, GeneralElection(), "https://example.com/candidates.csv", county: null);
+        var candidate = NcCandidateMapper.ToCandidateRow(row, GeneralElection(), "https://example.com/candidates.csv", county: null, FieldMap());
 
         Assert.Equal("NC SUPREME COURT ASSOCIATE JUSTICE", candidate.Office);
         Assert.Equal("01", candidate.District);
@@ -85,7 +97,7 @@ public class NcCandidateMapperTests
     {
         var row = Row(("contest_name", "ALAMANCE SOIL AND WATER CONSERVATION DISTRICT SUPERVISOR"), ("name_on_ballot", "Jane Doe"));
 
-        var candidate = NcCandidateMapper.ToCandidateRow(row, GeneralElection(), "https://example.com/candidates.csv", county: "ALAMANCE");
+        var candidate = NcCandidateMapper.ToCandidateRow(row, GeneralElection(), "https://example.com/candidates.csv", county: "ALAMANCE", FieldMap());
 
         Assert.Equal("ALAMANCE SOIL AND WATER CONSERVATION DISTRICT SUPERVISOR", candidate.Office);
         Assert.Null(candidate.District);
@@ -96,7 +108,7 @@ public class NcCandidateMapperTests
     {
         var row = Row(("contest_name", "ALAMANCE COUNTY SHERIFF"), ("name_on_ballot", "Jane Doe"));
 
-        var candidate = NcCandidateMapper.ToCandidateRow(row, GeneralElection(), "https://example.com/candidates.csv", county: "ALAMANCE");
+        var candidate = NcCandidateMapper.ToCandidateRow(row, GeneralElection(), "https://example.com/candidates.csv", county: "ALAMANCE", FieldMap());
 
         Assert.Equal("ALAMANCE", candidate.County);
     }
@@ -114,7 +126,7 @@ public class NcCandidateMapperTests
             ("email", "jane@example.com"),
             ("candidacy_dt", "12/03/2025"));
 
-        var candidate = NcCandidateMapper.ToCandidateRow(row, GeneralElection(), "https://example.com/candidates.csv", county: null);
+        var candidate = NcCandidateMapper.ToCandidateRow(row, GeneralElection(), "https://example.com/candidates.csv", county: null, FieldMap());
 
         Assert.Equal("PO BOX 1190", candidate.MailingAddressLine);
         Assert.Equal("RALEIGH", candidate.MailingCity);
@@ -139,7 +151,7 @@ public class NcCandidateMapperTests
             ("business_phone", businessPhone),
             ("office_phone", officePhone));
 
-        var candidate = NcCandidateMapper.ToCandidateRow(row, GeneralElection(), "https://example.com/candidates.csv", county: null);
+        var candidate = NcCandidateMapper.ToCandidateRow(row, GeneralElection(), "https://example.com/candidates.csv", county: null, FieldMap());
 
         Assert.Equal(expected, candidate.Phone);
     }
@@ -149,7 +161,7 @@ public class NcCandidateMapperTests
     {
         var row = Row(("contest_name", "US SENATE"));
 
-        var candidate = NcCandidateMapper.ToCandidateRow(row, GeneralElection(), "https://example.com/candidates.csv", county: null);
+        var candidate = NcCandidateMapper.ToCandidateRow(row, GeneralElection(), "https://example.com/candidates.csv", county: null, FieldMap());
 
         Assert.Equal("", candidate.CandidateName);
         Assert.Null(candidate.Party);

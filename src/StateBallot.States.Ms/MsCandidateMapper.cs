@@ -67,7 +67,10 @@ public static class MsCandidateMapper
     }
 
     /// <param name="row">One CSV row, keyed by MS's column headers (see DelimitedTableParser).</param>
-    public static CandidateRow ToCandidateRow(Dictionary<string, string> row, Election election, string sourceUrl) => new()
+    /// <param name="fieldMap">data/input/ms/candidate_field_map.json - canonical field -> MS's own column
+    /// name, for the fields that are a plain single-column passthrough (see CandidateFieldMapper).</param>
+    public static CandidateRow ToCandidateRow(
+        Dictionary<string, string> row, Election election, string sourceUrl, Dictionary<string, string> fieldMap) => new()
     {
         State = "MS",
         ElectionDate = election.ElectionDate.ToString("yyyy-MM-dd"),
@@ -76,11 +79,11 @@ public static class MsCandidateMapper
         District = CombineDistrictAndPlace(row.GetValueOrDefault("District", ""), row.GetValueOrDefault("Place", "")),
         County = null, // not published - MS's judicial races use district/place numbering, not a county field
         CandidateName = row.GetValueOrDefault("Candidate Name", "").Trim(),
-        Party = NullIfEmpty(row.GetValueOrDefault("Party")), // raw value (Democratic/Republican/Independent/Libertarian/blank for nonpartisan judicial races)
+        Party = CandidateFieldMapper.Get(fieldMap, row, nameof(CandidateRow.Party)), // raw value (Democratic/Republican/Independent/Libertarian/blank for nonpartisan judicial races)
         Incumbent = null, // not published
         SourceUrl = sourceUrl,
         SourceCandidateId = null, // no source-provided id in this export
-        FilingDate = NullIfEmpty(row.GetValueOrDefault("Qualifying Period")), // raw "M/d/yyyy to M/d/yyyy" range, not reformatted
+        FilingDate = CandidateFieldMapper.Get(fieldMap, row, nameof(CandidateRow.FilingDate)), // raw "M/d/yyyy to M/d/yyyy" range, not reformatted
     };
 
     private static string StripOfficePrefix(string office) =>
@@ -101,7 +104,4 @@ public static class MsCandidateMapper
             return null;
         return place.Length == 0 ? district : $"{district} Place {place}";
     }
-
-    private static string? NullIfEmpty(string? value) =>
-        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }

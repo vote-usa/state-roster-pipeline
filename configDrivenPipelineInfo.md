@@ -53,7 +53,7 @@ too much per state to normalize without losing information.
 
 ### Config-driven per-state surfaces
 
-Four kinds of per-state values live in tracked JSON under `data/input/<xx>/`
+Five kinds of per-state values live in tracked JSON under `data/input/<xx>/`
 rather than in C# — each with its own fail-loud-or-permissive loading policy,
 chosen deliberately per what a wrong value would do downstream:
 
@@ -61,12 +61,47 @@ chosen deliberately per what a wrong value would do downstream:
 | --- | --- | --- | --- |
 | `date_formats.json` (bare array of .NET date format strings) | `DateFormatConfig.Load` | Throws | A parsed election date fans out to year filtering, sort order, publish-schedule math, and every shipped output row — a silent bad parse is worse than a loud failure at startup. |
 | `election_type_names.json` (raw-code → canonical-name object, e.g. TX's `{"P": "Primary", ...}`) | `LookupTableLoader.Load` | Missing file throws; an empty/malformed object does not (per-key misses pass the raw code through unchanged) | A code not yet in the table is a legitimate "not modeled yet" case, not an error. |
+| `candidate_field_map.json` (canonical `CandidateRow` field name → that state's own column name, e.g. `{"Party": "Party Affiliation", ...}`) | `LookupTableLoader.Load` (same loader, same permissive-empty semantics — it's the identical flat-string-map shape) | Missing file throws; a field simply absent from the map means "not published/needs a transform," not an error | See `CandidateFieldMapper` below — the Tier 2 config-table extraction from the collector-abstraction analysis. |
 | `selectors.json` (named CSS-selector/regex strings, CA and WA today) | Each state's own `Selectors.Load(path)` | Missing file or missing key throws | Selectors are load-bearing for every scrape; a missing pattern should fail at the exact call site that needed it. |
 | `county_fips.json` (county name → FIPS code) | `CountyFipsLoader.LoadRequired` / `.LoadOrEmpty` | State's choice — CA/WA differ (WA treats a missing FIPS as an acceptable null enrichment field; CA treats the file as authoritative for the expected county set) | Two real states, two real different semantics — modeled as two explicit methods, not a boolean flag. |
 
 `DataPaths` (Core) centralizes every one of these paths so no state hand-builds
 `Path.Combine` logic itself: `DateFormatsPath`, `ElectionTypeNamesPath`,
-`SelectorsPath`, `CountyFipsPath`, `SourcesPath`.
+`CandidateFieldMapPath`, `SelectorsPath`, `CountyFipsPath`, `SourcesPath`.
+
+### `CandidateFieldMapper` (Core) — the config-table field mapping
+
+`CandidateFieldMapper.Get(fieldMap, row, canonicalField)` applies one state's
+`candidate_field_map.json` to one parsed row: looks up the canonical field
+(passed via `nameof(CandidateRow.Party)` etc., so a rename is caught at
+compile time) to find which raw column holds it, then returns that column's
+trimmed value from the row (or null if either the state doesn't map the
+field at all, or the row's own value is blank). Built for the CSV/XLSX-backed
+states (MD, NC, WY, HI, MS, NE) once six data points confirmed which
+`CandidateRow` fields are *always* a single-column passthrough with zero
+transform logic across every state that publishes them: `Party`, `Email`,
+`Phone`, `CampaignPhone`, `Website`, `Occupation`, `MailingAddressLine`,
+`MailingCity`, `MailingState`, `MailingZip`, `FilingDate`,
+`SourceCandidateId`, `Status`, `ResidentialCity` — each mapper calls
+`CandidateFieldMapper.Get` only for the subset its own state's source
+actually publishes as a plain column (e.g. WY's is the only state with
+`CampaignPhone`; NC has `MailingCity`/`State`/`Zip` as three separate plain
+columns where MD/WY/HI/NE need a regex split instead, so only NC's config
+uses them). `Office`, `District`, and `CandidateName` are deliberately never
+table-driven, even where a given state's source happens not to need a
+transform for one of them — every state onboarded so far needs at least
+conditional logic for Office/District (a split regex, even where it's a
+no-op on non-matching input), and CandidateName is a composite (first +
+last name columns) for MD — both stay hand-written per state. This mirrors
+the collector-abstraction analysis's three-tier split: Tier 2 (a pure config
+table, done here), Tier 3 (a shared regex-consuming primitive — the
+office/district split and city/state/zip split remain candidates, not yet
+extracted), and Tier 4 (must stay hand-written: election discovery, row→
+election attribution, NC's county dedup, MS's district+place merge). Verified
+as a pure refactor, not a behavior change: live dry-run candidate/measure
+counts matched pre-refactor values for all six states, with field-level
+values (Party/Email/Phone/ResidentialCity/FilingDate) spot-checked directly
+against a real row for MS and NE.
 
 The `Selectors` pattern (see `CaSelectors`, WA's `Selectors`) is a `sealed
 class` with `required ... { get; init; }` properties, a `Load(path)` factory

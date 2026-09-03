@@ -18,6 +18,13 @@ public class MsCandidateMapperTests
         return row;
     }
 
+    // Mirrors data/input/ms/candidate_field_map.json.
+    private static Dictionary<string, string> FieldMap() => new()
+    {
+        ["Party"] = "Party",
+        ["FilingDate"] = "Qualifying Period",
+    };
+
     [Fact]
     public void ToElection_PrimaryOrGeneral_IdIsYearAndType()
     {
@@ -93,7 +100,7 @@ public class MsCandidateMapperTests
     {
         var row = Row(("Office", "Candidates for United States Senate"), ("Candidate Name", "Cindy Hyde-Smith"), ("Party", "Republican"));
 
-        var candidate = MsCandidateMapper.ToCandidateRow(row, General(), "https://example.com/candidates.csv");
+        var candidate = MsCandidateMapper.ToCandidateRow(row, General(), "https://example.com/candidates.csv", FieldMap());
 
         Assert.Equal("United States Senate", candidate.Office);
         Assert.Equal("Cindy Hyde-Smith", candidate.CandidateName);
@@ -107,7 +114,7 @@ public class MsCandidateMapperTests
     {
         var row = Row(("Office", "Candidates for United States House of Representatives"), ("Candidate Name", "Trent Kelly"), ("District", "1"), ("Place", ""));
 
-        var candidate = MsCandidateMapper.ToCandidateRow(row, General(), "https://example.com/candidates.csv");
+        var candidate = MsCandidateMapper.ToCandidateRow(row, General(), "https://example.com/candidates.csv", FieldMap());
 
         Assert.Equal("1", candidate.District);
     }
@@ -117,7 +124,7 @@ public class MsCandidateMapperTests
     {
         var row = Row(("Office", "Candidates for Mississippi Chancery Court Judge"), ("Candidate Name", "Brad Tennison"), ("District", "1"), ("Place", "1"));
 
-        var candidate = MsCandidateMapper.ToCandidateRow(row, General(), "https://example.com/candidates.csv");
+        var candidate = MsCandidateMapper.ToCandidateRow(row, General(), "https://example.com/candidates.csv", FieldMap());
 
         Assert.Equal("1 Place 1", candidate.District);
     }
@@ -127,7 +134,7 @@ public class MsCandidateMapperTests
     {
         var row = Row(("Office", "Candidates for Mississippi Circuit Court Judge"), ("Candidate Name", "John R. White"), ("Party", ""));
 
-        var candidate = MsCandidateMapper.ToCandidateRow(row, General(), "https://example.com/candidates.csv");
+        var candidate = MsCandidateMapper.ToCandidateRow(row, General(), "https://example.com/candidates.csv", FieldMap());
 
         Assert.Null(candidate.Party);
     }
@@ -137,7 +144,7 @@ public class MsCandidateMapperTests
     {
         var row = Row(("Office", "Candidates for United States Senate"), ("Candidate Name", "Scott Colom"), ("Qualifying Period", "12/01/2025 to 12/26/2025"));
 
-        var candidate = MsCandidateMapper.ToCandidateRow(row, General(), "https://example.com/candidates.csv");
+        var candidate = MsCandidateMapper.ToCandidateRow(row, General(), "https://example.com/candidates.csv", FieldMap());
 
         Assert.Equal("12/01/2025 to 12/26/2025", candidate.FilingDate);
     }

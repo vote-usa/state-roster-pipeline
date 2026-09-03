@@ -40,6 +40,7 @@ public sealed class MdCollector : IStateCollector
 
         var (dataRoot, _) = DataPaths.FromStateOutputDir(_stateDataDir);
         var dateFormats = DateFormatConfig.Load(DataPaths.DateFormatsPath(dataRoot, StateCode));
+        var fieldMap = LookupTableLoader.Load(DataPaths.CandidateFieldMapPath(dataRoot, StateCode));
 
         var elections = await new ElectionDayScraper(_fetcher, _config, dateFormats).FetchAsync(_year);
         Console.WriteLine($"  Election day entries found: {elections.Count}");
@@ -66,7 +67,7 @@ public sealed class MdCollector : IStateCollector
 
             foreach (var row in rows)
             {
-                var candidate = MdCandidateMapper.ToCandidateRow(row, election, url);
+                var candidate = MdCandidateMapper.ToCandidateRow(row, election, url, fieldMap);
                 RowHelpers.StampState(candidate, StateCode);
                 result.Candidates.Add(candidate);
             }

@@ -18,7 +18,10 @@ public static class WyCandidateMapper
     };
 
     /// <param name="row">One CSV row, keyed by WY's column headers (see DelimitedTableParser).</param>
-    public static CandidateRow ToCandidateRow(Dictionary<string, string> row, Election election, string sourceUrl)
+    /// <param name="fieldMap">data/input/wy/candidate_field_map.json - canonical field -> WY's own column
+    /// name, for the fields that are a plain single-column passthrough (see CandidateFieldMapper).</param>
+    public static CandidateRow ToCandidateRow(
+        Dictionary<string, string> row, Election election, string sourceUrl, Dictionary<string, string> fieldMap)
     {
         var (office, district) = SplitOfficeSought(row.GetValueOrDefault("Office Sought", "").Trim());
         var cszMatch = WySelectors.MailingCityStateZip.Match(row.GetValueOrDefault("Mailing City State & Zip", ""));
@@ -33,23 +36,24 @@ public static class WyCandidateMapper
             District = district,
             County = null, // WY's export has no county concept
             CandidateName = row.GetValueOrDefault("Ballot Name", "").Trim(),
-            Party = NullIfEmpty(row.GetValueOrDefault("Party Affiliation")), // raw code (REP/DEM/LBR/CT/IND)
+            Party = CandidateFieldMapper.Get(fieldMap, row, nameof(CandidateRow.Party)), // raw code (REP/DEM/LBR/CT/IND)
             Incumbent = null, // not published
             SourceUrl = sourceUrl,
             SourceCandidateId = null, // no source-provided id in this export
-            FilingDate = NullIfEmpty(row.GetValueOrDefault("Date Filed")), // raw M/d/yyyy or MM/dd/yyyy, not reformatted
-            Email = NullIfEmpty(row.GetValueOrDefault("Email Address")),
+            FilingDate = CandidateFieldMapper.Get(fieldMap, row, nameof(CandidateRow.FilingDate)), // raw M/d/yyyy or MM/dd/yyyy, not reformatted
+            Email = CandidateFieldMapper.Get(fieldMap, row, nameof(CandidateRow.Email)),
             // The CSV's own column is explicitly labeled "Campaign Telephone", not a generic
             // contact number, so it maps to CampaignPhone rather than the generic Phone slot.
-            CampaignPhone = NullIfEmpty(row.GetValueOrDefault("Campaign Telephone")),
-            Website = NullIfEmpty(row.GetValueOrDefault("Web Address")),
-            MailingAddressLine = NullIfEmpty(row.GetValueOrDefault("Mailing Address")),
+            CampaignPhone = CandidateFieldMapper.Get(fieldMap, row, nameof(CandidateRow.CampaignPhone)),
+            Website = CandidateFieldMapper.Get(fieldMap, row, nameof(CandidateRow.Website)),
+            MailingAddressLine = CandidateFieldMapper.Get(fieldMap, row, nameof(CandidateRow.MailingAddressLine)),
             MailingCity = cszMatch.Success ? cszMatch.Groups["city"].Value.Trim() : null,
             MailingState = cszMatch.Success ? cszMatch.Groups["state"].Value : null,
             MailingZip = cszMatch.Success ? cszMatch.Groups["zip"].Value : null,
             // WY has no single "status" column, only a separate withdrawal date - fold the two
             // real signals into one Status string in the same "Category - date" shape MD's own
-            // source already uses, rather than inventing a new per-state convention.
+            // source already uses, rather than inventing a new per-state convention. Not a plain
+            // column lookup, so it can't be a field-map entry.
             Status = withdrawn is null ? null : $"Withdrawn - {withdrawn}",
         };
     }
