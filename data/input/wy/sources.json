@@ -1,0 +1,33 @@
+{
+  "elections": [
+    {
+      "url": "https://sos.wyo.gov/Elections/2026ElectionInformation.aspx",
+      "format": "html"
+    }
+  ],
+  "statewide_candidates": [
+    {
+      "url": "https://sos.wyo.gov/Elections/Docs/2026/2026_WY_Primary_Election_Candidates.csv",
+      "format": "csv"
+    },
+    {
+      "url": "https://sos.wyo.gov/Elections/Docs/2026/2026_WY_General_Election_Candidates.csv",
+      "format": "csv"
+    }
+  ],
+  "statewide_measures": [],
+  "county_directory": [],
+  "verification_only": [
+    {
+      "url": "https://ballotpedia.org/Wyoming_elections,_2026",
+      "format": "html"
+    }
+  ],
+  "gaps": [],
+  "next_run": {
+    "recommended_after": "2027-01-01",
+    "reason": "All 2026 candidates collected. Re-run next year to check for new filings.",
+    "next_election_date": null,
+    "next_election_type": null
+  }
+}

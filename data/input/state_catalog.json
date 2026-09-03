@@ -302,7 +302,7 @@
   "WY": {
     "name": "Wyoming",
     "fips": "56",
-    "status": "unimplemented",
-    "project": null
+    "status": "implemented",
+    "project": "StateBallot.States.Wy"
   }
 }
