@@ -115,7 +115,7 @@ public sealed class WaCollector : IStateCollector
                     else
                     {
                         foreach (var candidate in race.Candidates.Where(c => !string.IsNullOrWhiteSpace(c.BallotName)))
-                            result.Candidates.Add(ToCandidateRow(election, race, candidate, county));
+                            result.Candidates.Add(ToCandidateRow(election, category, race, candidate, county, isStatewideCategory));
                     }
                 }
             }
@@ -172,13 +172,14 @@ public sealed class WaCollector : IStateCollector
         foreach (var category in guide.Categories)
         {
             var isMeasureCategory = string.Equals(category.Name?.Trim(), "Measures", StringComparison.OrdinalIgnoreCase);
+            var isStatewideCategory = StatewideCategoryNames.Contains(category.Name?.Trim(), StringComparer.OrdinalIgnoreCase);
             foreach (var race in category.Races)
             {
                 if (isMeasureCategory)
                     ballot.Measures.Add(ToMeasureRow(election, race, countyName));
                 else
                     foreach (var candidate in race.Candidates.Where(c => !string.IsNullOrWhiteSpace(c.BallotName)))
-                        ballot.Candidates.Add(ToCandidateRow(election, race, candidate, countyName));
+                        ballot.Candidates.Add(ToCandidateRow(election, category, race, candidate, countyName, isStatewideCategory));
             }
         }
 
@@ -187,7 +188,9 @@ public sealed class WaCollector : IStateCollector
         return ballot;
     }
 
-    private CandidateRow ToCandidateRow(Election election, GuideRace race, GuideCandidate candidate, string? county) => new()
+    private CandidateRow ToCandidateRow(
+        Election election, GuideCategory category, GuideRace race, GuideCandidate candidate,
+        string? county, bool isStatewideCategory) => new()
     {
         State = StateCode,
         ElectionDate = election.ElectionDate.ToString("yyyy-MM-dd"),
@@ -199,6 +202,11 @@ public sealed class WaCollector : IStateCollector
         Party = VoterGuideClient.NormalizeParty(candidate.PartyName),
         Incumbent = null, // not published by VoteWA
         SourceUrl = _config.VoterGuideUrl(election.ElectionId),
+        SourceOfficeId = string.IsNullOrWhiteSpace(race.RaceID) ? null : race.RaceID.Trim(),
+        SourceOfficeType = string.IsNullOrWhiteSpace(category.CategoryCode) ? category.Name?.Trim() : category.CategoryCode.Trim(),
+        // VoteWA's Jurisdiction is the district/body name; for sub-state races it is the local jurisdiction.
+        LocalJurisdiction = isStatewideCategory || string.IsNullOrWhiteSpace(race.Jurisdiction) ? null : race.Jurisdiction.Trim(),
+        // VoteWA publishes only a ballot name; name parts stay null (never split heuristically here).
     };
 
     private MeasureRow ToMeasureRow(Election election, GuideRace race, string? county) => new()

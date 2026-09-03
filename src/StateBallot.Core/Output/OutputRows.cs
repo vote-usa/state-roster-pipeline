@@ -42,6 +42,15 @@ public sealed class CandidateOut
     public string? MailingZip { get; set; }
     public string? ResidentialCity { get; set; }
     public string? ResidentialCounty { get; set; }
+
+    /// <summary>The source system's identifier for the office/race, e.g. TX idOffice.</summary>
+    public string? SourceOfficeId { get; set; }
+    public string? SourceOfficeType { get; set; }
+    public string? LocalJurisdiction { get; set; }
+    public string? FirstName { get; set; }
+    public string? MiddleName { get; set; }
+    public string? LastName { get; set; }
+    public string? Suffix { get; set; }
 }
 
 /// <summary>Stable cross-state output row for measures.json|csv.</summary>
@@ -79,6 +88,9 @@ public sealed class CountyBallotCandidateOut
     public string? OcdDivisionId { get; set; }
     public string CandidateName { get; set; } = "";
     public string? Party { get; set; }
+    public string? SourceOfficeId { get; set; }
+    public string? SourceOfficeType { get; set; }
+    public string? LocalJurisdiction { get; set; }
 }
 
 /// <summary>One measure entry embedded in a county ballot JSON object.</summary>
