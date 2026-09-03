@@ -68,8 +68,8 @@
   "HI": {
     "name": "Hawaii",
     "fips": "15",
-    "status": "unimplemented",
-    "project": null
+    "status": "implemented",
+    "project": "StateBallot.States.Hi"
   },
   "ID": {
     "name": "Idaho",

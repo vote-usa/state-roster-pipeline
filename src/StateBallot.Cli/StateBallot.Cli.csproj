@@ -9,6 +9,7 @@
     <ProjectReference Include="..\StateBallot.States.Md\StateBallot.States.Md.csproj" />
     <ProjectReference Include="..\StateBallot.States.Nc\StateBallot.States.Nc.csproj" />
     <ProjectReference Include="..\StateBallot.States.Wy\StateBallot.States.Wy.csproj" />
+    <ProjectReference Include="..\StateBallot.States.Hi\StateBallot.States.Hi.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

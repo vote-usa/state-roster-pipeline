@@ -1,5 +1,6 @@
 using StateBallot.Core;
 using StateBallot.States.Ca;
+using StateBallot.States.Hi;
 using StateBallot.States.Md;
 using StateBallot.States.Nc;
 using StateBallot.States.Tx;
@@ -13,7 +14,7 @@ public static class Runner
 {
     // Keep project references rooted so state assemblies copy to the output directory.
     private static readonly Type[] RootedCollectors =
-        [typeof(CaCollector), typeof(WaCollector), typeof(TxCollector), typeof(WvCollector), typeof(MdCollector), typeof(NcCollector), typeof(WyCollector)];
+        [typeof(CaCollector), typeof(WaCollector), typeof(TxCollector), typeof(WvCollector), typeof(MdCollector), typeof(NcCollector), typeof(WyCollector), typeof(HiCollector)];
 
     public static async Task<int> RunAsync(string[] args)
     {

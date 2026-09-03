@@ -37,6 +37,13 @@ public sealed class HttpFetcher : IDisposable
     public async Task<string> PostJsonAsync<TRequest>(string url, TRequest body) =>
         await SendWithRetryAsync(() => _http.PostAsJsonAsync(url, body), url);
 
+    /// <summary>
+    /// POSTs a form-urlencoded body (e.g. for replaying an ASP.NET WebForms
+    /// postback - see WebFormsPostback); returns the raw response string.
+    /// </summary>
+    public async Task<string> PostFormAsync(string url, IEnumerable<KeyValuePair<string, string>> formFields) =>
+        await SendWithRetryAsync(() => _http.PostAsync(url, new FormUrlEncodedContent(formFields)), url);
+
     private async Task<string> SendWithRetryAsync(Func<Task<HttpResponseMessage>> send, string url)
     {
         var sinceLast = DateTime.UtcNow - _lastRequestUtc;
