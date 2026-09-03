@@ -29,10 +29,10 @@ away at:
 | 0 — Core utility extraction + mapper convention | **Done** | Deduped whitespace/date/address/FIPS/empty-guard logic into Core; standardized the mapper-class seam across WA/CA/TX/WV; added test coverage where none existed (CA, WA). |
 | 1 — Config-driven value tables | **Done** | `date_formats.json` (all states) and `election_type_names.json` (TX) — externalized, fail-loud or permissive per the field's semantics. |
 | 2 — Selectors externalization | **Done** | CA and WA's CSS-selector/regex constants moved from compiled `static class` fields to `sealed class` instances loaded from `selectors.json`, with a `Default` compiled-in fallback for tests/seeding. |
-| 3 — 50-state reality check + new-state onboarding | **In progress** | Research across all 50 states' real formats/fetch-blocking; format-parser infra (CSV, XLSX) built; 5 new states onboarded (MD, NC, WY, HI, MS). |
+| 3 — 50-state reality check + new-state onboarding | **In progress** | Research across all 50 states' real formats/fetch-blocking; format-parser infra (CSV, XLSX) built; 6 new states onboarded (MD, NC, WY, HI, MS, NE). |
 
-9 states implemented total: WA, CA, TX, WV (pre-existing) + MD, NC, WY, HI, MS
-(added under Phase 3). Full technical detail on all 9 is in
+10 states implemented total: WA, CA, TX, WV (pre-existing) + MD, NC, WY, HI,
+MS, NE (added under Phase 3). Full technical detail on all 10 is in
 `configDrivenPipelineInfo.md`.
 
 ## Phase 3 in detail
@@ -70,7 +70,7 @@ built — every state still dispatches to its own library directly, since no
 call site has ever needed to pick a parser by a runtime format string.
 Revisit if that stops being true.
 
-### New-state onboarding — 5 done (MD, NC, WY, HI, MS), triage tracked below
+### New-state onboarding — 6 done (MD, NC, WY, HI, MS, NE), triage tracked below
 
 Each state was researched live (direct `curl`/browser checks against the
 real government site — the research spreadsheet's own flags turned out
@@ -93,16 +93,17 @@ per-state writeups are in `configDrivenPipelineInfo.md`.
   worth investigating with a browser-like UA (and, per this state, also the
   reverse - a tool-like UA) before writing it off.
 - **Tier C — verified blocked, gated on fetch-strategy tiering rather than
-  anything state-specific**: Arkansas (403), New York (403, explicit
-  Cloudflare challenge), Oklahoma (403, AWS ELB block).
+  anything state-specific**: New York (403, explicit Cloudflare challenge),
+  Oklahoma (403, AWS ELB block).
 - **Tier D — flagged blocked/complex in research, not independently
   verified, could hide more MD/NC/WY/HI-style false positives**: Minnesota,
   Nevada, New Mexico (both parties), Oregon (likely POST/session, not a
   plain GET), South Carolina (both parties, needs per-district URL
   construction like Louisiana), South Dakota, Montana.
-- **Tier 3 (XLSX, not bot-blocked, parser already built)**: Nebraska
-  (live-verified against the parser already), Rhode Island, Vermont,
-  Virginia.
+- **Tier 3 (XLSX, not bot-blocked, parser already built)**: Nebraska (done -
+  see its write-up in `configDrivenPipelineInfo.md`; also the first state to
+  need `XlsxTableParser`'s new `sheetIndex` parameter, for a second worksheet
+  in the same workbook), Rhode Island, Vermont, Virginia.
 - **Tier 5 — genuinely hard / semi-manual, separate from config work
   entirely**: Georgia (session token + recaptcha), Louisiana (two-call
   dedup across 64 parishes), Ohio (no master list, sample-ballot-lookup
@@ -115,7 +116,32 @@ per-state writeups are in `configDrivenPipelineInfo.md`.
   no-UA and browser-UA requests both return 403 with a "Just a moment..."
   interstitial body. `HttpFetcher.AddDefaultHeader` (TX's fix) does not
   apply here; would need a headless-browser fetch tier or per-county PDF
-  scraping instead, neither attempted).
+  scraping instead, neither attempted), Arkansas (verified 2026-09-03: real
+  data exists and is well-shaped — `candidates.arkansas.gov`, a WordPress
+  site with a custom REST route `/wp-json/metl/v1/all` backing a DataTables
+  UI, returns clean JSON rows (`FilerID`/`CanBallotName`/`Descript`/
+  `PartyAffiliation`/`FilingDate`, 198 current candidates) - but unlike every
+  other bot-blocked state so far, no request `curl` originates itself (any
+  UA, any header combination, exact DataTables param replay, with or without
+  cookies) gets real data back; Cloudflare returns a `200` with a silently
+  empty body instead of an explicit block, then edge-caches that empty
+  answer for 10 minutes, which is what made this look param-shape-related at
+  first. A real headless Chromium (Playwright, driven against the live page)
+  gets full data back immediately and consistently, no interactive
+  challenge/CAPTCHA involved - this is TLS/HTTP-fingerprint bot scoring, not
+  an unsolvable challenge like MI's. Practical blocker: this pipeline has no
+  deployment target yet (runs today only as a local CLI); the dev machine's
+  regular network connection passed Cloudflare's scoring, but the likely
+  eventual host (some AWS instance, per 2026-09-03 conversation) would run
+  from a datacenter IP range that Cloudflare typically scores worse
+  regardless of browser fingerprint quality - so a headless-browser fetch
+  tier's viability for AR (and any future state gated the same way) can't be
+  confirmed until there's a real deployment target to test from. Decision
+  deliberately deferred rather than building the tier speculatively;
+  revisit once a deployment target exists. Full working request shape (all
+  `columns[]`/`order[]`/`search[]` DataTables params plus `postID=2941`,
+  `CanBallotName=`, `Descript=`) is captured in this session's history if
+  picked back up.
 
 ## What's still not started
 
@@ -123,9 +149,13 @@ Carried forward from Phase 3's original architecture recommendations, none
 begun yet:
 
 1. **Fetch-strategy tiering as a first-class, config-driven axis.**
-   `HttpFetcher.AddDefaultHeader` (TX) and `WebFormsPostback` (HI) are the
-   first two real pieces of this, but neither is exposed as per-source
-   config yet — both are still hardcoded into their state's collector.
+   `HttpFetcher.AddDefaultHeader` (TX, and MS's UA-inversion variant) and
+   `WebFormsPostback` (HI, MS) are the first real pieces of this, but neither
+   is exposed as per-source config yet — both are still hardcoded into their
+   state's collector. The next tier up, headless-browser rendering, has a
+   concrete first customer now (Arkansas - see its Tier 5 write-up above) but
+   is gated on a real deployment target existing to test IP-reputation
+   against, not on anything left to design.
 2. **Field-mapping UI/engine.** The original "hard problem," reprioritized
    rather than deferred once 50-state diversity became concrete — should
    consume the primitives Phases 0-2 already extracted (date formats,

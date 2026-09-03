@@ -101,8 +101,12 @@ exception) on empty/header-only input** — an empty source is a
 
 - `DelimitedTableParser.Parse(text, delimiter = ',')` — CsvHelper-backed;
   the same implementation serves both CSV and TSV via the delimiter parameter.
-- `XlsxTableParser.Parse(xlsxBytes)` — ClosedXML-backed; reads the first
-  worksheet's used range only.
+- `XlsxTableParser.Parse(xlsxBytes, sheetIndex = 0)` — ClosedXML-backed; reads
+  one worksheet's used range (the first, by default). The `sheetIndex`
+  parameter was added for Nebraska, the first consumer to need a second sheet
+  from the same workbook (its judicial-retention questions live on sheet 1
+  alongside sheet 0's candidates) — every prior/default call site is
+  unaffected.
 
 Deliberately **no `IFormatParser` interface or format-string-keyed registry** —
 every state dispatches directly to whichever library it needs
@@ -166,8 +170,8 @@ Ballotpedia is never a data source — verification only.
 
 ## 2. Implemented states
 
-Nine states are implemented as of 2026-09-03: WA, CA, TX, WV (pre-dating this
-consolidation effort) and MD, NC, WY, HI, MS (added on the CSV/XLSX parser
+Ten states are implemented as of 2026-09-03: WA, CA, TX, WV (pre-dating this
+consolidation effort) and MD, NC, WY, HI, MS, NE (added on the CSV/XLSX parser
 infrastructure, one per onboarding session). Each section below covers only
 what's *unique* to that state — shared behavior is in section 1.
 
@@ -393,3 +397,54 @@ separate Place slot. `FilingDate` carries the raw `"M/d/yyyy to M/d/yyyy"`
 qualifying-period range verbatim (not a single date, unlike every other
 state's FilingDate so far). No county concept in this export (judicial
 district/place numbering is the closest analog); no measures attempted.
+
+### Nebraska (`StateBallot.States.Ne`)
+
+| Data | Source | Format |
+| --- | --- | --- |
+| Candidates + judicial retention (elections derived from these) | `sos.nebraska.gov/.../Statewide_Candidate_Filing_List.xlsx` | XLSX |
+| Election dates | `sos.nebraska.gov/elections` page's own plain text ("Primary Election: ...") | HTML (plain-text regex) |
+
+First real consumer of `XlsxTableParser`'s new `sheetIndex` parameter: one
+workbook, two worksheets. Sheet 0 is the candidate roster — not just
+statewide/federal/legislative races but ~90 distinct local special-district
+entities (public power districts, natural resources districts, community
+colleges, educational service units) with no county concept of their own,
+so `County` stays null throughout even though real sub-state jurisdiction
+exists (captured in `District` instead, alongside legislative/judicial
+district numbers). `Office` only strips a leading `"For "` (`^For\s+`) —
+statewide/federal/legislative rows have it ("For United States Senator"),
+local entity names never do (some contain "For" mid-string, e.g. "Central
+Community College For Board of Governors", which the anchored match leaves
+untouched). `Mailing Address` and `Phone/Email` are each one workbook cell
+holding 0–2 newline-separated values (street then city/state/zip; phone then
+email, either possibly blank or absent) — split by regex match and by
+presence of `@` respectively, rather than assuming a fixed line count.
+Sheet 1 is judicial retention questions ("Shall Judge X be retained in
+office?"), mapped to `StatewideProposedMeasures` since MeasureRow's shape
+(a title, a jurisdiction, no opponent) fits a retention question much better
+than CandidateRow does; `Jurisdiction` combines the office and district since
+the model has no separate slot for either on `MeasureRow`, and `MeasureId` is
+a slugified `office+district+judge` composite (no source-provided id exists).
+Neither sheet carries an election date — both come from the elections page's
+own plain text, matched with a simple `"Primary Election: <date>"` regex (no
+day-of-week prefix, unlike HI's version of the same pattern). The workbook
+itself is a live "currently filed" snapshot like MS's CSV, but with no
+per-row date/type signal at all (unlike MS's Election/Primary/General
+columns) — the whole file is attributed to Primary or General as one unit,
+by comparing today against the scraped Primary date; retention questions are
+always General (Nebraska judges are never on a primary ballot). Live-verified
+2026-09-03 (after the May 12 primary had passed): 521 candidates, all
+correctly landed in General, plus 48 retention questions. A real bug was
+found via output inspection here too — `ResidentialCity` was written in the
+mapper's own doc comment but the actual field assignment was missing from the
+object initializer; fixed, with a named regression test. A third sheet
+(petition-candidate filing status, including rejected/missed-deadline
+attempts) exists in the same workbook but isn't attempted — candidates who
+actually qualified by petition already appear in sheet 0 with their real
+`"By Petition"` party value, so the third sheet would add only noise. A
+separate `State_Level_Contests_PR26.xlsx` file on the same page is contest
+*structure* metadata (which offices appear on the ballot, statewide vs. by
+county) with no candidate names at all — not a data source, not fetched. No
+county directory; no local/county-administered ballot measures (not
+published in this workbook).

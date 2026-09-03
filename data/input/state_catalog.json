@@ -164,8 +164,8 @@
   "NE": {
     "name": "Nebraska",
     "fips": "31",
-    "status": "unimplemented",
-    "project": null
+    "status": "implemented",
+    "project": "StateBallot.States.Ne"
   },
   "NV": {
     "name": "Nevada",

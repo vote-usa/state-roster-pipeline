@@ -13,6 +13,7 @@ Currently implemented:
 1. Wyoming (WY)
 1. Hawaii (HI)
 1. Mississippi (MS)
+1. Nebraska (NE)
 
 The structure is designed so additional states plug in without touching the shared code.
 For the full architecture (config-driven surfaces, shared parsing/fetch primitives, the
@@ -120,6 +121,8 @@ Quick reference:
 | HI | Candidates (single export) | `olvr.hawaii.gov/Controls/CandidateFiling.aspx`, "Export to CSV" | CSV (via WebForms POST) |
 | HI | Election dates | `elections.hawaii.gov` home-page text widget | HTML |
 | MS | Candidates (single export, elections derived) | `sos.ms.gov/content/CandidateQualifying/default.aspx`, "Download CSV" | CSV (via WebForms POST) |
+| NE | Candidates + judicial retention (elections derived) | `sos.nebraska.gov/.../Statewide_Candidate_Filing_List.xlsx` | XLSX |
+| NE | Election dates | `sos.nebraska.gov/elections` page text | HTML |
 
 Notable per-state quirks (see `configDrivenPipelineInfo.md` for the rest):
 
@@ -137,6 +140,10 @@ Notable per-state quirks (see `configDrivenPipelineInfo.md` for the rest):
   strings (the opposite of TX's Cloudflare check, which blocks the *absence*
   of one) - `MsSourceConfig.ExtraHeaders` overrides the UA to a curl-like
   string instead.
+- **NE** is the first state read from a second worksheet in the same
+  workbook (`XlsxTableParser`'s `sheetIndex` parameter) - judicial retention
+  questions live on sheet 1 and map to `StatewideProposedMeasures`, not
+  `CandidateRow`.
 
 ## Outputs (`data/output/<state>/`) and inputs (`data/input/`)
 
