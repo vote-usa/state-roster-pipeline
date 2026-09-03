@@ -122,8 +122,8 @@
   "MD": {
     "name": "Maryland",
     "fips": "24",
-    "status": "unimplemented",
-    "project": null
+    "status": "implemented",
+    "project": "StateBallot.States.Md"
   },
   "MA": {
     "name": "Massachusetts",

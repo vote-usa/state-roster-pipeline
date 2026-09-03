@@ -42,6 +42,7 @@ public sealed class CandidateOut
     public string? MailingZip { get; set; }
     public string? ResidentialCity { get; set; }
     public string? ResidentialCounty { get; set; }
+    public string? Status { get; set; }
 }
 
 /// <summary>Stable cross-state output row for measures.json|csv.</summary>

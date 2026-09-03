@@ -96,6 +96,7 @@ public sealed class ResultWriter
         MailingZip = c.MailingZip,
         ResidentialCity = c.ResidentialCity,
         ResidentialCounty = c.ResidentialCounty,
+        Status = c.Status,
     };
 
     public static MeasureOut ToMeasureOut(MeasureRow m) => new()
