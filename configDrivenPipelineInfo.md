@@ -205,10 +205,10 @@ Ballotpedia is never a data source — verification only.
 
 ## 2. Implemented states
 
-Ten states are implemented as of 2026-09-03: WA, CA, TX, WV (pre-dating this
-consolidation effort) and MD, NC, WY, HI, MS, NE (added on the CSV/XLSX parser
-infrastructure, one per onboarding session). Each section below covers only
-what's *unique* to that state — shared behavior is in section 1.
+Eleven states are implemented as of 2026-09-03: WA, CA, TX, WV (pre-dating this
+consolidation effort) and MD, NC, WY, HI, MS, NE, CO (added on the CSV/XLSX
+parser infrastructure, one per onboarding session). Each section below covers
+only what's *unique* to that state — shared behavior is in section 1.
 
 ### Washington (`StateBallot.States.Wa`)
 
@@ -483,3 +483,73 @@ separate `State_Level_Contests_PR26.xlsx` file on the same page is contest
 county) with no candidate names at all — not a data source, not fetched. No
 county directory; no local/county-administered ballot measures (not
 published in this workbook).
+
+### Colorado (`StateBallot.States.Co`)
+
+| Data | Source | Format |
+| --- | --- | --- |
+| Candidates (primary + general) | `sos.state.co.us/pubs/elections/vote/{primary,general}Candidates.html` → linked `.xlsx` | HTML → XLSX |
+| Election dates | `sos.state.co.us/pubs/elections/calendars/{year}ElectionCalendar.pdf` | PDF (PdfPig, same library as CA) |
+
+Onboarding first ruled out the actual RI request that started this session:
+`vote.sos.ri.gov` sits behind a genuine Cloudflare *interactive JS challenge*
+(`cf-mitigated: challenge` on every request, no header combination gets past
+it) rather than the simple header-sniffing check TX's Cloudflare rule uses —
+fundamentally unfetchable by this repo's plain-`HttpClient` `HttpFetcher`, so
+RI was parked and CO picked instead after a handful of other candidates
+(`vote.ri.gov`, `candidates.sos.mn.gov`, `elections.wi.gov`) turned out to sit
+behind the same class of interactive challenge (Cloudflare or Radware).
+
+Both candidate-list pages are static HTML with a linked "Excel version
+(XLSX)" file — no bot-blocking at all — but neither the page nor the XLSX
+filename is year-parameterized (the URL is always `generalCandidates.html`/
+`primaryCandidates.html`, reflecting whichever cycle is current; the linked
+file's own name additionally carries an "Official"/"Unofficial" suffix that
+shifts partway through a cycle as lists get certified). `CoCollector`
+therefore discovers the XLSX's href from the page rather than templating the
+filename, and cross-checks the page's own "20NN Primary/General Election ...
+Candidate List" heading text against the requested year before trusting the
+data — a mismatch (e.g. requesting a past year this source no longer serves)
+is recorded as a `Gap` + `PendingElection`, not silently mapped under the
+wrong year. Back-filling a year other than the current cycle isn't supported
+by this source at all.
+
+Neither the candidate pages nor the XLSX carry an election date — only a
+year-templated statutory election calendar PDF does, whose first page has a
+plain two-line header ("Primary Election: June 30, 2026" / "General Election:
+November 3, 2026"), extracted via `PdfPig`'s `ContentOrderTextExtractor`
+(same library CA already depends on) rather than the multi-page
+candidate-listing parse CA's own `CertifiedListPdfParser` does.
+
+v1 scope is candidates only: the XLSX has exactly five columns (Candidate
+Name, Office, District, Party, Write In?) — no filing date, address, email,
+phone, or source-provided candidate id at all, the sparsest export onboarded
+so far alongside WY's. The `Write In?` flag is folded into `Status` as a
+literal `"Write-in"` string (same idiom WY uses for its withdrawal-date
+signal) rather than inventing a new `CandidateRow` field for one state's
+Y/N column. The `District` column is itself overloaded three ways depending
+on office — `"State"`/`"Statewide"` (casing differs between the two files)
+for statewide offices, a bare number for congressional/legislative/judicial
+seats, or a bare county name for County Court/Associate County Court races
+specifically (the *only* offices whose "district" value is actually a
+county) — `CoCandidateMapper.SplitDistrict` classifies by office name rather
+than by shape alone, since RTD Board of Directors uses single-letter
+subdistrict codes (`"B"`, `"C"`, ...) that would otherwise look just as
+non-numeric as a county name.
+
+Two real bugs surfaced only by running the collector against the live site
+and inspecting output field-by-field (2026-09-03), both fixed here:
+`OcdDivisionId`'s office-name matching (`IsUsHouse`/`IsStateHouse` in Core,
+shared by every state) didn't recognize CO's own office strings verbatim —
+`"US House of Representatives"` and `"State House of Representatives"` —
+so every congressional and state-house candidate silently got a null OCD id
+despite having a real numeric district; both patterns extended narrowly
+(prefix/substring-gated so the federal and state chambers still can't cross-
+match each other) rather than special-cased in CO's own mapper, since the
+matcher is shared Core code other states benefit from too. Separately, both
+XLSX files end with a literal `"End of Data"`/`"End of data"` sentinel footer
+row (blank Office/District/Party) that was getting ingested as a bogus
+662nd/664th "candidate" until `CoCollector` started requiring a non-blank
+`Office` column, the one column every genuine row always has. Live-verified
+2026-09-03: 662 candidates across the two 2026 elections (251 primary, 411
+general), no county directory, no measures attempted.

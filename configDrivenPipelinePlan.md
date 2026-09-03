@@ -29,10 +29,10 @@ away at:
 | 0 — Core utility extraction + mapper convention | **Done** | Deduped whitespace/date/address/FIPS/empty-guard logic into Core; standardized the mapper-class seam across WA/CA/TX/WV; added test coverage where none existed (CA, WA). |
 | 1 — Config-driven value tables | **Done** | `date_formats.json` (all states) and `election_type_names.json` (TX) — externalized, fail-loud or permissive per the field's semantics. |
 | 2 — Selectors externalization | **Done** | CA and WA's CSS-selector/regex constants moved from compiled `static class` fields to `sealed class` instances loaded from `selectors.json`, with a `Default` compiled-in fallback for tests/seeding. |
-| 3 — 50-state reality check + new-state onboarding | **In progress** | Research across all 50 states' real formats/fetch-blocking; format-parser infra (CSV, XLSX) built; 6 new states onboarded (MD, NC, WY, HI, MS, NE). |
+| 3 — 50-state reality check + new-state onboarding | **In progress** | Research across all 50 states' real formats/fetch-blocking; format-parser infra (CSV, XLSX) built; 7 new states onboarded (MD, NC, WY, HI, MS, NE, CO). |
 
-10 states implemented total: WA, CA, TX, WV (pre-existing) + MD, NC, WY, HI,
-MS, NE (added under Phase 3). Full technical detail on all 10 is in
+11 states implemented total: WA, CA, TX, WV (pre-existing) + MD, NC, WY, HI,
+MS, NE, CO (added under Phase 3). Full technical detail on all 11 is in
 `configDrivenPipelineInfo.md`.
 
 ## Phase 3 in detail
@@ -70,7 +70,7 @@ built — every state still dispatches to its own library directly, since no
 call site has ever needed to pick a parser by a runtime format string.
 Revisit if that stops being true.
 
-### New-state onboarding — 6 done (MD, NC, WY, HI, MS, NE), triage tracked below
+### New-state onboarding — 7 done (MD, NC, WY, HI, MS, NE, CO), triage tracked below
 
 Each state was researched live (direct `curl`/browser checks against the
 real government site — the research spreadsheet's own flags turned out
@@ -94,16 +94,28 @@ per-state writeups are in `configDrivenPipelineInfo.md`.
   reverse - a tool-like UA) before writing it off.
 - **Tier C — verified blocked, gated on fetch-strategy tiering rather than
   anything state-specific**: New York (403, explicit Cloudflare challenge),
-  Oklahoma (403, AWS ELB block).
+  Oklahoma (403, AWS ELB block), Rhode Island (verified 2026-09-03: the
+  entire `vote.sos.ri.gov` host, including the `vote.ri.gov` alias, returns
+  `403`/`cf-mitigated: challenge` on every path and every header combination
+  tried — a genuine Cloudflare *interactive* JS challenge, not TX's simpler
+  header-sniffing rule; `HttpFetcher.AddDefaultHeader` doesn't help here, same
+  class of block as NY. Colorado picked instead once RI was parked - see its
+  write-up in `configDrivenPipelineInfo.md`), Wisconsin (same
+  `cf-mitigated: challenge` pattern, found while looking for RI's
+  replacement, not independently pursued further), Minnesota (same pattern
+  but via Radware/`perfdrive.com` rather than Cloudflare - the entire
+  `mn.gov` domain redirects every request to a bot-check validator page).
 - **Tier D — flagged blocked/complex in research, not independently
-  verified, could hide more MD/NC/WY/HI-style false positives**: Minnesota,
-  Nevada, New Mexico (both parties), Oregon (likely POST/session, not a
-  plain GET), South Carolina (both parties, needs per-district URL
-  construction like Louisiana), South Dakota, Montana.
+  verified, could hide more MD/NC/WY/HI-style false positives**: Nevada, New
+  Mexico (both parties), Oregon (likely POST/session, not a plain GET), South
+  Carolina (both parties, needs per-district URL construction like
+  Louisiana), South Dakota, Montana.
 - **Tier 3 (XLSX, not bot-blocked, parser already built)**: Nebraska (done -
   see its write-up in `configDrivenPipelineInfo.md`; also the first state to
   need `XlsxTableParser`'s new `sheetIndex` parameter, for a second worksheet
-  in the same workbook), Rhode Island, Vermont, Virginia.
+  in the same workbook), Colorado (done, same write-up location - not
+  actually in the original research spreadsheet's list, picked fresh after
+  RI turned out blocked), Vermont, Virginia.
 - **Tier 5 — genuinely hard / semi-manual, separate from config work
   entirely**: Georgia (session token + recaptcha), Louisiana (two-call
   dedup across 64 parishes), Ohio (no master list, sample-ballot-lookup

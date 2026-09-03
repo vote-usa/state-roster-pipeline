@@ -155,7 +155,14 @@ public static partial class OcdDivisionId
         officeKey.Contains("u s representative", StringComparison.Ordinal) ||
         officeKey.Contains("us representative", StringComparison.Ordinal) ||
         officeKey.Contains("representative in congress", StringComparison.Ordinal) ||
-        officeKey.Equals("congress", StringComparison.Ordinal);
+        officeKey.Equals("congress", StringComparison.Ordinal) ||
+        // CO's own export names the office "US House of Representatives" - the
+        // "us"/"united states" prefix distinguishes it from the bare "house of
+        // representatives" wording IsStateHouse matches for CO's state chamber.
+        ((officeKey.Contains("united states", StringComparison.Ordinal) ||
+          officeKey.Contains("u s ", StringComparison.Ordinal) ||
+          officeKey.StartsWith("us ", StringComparison.Ordinal)) &&
+         officeKey.Contains("house of representatives", StringComparison.Ordinal));
 
     private static bool IsStateSenate(string officeKey) =>
         officeKey.Contains("state senator", StringComparison.Ordinal) ||
@@ -171,7 +178,14 @@ public static partial class OcdDivisionId
         officeKey.Contains("member of the assembly", StringComparison.Ordinal) ||
         officeKey.Contains("assemblymember", StringComparison.Ordinal) ||
         officeKey.Contains("assembly member", StringComparison.Ordinal) ||
-        officeKey.Contains("state representative", StringComparison.Ordinal);
+        officeKey.Contains("state representative", StringComparison.Ordinal) ||
+        // CO's own export names the office "State House of Representatives" (no
+        // "member"/"state representative" wording) - distinct enough from the
+        // federal "US House of Representatives" (excluded below) to match here.
+        (officeKey.Contains("house of representatives", StringComparison.Ordinal) &&
+         !officeKey.Contains("united states", StringComparison.Ordinal) &&
+         !officeKey.Contains("u s ", StringComparison.Ordinal) &&
+         !officeKey.Contains("us ", StringComparison.Ordinal));
 
     private static bool IsStatewideOffice(string officeKey)
     {

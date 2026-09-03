@@ -14,6 +14,7 @@ Currently implemented:
 1. Hawaii (HI)
 1. Mississippi (MS)
 1. Nebraska (NE)
+1. Colorado (CO)
 
 The structure is designed so additional states plug in without touching the shared code.
 For the full architecture (config-driven surfaces, shared parsing/fetch primitives, the
@@ -123,6 +124,8 @@ Quick reference:
 | MS | Candidates (single export, elections derived) | `sos.ms.gov/content/CandidateQualifying/default.aspx`, "Download CSV" | CSV (via WebForms POST) |
 | NE | Candidates + judicial retention (elections derived) | `sos.nebraska.gov/.../Statewide_Candidate_Filing_List.xlsx` | XLSX |
 | NE | Election dates | `sos.nebraska.gov/elections` page text | HTML |
+| CO | Candidates (primary + general) | `sos.state.co.us/.../{year}{Primary,General}CandidateList{Official,Unofficial}.xlsx` | XLSX |
+| CO | Election dates | `sos.state.co.us/.../{year}ElectionCalendar.pdf` | HTML → PDF |
 
 Notable per-state quirks (see `configDrivenPipelineInfo.md` for the rest):
 
@@ -144,6 +147,14 @@ Notable per-state quirks (see `configDrivenPipelineInfo.md` for the rest):
   workbook (`XlsxTableParser`'s `sheetIndex` parameter) - judicial retention
   questions live on sheet 1 and map to `StatewideProposedMeasures`, not
   `CandidateRow`.
+- **CO**'s two candidate-list pages/XLSX files are never year-parameterized -
+  they always reflect whatever the current cycle is - so the collector
+  cross-checks each page's own "20NN Primary/General Election ... Candidate
+  List" heading against the requested year before trusting its data;
+  back-filling a past year isn't supported by this source. Both XLSX files
+  also end with a literal "End of Data" sentinel footer row, filtered out by
+  requiring a non-blank Office. v1 scope is candidates only (name/office/
+  district/party) - no filing date, address, or contact info at all.
 
 ## Outputs (`data/output/<state>/`) and inputs (`data/input/`)
 

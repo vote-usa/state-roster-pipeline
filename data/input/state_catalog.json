@@ -32,8 +32,8 @@
   "CO": {
     "name": "Colorado",
     "fips": "08",
-    "status": "unimplemented",
-    "project": null
+    "status": "implemented",
+    "project": "StateBallot.States.Co"
   },
   "CT": {
     "name": "Connecticut",
