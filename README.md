@@ -15,6 +15,8 @@ Currently implemented:
 1. Mississippi (MS)
 1. Nebraska (NE)
 1. Colorado (CO)
+1. Vermont (VT)
+1. Virginia (VA)
 
 The structure is designed so additional states plug in without touching the shared code.
 For the full architecture (config-driven surfaces, shared parsing/fetch primitives, the
@@ -126,6 +128,10 @@ Quick reference:
 | NE | Election dates | `sos.nebraska.gov/elections` page text | HTML |
 | CO | Candidates (primary + general) | `sos.state.co.us/.../{year}{Primary,General}CandidateList{Official,Unofficial}.xlsx` | XLSX |
 | CO | Election dates | `sos.state.co.us/.../{year}ElectionCalendar.pdf` | HTML → PDF |
+| VT | Candidates (primary + general) | `outside.vermont.gov/.../{year}_{statewide_primary,general_election}_qualified_candidates.xlsx` | XLSX |
+| VT | Election dates | `sos.vermont.gov/elections/election-info-resources/candidates` page text | HTML |
+| VA | Candidates (general only) | `elections.virginia.gov/casting-a-ballot/candidate-list/` → linked `.xlsx` | HTML → XLSX |
+| VA | Election dates | Candidate list page's own `<title>` | HTML |
 
 Notable per-state quirks (see `configDrivenPipelineInfo.md` for the rest):
 
@@ -155,6 +161,30 @@ Notable per-state quirks (see `configDrivenPipelineInfo.md` for the rest):
   also end with a literal "End of Data" sentinel footer row, filtered out by
   requiring a non-blank Office. v1 scope is candidates only (name/office/
   district/party) - no filing date, address, or contact info at all.
+- **VT**'s two candidate XLSX files *are* year-templated and stable
+  back to at least 2024, unlike CO's - but the election-dates page they're
+  linked from is evergreen (current-cycle-only text), so only the current
+  cycle's dates are available even when a past year's candidate roster is.
+  VT's legislative districts are compound county-abbreviation + number codes
+  ("ADD 1", "CHI CT 1", "BEN RUT") kept verbatim rather than digit-extracted -
+  see `OcdDivisionId.HasDistrict` in Core, tightened here to require the
+  *whole* value be numeric rather than merely contain a digit, since
+  digit-extracting these would have silently merged every county's own
+  district "1" onto the same wrong `sldu`/`sldl` id.
+- **VA**'s candidate-list page/XLSX are discovered by scraping an evergreen
+  index (no year-templatable URL exists anywhere in this source, and
+  filenames carry ad hoc revision-date suffixes); v1 scope is the general
+  election only - a primary, when VA runs one, is split into separate
+  per-party/per-scope files with no consistent naming, unlike the single
+  general "All Offices" list. The export repeats every federal/statewide race
+  once per Virginia locality (~133 of them); `VaCandidateMapper` collapses
+  that back to one row per candidacy, joining genuinely multi-locality local
+  races (e.g. a town straddling two counties) with `"; "` per the county-list
+  convention above. Also surfaced a real regression in `OcdDivisionId`: VA's
+  federal "Member, House of Representatives" has no "US"/"United States"
+  qualifier at all, so an earlier CO-motivated loosening of the state-house
+  matcher was wrongly claiming it - `IsUsHouse`/`IsStateHouse` now key off an
+  explicit `"state house of representatives"` qualifier instead.
 
 ## Outputs (`data/output/<state>/`) and inputs (`data/input/`)
 

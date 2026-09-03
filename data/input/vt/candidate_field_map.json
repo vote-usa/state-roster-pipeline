@@ -1,0 +1,10 @@
+{
+  "Party": "Party",
+  "Email": "Email",
+  "Website": "Website",
+  "MailingAddressLine": "Address",
+  "MailingCity": "City",
+  "MailingState": "State",
+  "MailingZip": "Zip",
+  "ResidentialCity": "Town Of Residence"
+}

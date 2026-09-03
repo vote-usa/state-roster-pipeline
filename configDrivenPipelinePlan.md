@@ -29,11 +29,11 @@ away at:
 | 0 — Core utility extraction + mapper convention | **Done** | Deduped whitespace/date/address/FIPS/empty-guard logic into Core; standardized the mapper-class seam across WA/CA/TX/WV; added test coverage where none existed (CA, WA). |
 | 1 — Config-driven value tables | **Done** | `date_formats.json` (all states) and `election_type_names.json` (TX) — externalized, fail-loud or permissive per the field's semantics. |
 | 2 — Selectors externalization | **Done** | CA and WA's CSS-selector/regex constants moved from compiled `static class` fields to `sealed class` instances loaded from `selectors.json`, with a `Default` compiled-in fallback for tests/seeding. |
-| 3 — 50-state reality check + new-state onboarding | **In progress** | Research across all 50 states' real formats/fetch-blocking; format-parser infra (CSV, XLSX) built; 7 new states onboarded (MD, NC, WY, HI, MS, NE, CO). |
+| 3 — 50-state reality check + new-state onboarding | **In progress** | Research across all 50 states' real formats/fetch-blocking; format-parser infra (CSV, XLSX) built; 9 new states onboarded (MD, NC, WY, HI, MS, NE, CO, VT, VA). |
 
-11 states implemented total: WA, CA, TX, WV (pre-existing) + MD, NC, WY, HI,
-MS, NE, CO (added under Phase 3). Full technical detail on all 11 is in
-`configDrivenPipelineInfo.md`.
+13 states implemented total: WA, CA, TX, WV (pre-existing) + MD, NC, WY, HI,
+MS, NE, CO, VT, VA (added under Phase 3). Full technical detail on all 13 is
+in `configDrivenPipelineInfo.md`.
 
 ## Phase 3 in detail
 
@@ -70,7 +70,7 @@ built — every state still dispatches to its own library directly, since no
 call site has ever needed to pick a parser by a runtime format string.
 Revisit if that stops being true.
 
-### New-state onboarding — 7 done (MD, NC, WY, HI, MS, NE, CO), triage tracked below
+### New-state onboarding — 9 done (MD, NC, WY, HI, MS, NE, CO, VT, VA), triage tracked below
 
 Each state was researched live (direct `curl`/browser checks against the
 real government site — the research spreadsheet's own flags turned out
@@ -115,7 +115,20 @@ per-state writeups are in `configDrivenPipelineInfo.md`.
   need `XlsxTableParser`'s new `sheetIndex` parameter, for a second worksheet
   in the same workbook), Colorado (done, same write-up location - not
   actually in the original research spreadsheet's list, picked fresh after
-  RI turned out blocked), Vermont, Virginia.
+  RI turned out blocked), Vermont (done, same write-up location - year-
+  templated and back-fillable candidate XLSX, unlike CO's; surfaced a real
+  Core bug in `OcdDivisionId.HasDistrict` around compound-code legislative
+  districts, fixed there rather than worked around per-state), Virginia
+  (done, same write-up location - the messiest source onboarded so far, no
+  year-templatable URL anywhere in the source at all; v1 scope is the
+  general election only, no reliable primary discovery path exists; export
+  is one row per (candidate, locality) rather than one row per candidate,
+  needing a real dedup/county-merge pass, not just a mapper; surfaced a
+  regression in `OcdDivisionId.IsUsHouse`/`IsStateHouse` from CO's own
+  onboarding - VA's federal "Member, House of Representatives" carries no
+  "US" qualifier at all and was wrongly landing on a state-house OCD id,
+  fixed by making "House of Representatives" federal by default rather than
+  excluding federal-looking qualifiers).
 - **Tier 5 — genuinely hard / semi-manual, separate from config work
   entirely**: Georgia (session token + recaptcha), Louisiana (two-call
   dedup across 64 parishes), Ohio (no master list, sample-ballot-lookup

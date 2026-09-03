@@ -205,10 +205,11 @@ Ballotpedia is never a data source — verification only.
 
 ## 2. Implemented states
 
-Eleven states are implemented as of 2026-09-03: WA, CA, TX, WV (pre-dating this
-consolidation effort) and MD, NC, WY, HI, MS, NE, CO (added on the CSV/XLSX
-parser infrastructure, one per onboarding session). Each section below covers
-only what's *unique* to that state — shared behavior is in section 1.
+Thirteen states are implemented as of 2026-09-03: WA, CA, TX, WV (pre-dating
+this consolidation effort) and MD, NC, WY, HI, MS, NE, CO, VT, VA (added on
+the CSV/XLSX parser infrastructure, one per onboarding session). Each section
+below covers only what's *unique* to that state — shared behavior is in
+section 1.
 
 ### Washington (`StateBallot.States.Wa`)
 
@@ -484,6 +485,86 @@ county) with no candidate names at all — not a data source, not fetched. No
 county directory; no local/county-administered ballot measures (not
 published in this workbook).
 
+### Vermont (`StateBallot.States.Vt`)
+
+| Data | Source | Format |
+| --- | --- | --- |
+| Candidates (primary + general) | `outside.vermont.gov/.../{year}_{statewide_primary,general_election}_qualified_candidates.xlsx` | XLSX |
+| Election dates | `sos.vermont.gov/elections/election-info-resources/candidates` page's own plain text ("Primary Election - Tuesday, August 11, 2026 \| General...") | HTML (plain-text regex) |
+
+Onboarded right after CO, and a useful contrast with it: VT's candidate XLSX
+URLs *are* year-templated and confirmed stable back to at least 2024 (both
+2024 files still resolve), so unlike CO, back-filling a past year's candidate
+roster actually works. What doesn't back-fill is the election dates - the
+`sos.vermont.gov` candidates page they're linked from is evergreen (its own
+URL has no year), so `VtElectionDateScraper` only succeeds when the page's
+plain-text "Primary Election - Tuesday, August 11, 2026 | General Election -
+Tuesday, November 3, 2026" line parses to the *requested* year; a mismatch
+returns null rather than a wrong or invented date, and `VtCollector` surfaces
+that as a clear "back-filling a past year's dates isn't supported by this
+source" error rather than silently mapping candidates under someone else's
+election date. No PDF involved at all here (contrast with CO's calendar) -
+same plain-text-regex idiom NE already established for its own elections page.
+
+Far richer export than CO's: sixteen columns including full mailing address,
+town of residence, two separate phone columns, email, and website - the
+second-most-complete state onboarded (behind only WY/MD's dedicated
+per-candidate exports) despite being a fresh XLSX pick. `Day Time Phone` and
+`Evening Phone` are both plain personal contact numbers, neither labeled a
+campaign line the way WY's "Campaign Telephone" is, so `VtCandidateMapper`
+coalesces them into the one generic `Phone` slot (day first) by hand rather
+than mapping the second one to `CampaignPhone` and mislabeling it or silently
+dropping it - not a plain `CandidateFieldMapper` passthrough, since
+coalescing two columns isn't a single-column lookup.
+
+`Contest`/`District Name` needed real design work: `District Name` is a
+literal `"N/A"` for every statewide/at-large office (Governor, US House -
+Vermont is a single at-large district, Attorney General, ...), a **compound**
+county-abbreviation + number code for State Senator/Representative (`"ADD
+1"`, `"CHI CT 1"`, `"BEN RUT"` - not a plain number), a real county name for
+five specific county-elected row offices (State's Attorney, Sheriff, Probate
+Judge, Assistant Judge, High Bailiff - all 14 VT counties confirmed present
+for each), or a town name for Justice of the Peace (229 distinct towns) -
+kept in `District` verbatim rather than `County`, since `CandidateRow` has no
+town-level field and `County` specifically means county. The county-elected
+offices are a fixed name list (`VtSelectors.CountyLevelOffices`), the same
+office-name-gated approach CO's mapper uses for its own County Court rows.
+
+The State Senator/Representative compound codes surfaced a real, shared Core
+bug: `OcdDivisionId.HasDistrict` previously matched on "district value
+contains any digit anywhere," so `"ADD 1"`, `"BEN 1"`, `"CAL 1"`, etc. would
+all digit-extract down to the same district `"1"` and produce the *same*
+wrong `sldu:1` OCD id for every county's own district 1 - a silently wrong
+answer, not just a missing one, and worse than CO's earlier gap because nothing
+about the output would look obviously off without knowing VT's real district
+naming scheme. Fixed narrowly in Core: `HasDistrict` now requires the whole
+(trimmed) value be numeric (`^\d+$`) before treating it as a plain district
+id; a value that merely contains a digit falls through to the caller's normal
+not-a-recognized-plain-district handling (the same statewide-fallback path
+CO's RTD single-letter subdistrict codes already exercise) rather than
+returning a specific wrong district. No other onboarded state's District
+values happened to exercise the gap (WY/NC/CO/MD's are all bare, already-split
+numbers), confirmed by checking every state's own mapper tests before the
+change; all pre-existing tests across the solution still pass unchanged.
+
+Live-verified 2026-09-03: 2,860 candidates across the two 2026 elections (241
+primary, 2,619 general - VT's per-town Justice of the Peace race alone
+contributes hundreds of rows), correct OCD ids for statewide and
+county-elected offices, State Senator/Representative correctly falling back
+to the statewide OCD id rather than a wrong specific one, 935 rows with a
+populated `Phone`. The primary XLSX's raw underlying worksheet XML carries an
+entirely blank formatting row immediately before the real header row (visible
+when inspecting the sheet's raw XML directly) - harmless in practice, since
+both `XlsxTableParser`'s header-row detection and `VtCollector`'s own guard
+(every genuine row has a non-blank `Contest`, mirroring CO's non-blank-Office
+guard against its "End of Data" sentinel) already produced the exact expected
+241-row count with no manual intervention needed, but worth noting as a
+"looked fragile on paper, verified fine in practice" case for whoever
+inspects this export's raw XML next and worries about the same thing. No
+county directory; no measures attempted (VT's own ballot-measure/article
+process is entirely town-level Town Meeting business, out of this pipeline's
+current scope).
+
 ### Colorado (`StateBallot.States.Co`)
 
 | Data | Source | Format |
@@ -553,3 +634,96 @@ row (blank Office/District/Party) that was getting ingested as a bogus
 `Office` column, the one column every genuine row always has. Live-verified
 2026-09-03: 662 candidates across the two 2026 elections (251 primary, 411
 general), no county directory, no measures attempted.
+
+### Virginia (`StateBallot.States.Va`)
+
+| Data | Source | Format |
+| --- | --- | --- |
+| Candidates (general only) | `elections.virginia.gov/casting-a-ballot/candidate-list/` → linked `.xlsx` | HTML → XLSX |
+| Election dates | The candidate list page's own `<title>` (e.g. "Virginia Dept. of Elections: November 3, 2026 Gen Elect All Offices") | HTML |
+
+The messiest source onboarded so far. `elections.virginia.gov`'s
+`previous-candidate-lists` archive shows why: dozens of hand-typed slugs and
+revision-dated filenames (`2026-November-All-Offices-Candidate-List-(rev-9-3-2026).xlsx`),
+primaries split into up to four separate files per cycle (Democratic/
+Republican × federal/local), one-off special-election lists with no shared
+naming convention at all. Nothing here is year-templatable - not the index
+page (evergreen, current-cycle-only), not any individual election page, not
+any XLSX filename - so `VaCollector` discovers everything by scraping: the
+index page for the current cycle's `"20NN ... All Offices Candidate List"`
+link (loosely matched - only the leading year and trailing "All Offices
+Candidate List" phrase are load-bearing, tolerant of the exact wording
+drifting), then that election page for its own `<title>` (the only place the
+date is published - the XLSX never carries one) and its linked XLSX. **v1
+scope is the general election only** - unlike every other multi-file state
+onboarded so far, no single reliably-discoverable "current primary" page
+exists to generalize the same two-hop discovery to; a primary is genuinely
+out of scope, not just unattempted.
+
+The export's own shape needed real design work, distinct from every prior
+XLSX-backed state: it's not one row per candidate, but one row per
+**(candidate, locality)** - every federal/statewide race is repeated once for
+each of Virginia's ~133 localities it appears on the ballot in (confirmed
+directly: US Senate's own two major candidates are 134 rows each). Virginia
+lists no state legislative races in an even-numbered year at all (Senate of
+Virginia and House of Delegates are both odd-year-cycle offices), so 2026's
+file holds only federal (US Senate, US House) races repeated this way plus a
+long tail of genuinely local single-locality races (mostly small-town
+mayor/council seats) - `VaCandidateMapper.ToCandidateRow` maps every row
+as-is first (one CandidateRow per source row, exactly like every other
+state's mapper), then a second pass, `MergeDuplicateLocalities`, groups by
+(Office, District, Party, CandidateName) - the closest thing to a stable
+per-candidacy key this source offers, since it has no source-provided
+candidate id - and either collapses a federal/statewide race's duplicates to
+one row (`VaSelectors.WideOffices` is the closed set: only `"Member, United
+States Senate"` and `"Member, House of Representatives"` are live-verified in
+this cycle; `"Senate of Virginia"`/`"House of Delegates"` are included
+defensively from VA's documented naming convention but are flagged
+NOT-live-verified in a doc comment - whoever revisits VA in an odd year
+should confirm both against a real export) or, for a genuinely local race,
+joins every distinct locality it was seen under with `"; "` - VA has real
+multi-locality local races (confirmed: 45 groups, e.g. the Town of Belle
+Haven straddles Accomack and Northampton counties), the first state onboarded
+where the README's stated multi-county convention was actually exercised by
+live data rather than just written down defensively.
+
+Richer than CO's export, on par with VT's: full campaign address (two line
+slots, joined into `MailingAddressLine`'s one slot rather than dropping the
+second), email, website, and an explicitly-labeled `"Campaign Phone"` column
+(mapped to `CampaignPhone`, not `Phone` - same idiom as WY's `"Campaign
+Telephone"`; VA's export has no generic phone column at all, so `Phone`
+stays null throughout). `Incumbent` is a real `"Yes"/"No"` column, parsed to
+a real bool - the first state onboarded during this phase where incumbency
+is actually published (every prior CSV/XLSX state left it null). District
+text needed one more normalization VT/CO didn't: US House rows read `"2nd
+District"` (an ordinal, not a bare number) - stripped to `"2"` before
+`OcdDivisionId` ever sees it, matching the bare-number convention every
+recognized office type in Core already expects.
+
+A live, field-by-field-verified real bug came out of this state, in already-
+shared Core code touched during CO's onboarding: `OcdDivisionId.IsStateHouse`
+had been loosened there to match a bare `"house of representatives"` phrase
+whenever no `"US"`/`"united states"` qualifier was present, reasoning (at the
+time, without VA's data to check against) that a state's own chamber would
+never say "House of Representatives" without *some* federal-sounding
+qualifier ruling it out. VA's own federal seat is titled exactly `"Member,
+House of Representatives"` - no qualifier at all - so every VA US House
+candidate was silently landing on a wrong `sldl:N` (state house) OCD id
+instead of the correct `cd:N`. Fixed by inverting the discriminator: `"House
+of Representatives"` is federal *by default* now (`IsUsHouse`), and only an
+explicit `"state house of representatives"` phrase (CO's own wording, still
+exact-matched) routes to `IsStateHouse` instead - a positive signal for
+state-ness rather than the previous absence-of-federal-markers heuristic.
+Full solution's tests re-run clean after the fix (no other onboarded state's
+office titles exercised the old, wrong branch). Independent-city localities
+(e.g. `"ALEXANDRIA CITY"`) are still passed through `OcdDivisionId.County()`
+unchanged - it slugifies them as `county:alexandria_city`, which is not the
+real OCD taxonomy for a Virginia independent city (a `place:` type in the
+canonical scheme) but is at least attributed to the right named place rather
+than silently dropped or merged elsewhere; flagged here as a known
+imprecision rather than guessed at further. Live-verified 2026-09-03: 1,322
+real candidacies out of 2,015 raw rows (40 statewide/federal, 1,282 local, 43
+of those spanning more than one locality), zero duplicate (Office, District,
+Party, CandidateName) keys remaining after the merge pass. No county
+directory; no measures attempted (the same index lists a separate "Proposed
+Constitutional Amendments and Local Referendums" page, not attempted here).

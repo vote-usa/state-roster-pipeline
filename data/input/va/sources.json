@@ -1,0 +1,29 @@
+{
+  "elections": [
+    {
+      "url": "https://www.elections.virginia.gov/casting-a-ballot/candidate-list/november-3-2026-gen-elect-all-offices/",
+      "format": "html"
+    }
+  ],
+  "statewide_candidates": [
+    {
+      "url": "https://www.elections.virginia.gov/media/castyourballot/candidatelist/2026/2026-November-All-Offices-Candidate-List-(rev-9-3-2026).xlsx",
+      "format": "xlsx"
+    }
+  ],
+  "statewide_measures": [],
+  "county_directory": [],
+  "verification_only": [
+    {
+      "url": "https://ballotpedia.org/Virginia_elections,_2026",
+      "format": "html"
+    }
+  ],
+  "gaps": [],
+  "next_run": {
+    "recommended_after": "2027-01-01",
+    "reason": "All 2026 candidates collected. Re-run next year to check for new filings.",
+    "next_election_date": null,
+    "next_election_type": null
+  }
+}

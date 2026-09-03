@@ -1,0 +1,9 @@
+{
+  "Party": "Candidate Party",
+  "CampaignPhone": "Campaign Phone",
+  "Email": "Campaign Email",
+  "Website": "Campaign Website",
+  "MailingCity": "Campaign City",
+  "MailingState": "Campaign State",
+  "MailingZip": "Campaign Zip"
+}

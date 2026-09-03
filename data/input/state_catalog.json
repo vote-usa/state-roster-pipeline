@@ -272,14 +272,14 @@
   "VT": {
     "name": "Vermont",
     "fips": "50",
-    "status": "unimplemented",
-    "project": null
+    "status": "implemented",
+    "project": "StateBallot.States.Vt"
   },
   "VA": {
     "name": "Virginia",
     "fips": "51",
-    "status": "unimplemented",
-    "project": null
+    "status": "implemented",
+    "project": "StateBallot.States.Va"
   },
   "WA": {
     "name": "Washington",
