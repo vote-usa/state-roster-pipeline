@@ -200,8 +200,8 @@
   "NC": {
     "name": "North Carolina",
     "fips": "37",
-    "status": "unimplemented",
-    "project": null
+    "status": "implemented",
+    "project": "StateBallot.States.Nc"
   },
   "ND": {
     "name": "North Dakota",
