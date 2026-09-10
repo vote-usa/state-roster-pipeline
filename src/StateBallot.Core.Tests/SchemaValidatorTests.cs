@@ -12,7 +12,7 @@ public class SchemaValidatorTests
     public void KnowsEveryOutputFile()
     {
         string[] known = Validator.KnownFileNames.Where(n => n != "common.json").Order().ToArray();
-        string[] expected = ["candidates.json", "county_ballots.json", "county_directory.json", "elections.json", "measures.json"];
+        string[] expected = ["candidates.json", "county_ballots.json", "county_directory.json", "elections.json", "measures.json", "proposed_measures.json", "run.json"];
 
         Assert.Equal(expected, known);
     }

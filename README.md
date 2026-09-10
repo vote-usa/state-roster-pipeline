@@ -70,7 +70,7 @@ Caveats:
 
 Requires .NET 8 SDK. Roster outputs under `data/output/<xx>/` are gitignored —
 re-run the collector to refresh them. Tracked inputs live under `data/input/`
-(`state_catalog.json`, per-state `county_fips.json` and `sources.json`).
+(`state_catalog.json`, per-state `county_fips.json`).
 
 ## Published data repo
 
@@ -163,12 +163,23 @@ county (a proxy for jurisdiction, not necessarily the race's actual jurisdiction
 
 ## Outputs (`data/output/<state>/`) and inputs (`data/input/`)
 
-Roster outputs (gitignored): `elections.json|csv`, `candidates.json|csv`,
-`measures.json|csv`, `county_directory.json`, `county_ballots.json|csv`.
+Roster outputs (gitignored) are election-scoped and validated against
+`schema/*.schema.json` on every write:
 
-Tracked inputs: `data/input/state_catalog.json`, `data/input/<state>/county_fips.json`,
-and `data/input/<state>/sources.json` (provenance with URL + format per data group,
-known gaps, and a machine-readable `next_run` recommendation).
+```
+<xx>/
+  county_directory.json
+  proposed_measures.json        # statewide measures not yet certified to a ballot
+  <yyyy-MM-dd>/
+    elections.json  candidates.json  measures.json  county_ballots.json
+    run.json                    # pipeline commit, timestamps, counts, gaps, next_run, sources
+```
+
+Only the date directories a run produces are rewritten. `--validate <path>`
+checks any file or directory against the schema.
+
+Tracked inputs: `data/input/state_catalog.json` and `data/input/<state>/county_fips.json`.
+Provenance (source URLs, gaps, next-run hint) is in each `run.json`.
 
 `candidates.*` carries a canonical set of fields across every state (see
 `StateBallot.Core/Models.cs`'s `CandidateRow`): beyond the original WA-derived fields,

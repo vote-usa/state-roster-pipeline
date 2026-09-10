@@ -64,7 +64,7 @@ public static class Runner
                           --year <yyyy>        Target election year (default: current UTC year)
                           --out <dir>          Pipeline data root with input/ + output/ (default: data/)
                           --input-root <dir>   Pipeline data root for inputs (overrides --out for reads)
-                          --output-root <dir>  Roster output root; writes <dir>/<state>/ (default: <data>/output)
+                          --output-root <dir>  Roster output root; writes <dir>/<state>/<yyyy-MM-dd>/ (default: <data>/output)
                           --dry-run            Fetch sources and report counts without writing files
                           --wayback <ts>       Replay sources via web.archive.org at this timestamp
                                                (yyyyMMdd or yyyyMMddHHmmss; nearest capture is served)
@@ -143,7 +143,16 @@ public static class Runner
                     : $"https://web.archive.org/web/{wayback}id_/{url}";
         }
         var collector = factory(fetcher, year, stateOutputDir, inputDataRoot);
-        var result = await collector.CollectAsync();
+        CollectResult result;
+        try
+        {
+            result = await collector.CollectAsync();
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or HttpRequestException or IOException)
+        {
+            Console.Error.WriteLine($"Run failed: {ex.Message}");
+            return 1;
+        }
 
         result.PrintSummary(Console.Out);
 
@@ -153,9 +162,15 @@ public static class Runner
             return 0;
         }
 
-        new ResultWriter(stateOutputDir, DataPaths.SourcesPath(inputDataRoot, state)).WriteAll(result);
+        var context = new RunContext(year)
+        {
+            Wayback = wayback,
+            CliArgs = string.Join(' ', args),
+        };
+        var report = new ResultWriter(stateOutputDir).WriteAll(result, context);
         Console.WriteLine($"\nOutputs written to {Path.GetFullPath(stateOutputDir)}");
-        Console.WriteLine($"Sources written to {Path.GetFullPath(DataPaths.SourcesPath(inputDataRoot, state))}");
+        Console.WriteLine($"  election dates: {(report.ElectionDates.Count == 0 ? "(none)" : string.Join(", ", report.ElectionDates))}");
+        Console.WriteLine($"  files: {report.FilesWritten.Count}");
         return 0;
     }
 

@@ -1,6 +1,6 @@
 namespace StateBallot.Core.Output;
 
-/// <summary>Stable cross-state output row for elections.json|csv.</summary>
+/// <summary>Stable cross-state output row for elections.json.</summary>
 public sealed class ElectionOut
 {
     public string State { get; set; } = "";
@@ -13,7 +13,7 @@ public sealed class ElectionOut
     public string SourceUrl { get; set; } = "";
 }
 
-/// <summary>Stable cross-state output row for candidates.json|csv.</summary>
+/// <summary>Stable cross-state output row for candidates.json.</summary>
 public sealed class CandidateOut
 {
     public string State { get; set; } = "";
@@ -53,7 +53,7 @@ public sealed class CandidateOut
     public string? Suffix { get; set; }
 }
 
-/// <summary>Stable cross-state output row for measures.json|csv.</summary>
+/// <summary>Stable cross-state output row for measures.json.</summary>
 public sealed class MeasureOut
 {
     public string State { get; set; } = "";
@@ -113,23 +113,5 @@ public sealed class CountyBallotOut
     public string ElectionType { get; set; } = "";
     public List<CountyBallotCandidateOut> Candidates { get; set; } = new();
     public List<CountyBallotMeasureOut> Measures { get; set; } = new();
-    public string SourceUrl { get; set; } = "";
-}
-
-/// <summary>Flat CSV row for county_ballots.csv (one candidate or measure per row).</summary>
-public sealed class CountyBallotCsvOut
-{
-    public string State { get; set; } = "";
-    public string County { get; set; } = "";
-    public string? OcdDivisionId { get; set; }
-    public string ElectionDate { get; set; } = "";
-    public string ElectionType { get; set; } = "";
-    public string EntryType { get; set; } = "";
-    public string? Office { get; set; }
-    public string? District { get; set; }
-    public string? CandidateName { get; set; }
-    public string? Party { get; set; }
-    public string? MeasureId { get; set; }
-    public string? Title { get; set; }
     public string SourceUrl { get; set; } = "";
 }

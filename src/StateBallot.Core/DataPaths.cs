@@ -28,9 +28,6 @@ public static class DataPaths
     public static string CountyFipsPath(string inputDataRoot, string stateCode) =>
         Path.Combine(StateInputDir(inputDataRoot, stateCode), "county_fips.json");
 
-    public static string SourcesPath(string inputDataRoot, string stateCode) =>
-        Path.Combine(StateInputDir(inputDataRoot, stateCode), "sources.json");
-
     public static string SnapshotPath(string inputDataRoot) =>
         Path.Combine(InputRoot(inputDataRoot), "snapshot.json");
 

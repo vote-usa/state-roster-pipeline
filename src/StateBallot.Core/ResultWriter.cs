@@ -5,74 +5,24 @@ using StateBallot.Core.Publishing;
 namespace StateBallot.Core;
 
 /// <summary>
-/// Writes the state-agnostic JSON + CSV outputs and the sources.json provenance
-/// manifest for a collector run. Output shapes are shared across all states.
+/// Writes a collector result as the election-scoped tree under a state directory
+/// (see <see cref="ElectionTreeWriter"/>) and holds the row mappers shared by every writer.
 /// </summary>
 public sealed class ResultWriter
 {
-    private readonly string _outDir;
-    private readonly string _sourcesPath;
+    private readonly string _stateDir;
 
-    /// <param name="outDir">Per-state output directory (data/output/&lt;xx&gt;/ or data-repo/&lt;xx&gt;/).</param>
-    /// <param name="sourcesPath">
-    /// Path for sources.json. Required when <paramref name="outDir"/> is not under
-    /// data/output/&lt;xx&gt;/ (sources always stay in the pipeline input tree).
-    /// </param>
-    public ResultWriter(string outDir, string? sourcesPath = null)
-    {
-        _outDir = outDir;
-        if (sourcesPath is not null)
-        {
-            _sourcesPath = sourcesPath;
-        }
-        else
-        {
-            var dataRoot = DataPaths.TryInferPipelineDataRoot(outDir)
-                ?? throw new InvalidOperationException(
-                    $"Cannot infer sources path from '{outDir}'. Pass an explicit sourcesPath.");
-            var stateCode = new DirectoryInfo(Path.GetFullPath(outDir)).Name;
-            _sourcesPath = DataPaths.SourcesPath(dataRoot, stateCode);
-        }
-    }
+    /// <param name="stateDir">Per-state output directory (data/output/&lt;xx&gt;/ or data-repo/&lt;xx&gt;/).</param>
+    public ResultWriter(string stateDir) => _stateDir = stateDir;
 
-    public void WriteAll(CollectResult result)
-    {
-        var electionRows = result.Elections.Select(ToElectionOut).ToList();
-        OutputWriter.WriteJson(Path.Combine(_outDir, "elections.json"), electionRows);
-        OutputWriter.WriteCsv(Path.Combine(_outDir, "elections.csv"), electionRows);
-
-        var candidateRows = result.Candidates.Select(ToCandidateOut).ToList();
-        OutputWriter.WriteJson(Path.Combine(_outDir, "candidates.json"), candidateRows);
-        OutputWriter.WriteCsv(Path.Combine(_outDir, "candidates.csv"), candidateRows);
-
-        var measureRows = result.StatewideProposedMeasures.Concat(result.Measures)
-            .Select(ToMeasureOut).ToList();
-        OutputWriter.WriteJson(Path.Combine(_outDir, "measures.json"), measureRows);
-        OutputWriter.WriteCsv(Path.Combine(_outDir, "measures.csv"), measureRows);
-
-        var directoryRows = result.CountyDirectory.Select(ToDirectoryOut).ToList();
-        OutputWriter.WriteJson(Path.Combine(_outDir, "county_directory.json"), directoryRows);
-
-        var ballotRows = result.CountyBallots.Select(ToBallotOut).ToList();
-        OutputWriter.WriteJson(Path.Combine(_outDir, "county_ballots.json"), ballotRows);
-
-        var flatBallotRows = result.CountyBallots.SelectMany(FlattenBallot).ToList();
-        OutputWriter.WriteCsv(Path.Combine(_outDir, "county_ballots.csv"), flatBallotRows);
-
-        OutputWriter.WriteJson(_sourcesPath, result.Sources.ToJsonObject(result.Gaps));
-
-        // The files are the contract. A collector that emits something outside the
-        // schema is a bug, so fail loudly rather than publish it.
-        var errors = new SchemaValidator().ValidateDirectory(_outDir);
-        if (errors.Count > 0)
-            throw new SchemaValidationException(errors);
-    }
+    public ElectionTreeWriter.WriteReport WriteAll(CollectResult result, RunContext context) =>
+        new ElectionTreeWriter(_stateDir).Write(result, context);
 
     public static ElectionOut ToElectionOut(Election e) => new()
     {
         State = e.State,
         ElectionDate = e.ElectionDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
-        ElectionType = e.ElectionType,
+        ElectionType = ElectionTypes.Normalize(e.ElectionType),
         Jurisdiction = e.Jurisdiction,
         OcdDivisionId = OcdDivisionId.ForElection(e.State, e.Jurisdiction, e.Name),
         Name = e.Name,
@@ -84,7 +34,7 @@ public sealed class ResultWriter
     {
         State = c.State,
         ElectionDate = c.ElectionDate,
-        ElectionType = c.ElectionType,
+        ElectionType = ElectionTypes.Normalize(c.ElectionType),
         Office = c.Office,
         District = c.District,
         County = c.County,
@@ -146,7 +96,7 @@ public sealed class ResultWriter
         County = b.CountyName,
         OcdDivisionId = OcdDivisionId.ForCounty(b.State, b.CountyName),
         ElectionDate = b.ElectionDate,
-        ElectionType = b.ElectionType,
+        ElectionType = ElectionTypes.Normalize(b.ElectionType),
         Candidates = b.Candidates.Select(c => new CountyBallotCandidateOut
         {
             Office = c.Office,
@@ -168,43 +118,4 @@ public sealed class ResultWriter
         }).ToList(),
         SourceUrl = b.SourceUrl,
     };
-
-    private static IEnumerable<CountyBallotCsvOut> FlattenBallot(CountyBallot b)
-    {
-        foreach (var c in b.Candidates)
-        {
-            yield return new CountyBallotCsvOut
-            {
-                State = b.State,
-                County = b.CountyName,
-                OcdDivisionId = OcdDivisionId.ForCandidate(c.State, c.Office, c.District, c.County)
-                               ?? OcdDivisionId.ForCounty(b.State, b.CountyName),
-                ElectionDate = b.ElectionDate,
-                ElectionType = b.ElectionType,
-                EntryType = "candidate",
-                Office = c.Office,
-                District = c.District,
-                CandidateName = c.CandidateName,
-                Party = c.Party,
-                SourceUrl = b.SourceUrl,
-            };
-        }
-
-        foreach (var m in b.Measures)
-        {
-            yield return new CountyBallotCsvOut
-            {
-                State = b.State,
-                County = b.CountyName,
-                OcdDivisionId = OcdDivisionId.ForMeasure(m.State, m.Jurisdiction, m.County)
-                               ?? OcdDivisionId.ForCounty(b.State, b.CountyName),
-                ElectionDate = b.ElectionDate,
-                ElectionType = b.ElectionType,
-                EntryType = "measure",
-                MeasureId = m.MeasureId,
-                Title = m.Title,
-                SourceUrl = b.SourceUrl,
-            };
-        }
-    }
 }

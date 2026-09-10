@@ -18,29 +18,44 @@ public sealed class SchemaValidator
 {
     public const string SchemaDirEnvVar = "ROSTER_SCHEMA_DIR";
 
-    private readonly Dictionary<string, JsonSchema> _byFileName = new(StringComparer.OrdinalIgnoreCase);
-    private readonly EvaluationOptions _options;
+    // JsonSchema.Net resolves cross-file $refs through a process-global registry. Load and
+    // register each schema directory once so concurrent validators never re-register
+    // schemas another thread is evaluating with.
+    private static readonly object LoadLock = new();
+    private static readonly Dictionary<string, Dictionary<string, JsonSchema>> Loaded =
+        new(StringComparer.OrdinalIgnoreCase);
+
+    private readonly Dictionary<string, JsonSchema> _byFileName;
+    private readonly EvaluationOptions _options = new() { OutputFormat = OutputFormat.Hierarchical };
 
     public string SchemaDir { get; }
 
     public SchemaValidator(string? schemaDir = null)
     {
-        SchemaDir = schemaDir ?? FindSchemaDir();
+        SchemaDir = Path.GetFullPath(schemaDir ?? FindSchemaDir());
         if (!Directory.Exists(SchemaDir))
             throw new InvalidOperationException($"Schema directory not found: {SchemaDir}");
 
-        // Register every schema by its $id so cross-file $refs (common.schema.json) resolve.
-        _options = new EvaluationOptions { OutputFormat = OutputFormat.Hierarchical };
-        foreach (var path in Directory.EnumerateFiles(SchemaDir, "*.schema.json"))
+        lock (LoadLock)
         {
-            var schema = JsonSchema.FromFile(path);
-            SchemaRegistry.Global.Register(schema);
-            var target = Path.GetFileName(path).Replace(".schema.json", ".json", StringComparison.OrdinalIgnoreCase);
-            _byFileName[target] = schema;
-        }
+            if (!Loaded.TryGetValue(SchemaDir, out var byFileName))
+            {
+                byFileName = new Dictionary<string, JsonSchema>(StringComparer.OrdinalIgnoreCase);
+                foreach (var path in Directory.EnumerateFiles(SchemaDir, "*.schema.json"))
+                {
+                    var schema = JsonSchema.FromFile(path);
+                    SchemaRegistry.Global.Register(schema);
+                    var target = Path.GetFileName(path).Replace(".schema.json", ".json", StringComparison.OrdinalIgnoreCase);
+                    byFileName[target] = schema;
+                }
 
-        if (_byFileName.Count == 0)
-            throw new InvalidOperationException($"No *.schema.json files in {SchemaDir}");
+                if (byFileName.Count == 0)
+                    throw new InvalidOperationException($"No *.schema.json files in {SchemaDir}");
+                Loaded[SchemaDir] = byFileName;
+            }
+
+            _byFileName = byFileName;
+        }
     }
 
     /// <summary>File names this validator knows a schema for (e.g. candidates.json).</summary>

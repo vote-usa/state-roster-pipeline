@@ -1,0 +1,161 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vote-usa.org/schema/roster/run.schema.json",
+  "title": "run.json",
+  "description": "Provenance for one election directory: which pipeline build produced it, when, from which sources, with what gaps.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "state",
+    "election_date",
+    "year",
+    "generated_at",
+    "pipeline_commit",
+    "pipeline_version",
+    "wayback",
+    "cli_args",
+    "requested_by",
+    "election_ids",
+    "pending",
+    "counts",
+    "election_types_raw",
+    "gaps",
+    "next_run",
+    "sources"
+  ],
+  "properties": {
+    "state": {
+      "$ref": "common.schema.json#/$defs/state"
+    },
+    "election_date": {
+      "$ref": "common.schema.json#/$defs/date"
+    },
+    "year": {
+      "type": "integer",
+      "minimum": 2000,
+      "maximum": 2100
+    },
+    "generated_at": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$"
+    },
+    "pipeline_commit": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "pipeline_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "wayback": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^\\d{8}(\\d{6})?$"
+    },
+    "cli_args": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "requested_by": {
+      "type": "string"
+    },
+    "election_ids": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "pending": {
+      "type": "boolean"
+    },
+    "counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "elections",
+        "candidates",
+        "measures",
+        "county_ballots"
+      ],
+      "properties": {
+        "elections": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "candidates": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "measures": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "county_ballots": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "election_types_raw": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "common.schema.json#/$defs/electionType"
+      }
+    },
+    "gaps": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "next_run": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "recommended_after",
+            "reason",
+            "next_election_date",
+            "next_election_type"
+          ],
+          "properties": {
+            "recommended_after": {
+              "type": "string"
+            },
+            "reason": {
+              "type": "string"
+            },
+            "next_election_date": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "next_election_type": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "sources": {
+      "type": "object",
+      "description": "Provenance per data group: url + format entries, county_ballots keyed by county. Shape follows the collector's SourcesManifest."
+    }
+  }
+}

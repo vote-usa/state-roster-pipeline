@@ -2,7 +2,7 @@
   {
     "state": "WV",
     "election_date": "2026-05-12",
-    "election_type": "PRIMARY",
+    "election_type": "Primary",
     "office": "ASSESSOR - UNEXPIRED",
     "district": null,
     "county": "MARSHALL",
@@ -35,7 +35,7 @@
   {
     "state": "WV",
     "election_date": "2026-05-12",
-    "election_type": "PRIMARY",
+    "election_type": "Primary",
     "office": "ASSESSOR - UNEXPIRED",
     "district": null,
     "county": "FAYETTE",
@@ -68,7 +68,7 @@
   {
     "state": "WV",
     "election_date": "2026-05-12",
-    "election_type": "PRIMARY",
+    "election_type": "Primary",
     "office": "ASSESSOR - UNEXPIRED",
     "district": null,
     "county": "FAYETTE",
@@ -101,7 +101,7 @@
   {
     "state": "WV",
     "election_date": "2026-05-12",
-    "election_type": "PRIMARY",
+    "election_type": "Primary",
     "office": "BOARD OF EDUCATION",
     "district": "23RD COUNTYWIDE",
     "county": "LOGAN",
@@ -134,7 +134,7 @@
   {
     "state": "WV",
     "election_date": "2026-05-12",
-    "election_type": "PRIMARY",
+    "election_type": "Primary",
     "office": "BOARD OF EDUCATION",
     "district": "55TH COUNTYWIDE - 1ST DIVISION",
     "county": "WYOMING",

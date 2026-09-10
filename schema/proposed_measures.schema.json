@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vote-usa.org/schema/roster/proposed_measures.schema.json",
+  "title": "proposed_measures.json",
+  "description": "Statewide measures that have not been certified to a ballot yet (election_date is null). Same row shape as measures.json.",
+  "$ref": "measures.schema.json"
+}
