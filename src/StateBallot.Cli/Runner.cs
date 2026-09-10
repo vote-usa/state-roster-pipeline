@@ -116,8 +116,7 @@ public static class Runner
         {
             Console.Error.WriteLine(
                 $"State '{state}' ({entry.Name}) is in the catalog but not implemented yet. " +
-                $"Implemented: {string.Join(", ", catalog.ImplementedCodes.Order())}. " +
-                "See logs/adding-a-state.md.");
+                $"Implemented: {string.Join(", ", catalog.ImplementedCodes.Order())}.");
             return 2;
         }
 

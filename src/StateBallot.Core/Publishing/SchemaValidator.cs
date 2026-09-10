@@ -30,7 +30,6 @@ public sealed class SchemaValidator
             throw new InvalidOperationException($"Schema directory not found: {SchemaDir}");
 
         // Register every schema by its $id so cross-file $refs (common.schema.json) resolve.
-        // The registry is process-global in JsonSchema.Net; re-registering the same $id replaces it.
         _options = new EvaluationOptions { OutputFormat = OutputFormat.Hierarchical };
         foreach (var path in Directory.EnumerateFiles(SchemaDir, "*.schema.json"))
         {

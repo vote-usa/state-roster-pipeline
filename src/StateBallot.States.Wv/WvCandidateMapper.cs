@@ -49,8 +49,7 @@ public static class WvCandidateMapper
         ResidentialCounty = c.ResidentialAddress?.CountyDescription,
         SourceOfficeId = c.OfficeId == 0 ? null : c.OfficeId.ToString(CultureInfo.InvariantCulture),
         SourceOfficeType = SourceOfficeType(c),
-        // WV's townName is the county name for county-level races, not a municipality; the
-        // municipal jurisdiction only appears in the election name. No discrete field -> null.
+        // WV's townName is the county name for county-level races, not a municipality.
         LocalJurisdiction = null,
         FirstName = NullIfBlank(c.CandidateFirstName),
         MiddleName = NullIfBlank(c.CandidateMiddleName),

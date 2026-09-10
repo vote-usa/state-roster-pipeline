@@ -60,7 +60,7 @@ public sealed class CandidateRow
     /// <summary>Local jurisdiction name as published by the source for sub-county races (e.g. "City Of Quincy").</summary>
     public string? LocalJurisdiction { get; set; }
 
-    /// <summary>Name parts as published by the source; null when the source only publishes a ballot name.</summary>
+    /// <summary>Name parts as published by the source. Null when the source only publishes a ballot name.</summary>
     public string? FirstName { get; set; }
     public string? MiddleName { get; set; }
     public string? LastName { get; set; }

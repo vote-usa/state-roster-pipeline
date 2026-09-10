@@ -93,8 +93,6 @@ dotnet run --project src/StateBallot.Cli -- \
   --state CA --input-root ./data --output-root ../state-roster-data
 ```
 
-Details: [`logs/roster-data.md`](logs/roster-data.md).
-
 ## Adding a state
 
 1. Flip the state to `implemented` in [`data/input/state_catalog.json`](data/input/state_catalog.json).
