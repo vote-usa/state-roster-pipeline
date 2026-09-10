@@ -16,6 +16,7 @@
     <ProjectReference Include="..\StateBallot.States.Vt\StateBallot.States.Vt.csproj" />
     <ProjectReference Include="..\StateBallot.States.Va\StateBallot.States.Va.csproj" />
     <ProjectReference Include="..\StateBallot.States.Nm\StateBallot.States.Nm.csproj" />
+    <ProjectReference Include="..\StateBallot.States.Sc\StateBallot.States.Sc.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

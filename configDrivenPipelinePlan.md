@@ -30,11 +30,11 @@ away at:
 | 0 — Core utility extraction + mapper convention | **Done** | Deduped whitespace/date/address/FIPS/empty-guard logic into Core; standardized the mapper-class seam across WA/CA/TX/WV; added test coverage where none existed (CA, WA). |
 | 1 — Config-driven value tables | **Done** | `date_formats.json` (all states) and `election_type_names.json` (TX) — externalized, fail-loud or permissive per the field's semantics. |
 | 2 — Selectors externalization | **Done** | CA and WA's CSS-selector/regex constants moved from compiled `static class` fields to `sealed class` instances loaded from `selectors.json`, with a `Default` compiled-in fallback for tests/seeding. |
-| 3 — 50-state reality check + new-state onboarding | **In progress** | Research across all 50 states' real formats/fetch-blocking; format-parser infra (CSV, XLSX, HTML table) built; 10 new states onboarded (MD, NC, WY, HI, MS, NE, CO, VT, VA, NM); remaining 37 states' bot-blocking status independently verified 2026-09-08/09 (see below). |
+| 3 — 50-state reality check + new-state onboarding | **In progress** | Research across all 50 states' real formats/fetch-blocking; format-parser infra (CSV, XLSX, HTML table) built; 11 new states onboarded (MD, NC, WY, HI, MS, NE, CO, VT, VA, NM, SC); remaining 36 states' bot-blocking status independently verified 2026-09-08/09/10 (see below). |
 
-14 states implemented total: WA, CA, TX, WV (pre-existing) + MD, NC, WY, HI,
-MS, NE, CO, VT, VA, NM (added under Phase 3). Full technical detail on all 14
-is in `configDrivenPipelineInfo.md`.
+15 states implemented total: WA, CA, TX, WV (pre-existing) + MD, NC, WY, HI,
+MS, NE, CO, VT, VA, NM, SC (added under Phase 3). Full technical detail on
+all 15 is in `configDrivenPipelineInfo.md`.
 
 ## Phase 3 in detail
 
@@ -70,12 +70,12 @@ from direct `curl` verification against the live site, not from that column.
   Arizona, and New Hampshire all had to be checked with a real browser UA
   (and, for Mississippi, also the reverse — a tool-like UA) before their true
   status was known.
-- **Party is sometimes a source-level split**, not a per-row field (AL, MA,
-  SC each publish separate URLs per party) — `SourceEntry` doesn't yet have
-  a way to say "every row from this source is party X." (NM looked like a
-  fourth from the research CSV alone, but turned out to be an optional
-  filter on one unified export once actually built - see item 3 under
-  "What's still not started".)
+- **Party is sometimes a source-level split**, not a per-row field (AL, MA
+  each publish separate URLs per party) — `SourceEntry` doesn't yet have a
+  way to say "every row from this source is party X." (NM and SC both
+  looked like they'd need this too from the research CSV alone, but each
+  turned out to be an optional filter on one unified export/search once
+  actually built - see item 3 under "What's still not started".)
 - **Status/withdrawal is a real canonical-model gap** — fixed by adding
   `CandidateRow.Status` (raw passthrough, not normalized) during the Maryland
   onboarding, ahead of the states that actually needed it.
@@ -92,22 +92,33 @@ built — every state still dispatches to its own library directly, since no
 call site has ever needed to pick a parser by a runtime format string.
 Revisit if that stops being true.
 
-### New-state onboarding — 10 done
+### New-state onboarding — 11 done
 
-MD, NC, WY, HI, MS, NE, CO, VT, VA, NM. Each was researched live (direct
+MD, NC, WY, HI, MS, NE, CO, VT, VA, NM, SC. Each was researched live (direct
 `curl`/browser checks against the real government site), designed, built
 following the established file-per-concern convention (SourceConfig /
 Selectors / Mapper / Collector / PublishSchedule), wired into the
 catalog/CLI/solution, tested, and live-verified end-to-end before being
 called done. Full per-state writeups are in `configDrivenPipelineInfo.md`.
 
-### Remaining-state triage (37 states, verified 2026-09-08/09)
+### Remaining-state triage (36 states, verified 2026-09-08/09/10)
 
-Every one of the 37 not-yet-implemented states now has a live-verified
+Every one of the 36 not-yet-implemented states now has a live-verified
 bot-blocking status and a known format (from the CSV above, cross-checked
 against the live site). Grouped by what's actually blocking progress:
 
-**Ready to build — confirmed open, format known (23 states):**
+**A verification-method gap, found 2026-09-10 (Oregon):** the 2026-09-08 pass
+that called OR "open" only checked HTTP status + a non-trivial byte count -
+enough to catch AR's silently-*empty* 200, not enough to catch a
+substantial, legitimate-looking 200 that's still a bot-block page. OR's own
+block page is real HTML with a real `<title>`, explanatory text, and contact
+info, well over the "silently empty" bar, and would have passed that
+earlier check. Every state's "open" verdict elsewhere in this table was
+still eyeballed for real content (not just re-derived from this bug), but OR
+itself has been moved down to "Confirmed blocked" below - see its entry
+there for what was actually checked this time.
+
+**Ready to build — confirmed open, format known (21 states):**
 
 | State | Format | Notes |
 | --- | --- | --- |
@@ -128,14 +139,12 @@ against the live site). Grouped by what's actually blocking progress:
 | Montana | csv, xls, pdf | County-level data not standardized — varies PDF/sample-ballot/local-page per county. |
 | North Dakota | (unlisted in CSV; page loads live) | — |
 | New Jersey | pdf ×2 | An official PDF (name/party/address) and an unofficial one (name/party/email) — need both. |
-| Oregon | csv | — |
 | Pennsylvania | html | — |
-| South Carolina | csv | Split by party; per-district URL pattern for local races (`electionId` param), like Louisiana. |
 | South Dakota | csv, xlsx, pdf | No email/phone published — address is the only contact field. |
 | Tennessee | xlsx, pdf | Separate file **per office type** — no single roster file. |
 | Utah | html or xlsx | Has both an HTML table and a direct Excel download — take the XLSX. |
 
-**Confirmed blocked — need a fetch-strategy tier this pipeline doesn't have yet (9 states):**
+**Confirmed blocked — need a fetch-strategy tier this pipeline doesn't have yet (10 states):**
 
 | State | Vendor / mechanism | Verified |
 | --- | --- | --- |
@@ -145,13 +154,14 @@ against the live site). Grouped by what's actually blocking progress:
 | New Hampshire | **Akamai** edge WAF (new vendor) — whole `sos.nh.gov` domain returns a generic Access Denied via `errors.edgesuite.net` | 2026-09-08 |
 | New York | Cloudflare, explicit challenge, 403 | pre-2026-09-03 |
 | Oklahoma | AWS ELB block, 403 | pre-2026-09-03 |
+| Oregon | **F5 (`TSPD` cookies)** — the search-page *shell* (`orestar/CFSearchPage.do`) loads fine, but both data-yielding endpoints behind it (`orestar/cfFilings.do`, and the AJAX servlet `orestar/ajaxdataserver/getCandidateElectionByYear` that populates its election dropdown) return a real block page ("...our cyber-security service...has identified a problem") - a `200`, not a `403`, and non-trivial in size, so it passed the earlier, too-shallow "status + byte count" check on 2026-09-08. Confirmed blocked regardless of UA (browser/curl-like/none), with or without a warmed-up session cookie + matching Referer from the shell page first. | 2026-09-10 |
 | Rhode Island | Cloudflare interactive JS challenge (`cf-mitigated: challenge`) on every path/header combo, including the `vote.ri.gov` alias | 2026-09-03 |
 | Wisconsin | Cloudflare interactive JS challenge, same pattern as RI | 2026-09-03 |
 | Arizona | Cloudflare interactive JS challenge (`apps.arizona.vote`) | 2026-09-08 |
 
-All nine need the same missing piece — headless-browser rendering (or, for
-Incapsula/Akamai specifically, possibly a different bypass than Cloudflare's)
-— not state-specific work. See "What's still not started" below.
+All ten need the same missing piece — headless-browser rendering (or, for
+Incapsula/Akamai/F5 specifically, possibly a different bypass than
+Cloudflare's) — not state-specific work. See "What's still not started" below.
 
 **Genuinely hard — not a blocking/config problem at all (4 states):**
 
@@ -187,7 +197,7 @@ begun yet:
    `WebFormsPostback` (HI, MS) are the first real pieces of this, but neither
    is exposed as per-source config yet — both are still hardcoded into their
    state's collector. The next tier up, headless-browser rendering, now has
-   nine real customers (see "Confirmed blocked" above) but is gated on a
+   ten real customers (see "Confirmed blocked" above) but is gated on a
    real deployment target existing to test IP-reputation against, not on
    anything left to design.
 2. **Field-mapping UI/engine.** The original "hard problem," reprioritized
@@ -202,25 +212,27 @@ begun yet:
    column coalescing/selection - a UI would need to expose these as
    composable value transformers, not just column pickers.
 3. **`SourceEntry` party attribute**, for states that split sources by party
-   rather than by row — a confirmed need for at least AL, MA, SC (and
-   probably a couple of the newly-triaged "ready to build" states above).
-   New Mexico turned out **not** to need this after all, despite looking
-   identical in the research CSV (two rows, Democratic/Republican, same
-   URL): its portal's party dropdown is just an optional filter on one
-   unified export, not a mandatory per-party split like AL/MA/SC's real
-   separate files - the same "don't trust the CSV's row shape, verify the
-   actual mechanism" lesson MS's UA-inversion false positive already taught,
-   just for source *shape* instead of bot-blocking.
+   rather than by row — a confirmed need for at least AL, MA (and probably a
+   couple of the remaining "ready to build" states above). Both New Mexico
+   and South Carolina turned out **not** to need this after all, despite
+   looking identical in the research CSV (two rows, Democratic/Republican,
+   same URL, for both): each portal's party control is just an optional
+   filter on one unified export/search, not a mandatory per-party split like
+   AL/MA's real separate files - the same "don't trust the CSV's row shape,
+   verify the actual mechanism" lesson MS's UA-inversion false positive
+   already taught, twice more now, just for source *shape* instead of
+   bot-blocking.
 4. **A shared "CSV-backed state" collector abstraction — investigated
    2026-09-03, not built.** Six data points (MD, NC, WY, HI, MS, NE) turned
    out to disconfirm one shared collector shape more than confirm it: at
    least four genuinely different election-discovery algorithms (HTML
    `<dt>/<dd>` scrape, JSON-LD tree walk, plain-text regex, two different
    "derive from the file itself" mechanisms) and two different row-attribution
-   rules exist across just these six — and CO/VT/VA/NM (four more discovery
-   algorithms: page-heading-year-crosscheck, evergreen-page-plus-templated-
-   XLSX, two-hop-index-then-page discovery, and NM's own hand-maintained-id-
-   plus-separate-evergreen-date-page) only reinforced that conclusion. A full
+   rules exist across just these six — and CO/VT/VA/NM/SC (five more
+   discovery algorithms: page-heading-year-crosscheck, evergreen-page-plus-
+   templated-XLSX, two-hop-index-then-page discovery, NM's own hand-
+   maintained-id-plus-separate-evergreen-date-page, and SC's single-JSON-call
+   election-list-with-dates-included) only reinforced that conclusion. A full
    collector-level abstraction would either grow an
    escape-hatch interface with as many strategy slots as states (a config
    table in name only) or force real algorithmic differences to pretend to

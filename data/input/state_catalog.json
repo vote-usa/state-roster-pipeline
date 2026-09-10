@@ -242,8 +242,8 @@
   "SC": {
     "name": "South Carolina",
     "fips": "45",
-    "status": "unimplemented",
-    "project": null
+    "status": "implemented",
+    "project": "StateBallot.States.Sc"
   },
   "SD": {
     "name": "South Dakota",

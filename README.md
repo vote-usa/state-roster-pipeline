@@ -18,6 +18,7 @@ Currently implemented:
 1. Vermont (VT)
 1. Virginia (VA)
 1. New Mexico (NM)
+1. South Carolina (SC)
 
 The structure is designed so additional states plug in without touching the shared code.
 For the full architecture (config-driven surfaces, shared parsing/fetch primitives, the
@@ -137,6 +138,8 @@ Quick reference:
 | VA | Election dates | Candidate list page's own `<title>` | HTML |
 | NM | Candidates + judicial retention (general only) | `candidateportal.servis.sos.state.nm.us/CandidateList.aspx?eid=…` "Excel (xls)" export button | HTML table (mislabeled `.xls`) |
 | NM | Election dates | `sos.nm.gov/voting-and-elections/view-all-elections/` page text | HTML |
+| SC | Candidates (primary + general) | `vrems.scvotes.sc.gov/Candidate/CandidateSearch/` (POST `ElectionId`) | HTML table |
+| SC | Elections + dates | `vrems.scvotes.sc.gov/Candidate/GetElections?electionType=General&year=…` | JSON |
 
 Notable per-state quirks (see `configDrivenPipelineInfo.md` for the rest):
 
@@ -203,6 +206,20 @@ Notable per-state quirks (see `configDrivenPipelineInfo.md` for the rest):
   `HtmlTableParser` (Core) rather than a real spreadsheet library. Judicial
   retention rows map to `StatewideProposedMeasures` like NE's, not
   `CandidateRow` (no opponent, no party).
+- **SC** is the simplest state onboarded since the earliest ones: one JSON
+  call (`Candidate/GetElections`) gives both the primary's and general's own
+  id *and* real date directly, no separate date source needed at all - and
+  the candidate search itself needs no session/cookie/antiforgery-token
+  setup despite looking, from a browser, like a stateful multi-step flow.
+  Also a second confirmed case of the same lesson NM's own onboarding
+  taught: the research CSV listed SC's source as split by party (two rows,
+  Democratic/Republican, same URL) but the real API returns both parties
+  together in one unified response - not a mandatory per-party split like
+  AL/MA's real separate files. Oregon, checked in the same session, is the
+  opposite lesson: its shell search page loads fine, but its actual data
+  endpoints return a real, well-defended block page disguised as a normal
+  `200` - the earlier "OR is open" call (status + byte count only) was
+  wrong; see `configDrivenPipelinePlan.md`'s "Confirmed blocked" table.
 
 ## Outputs (`data/output/<state>/`) and inputs (`data/input/`)
 

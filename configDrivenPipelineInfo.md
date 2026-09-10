@@ -225,11 +225,11 @@ Ballotpedia is never a data source — verification only.
 
 ## 2. Implemented states
 
-Fourteen states are implemented as of 2026-09-09: WA, CA, TX, WV (pre-dating
-this consolidation effort) and MD, NC, WY, HI, MS, NE, CO, VT, VA, NM (added
-on the CSV/XLSX parser infrastructure, one per onboarding session). Each
-section below covers only what's *unique* to that state — shared behavior is
-in section 1.
+Fifteen states are implemented as of 2026-09-10: WA, CA, TX, WV (pre-dating
+this consolidation effort) and MD, NC, WY, HI, MS, NE, CO, VT, VA, NM, SC
+(added on the CSV/XLSX parser infrastructure, one per onboarding session).
+Each section below covers only what's *unique* to that state — shared
+behavior is in section 1.
 
 ### Washington (`StateBallot.States.Wa`)
 
@@ -849,3 +849,91 @@ county attribution across every office type tested, the exact
 comma-in-address case that broke the CSV export confirmed intact in the
 real output. No county directory; local/party-run elections (a separate
 `eid`, "2026 Local Election Contest/Candidate List") not attempted.
+
+### South Carolina (`StateBallot.States.Sc`)
+
+| Data | Source | Format |
+| --- | --- | --- |
+| Candidates (primary + general) | `vrems.scvotes.sc.gov/Candidate/CandidateSearch/` (POST `ElectionId`) | HTML table |
+| Elections + dates | `vrems.scvotes.sc.gov/Candidate/GetElections?electionType=General&year=…` | JSON |
+
+Picked next in the user's own stated sequence (OR, SC, SD, MT) after Oregon
+turned out blocked (see its entry in `configDrivenPipelinePlan.md`'s
+"Confirmed blocked" table - found while researching SC, not before). SC's
+own portal (VREMS, "Voter Registration and Election Management System")
+turned out to be the simplest state onboarded in a long while, on two
+fronts at once neither of which any prior state combined:
+
+**One API call gives elections *and* dates together.** Unlike every
+XLSX/HTML-table state onboarded before it (CO, VT, VA, NM), which all needed
+a separate scrape just to find the actual election date, SC's own
+`GetElections?electionType=General&year=2026` returns a JSON array with
+each election's id, name, *and* real `electionDate` in one response -
+confirmed live: `[{"electionId":"22596","electionName":"Statewide General
+Election","electionDate":"2026-11-03T00:00:00",...}, {"electionId":"22598",
+"electionName":"Statewide Primary","electionDate":"2026-06-09T00:00:00",...},
+{"electionId":"22760","electionName":"US Senate Special Republican
+Primary",...}]` - note the "General" *kind* (one of three: General/Special/
+Local, from the search page's own dropdown) returns the statewide primary,
+the statewide general, *and* any same-cycle special election together; the
+collector matches by each election's own stable `electionName` ("Statewide
+General Election" / "Statewide Primary") rather than assuming a fixed
+position or count, so the special election here is simply never matched and
+never collected - no special-casing needed, and no vulnerability to a future
+cycle adding a second special election.
+
+**The candidate search needs no session state at all.** Reached from a
+browser, the flow looks stateful: a `SelectElection` page needs a real
+antiforgery token to submit, redirects to `CandidateSearch?electionId=N`,
+which is a big form (Office/County/Party/Status filters) that AJAX-POSTs to
+`/Candidate/CandidateSearch/` and swaps in the returned HTML fragment as a
+DataTable. Tested directly: a bare `POST /Candidate/CandidateSearch/` with
+only `ElectionId` set - no cookies, no antiforgery token, no other form
+field - returns the exact same 634KB/1,440-row fragment a full browser
+session gets, confirmed identical whether sent as `multipart/form-data` (as
+the page's own jQuery does) or plain `application/x-www-form-urlencoded`
+(what `HttpFetcher.PostFormAsync` already sends) - so the whole
+`SelectElection` page is never visited by this collector at all. The
+response is the same "HTML table serving as the real data format" shape NM's
+onboarding introduced `HtmlTableParser` for, reused here as-is with zero
+changes needed.
+
+Also a second confirmed instance of the exact lesson NM's own onboarding
+taught: the research CSV describes SC as split-by-party (two rows,
+Democratic/Republican, same URL) - `ScCollector` never sets a party filter
+at all, and the live response already contains both parties (and every
+minor party - `United Citizens`, `Workers`, `Alliance`, ... - confirmed
+across 12 distinct party values in the general alone) in one unified table.
+`SourceEntry`'s planned party attribute (see the plan doc's "What's still
+not started") is looking less and less needed the more real per-state
+mechanisms get checked, rather than trusted from the research spreadsheet's
+row shape alone.
+
+Field design: the export itself is sparse - Office, Associated Counties,
+Name on Ballot, Running Mate, Party, Location of Filing, Candidate Status,
+no contact info or filing date at all (same tier as WY/CO). District isn't
+its own column - it's embedded in the Office cell's own text, and SC's
+46 counties clearly haven't standardized how they name their own local
+seats: `"U.S. House of Representatives, District 5"` and `"State House of
+Representatives, District 100"` both cleanly split on a `", District N"`
+suffix (confirmed feeding `OcdDivisionId`'s `cd`/`sldl` mapping correctly
+live), but `"County Council District 3"` (no comma), `"Solicitor Circuit
+12"` (no "District" word at all), and `"Clover School District Trustee
+Seat 1"` are all real, different shapes the same underlying concept takes
+elsewhere in the same export - `ScCandidateMapper` only splits the one
+clean, confirmed-consistent comma shape and leaves everything else verbatim
+in `Office` with a null `District`, rather than guessing at 336 distinct
+office strings' worth of local naming conventions. `Associated Counties` is
+its own column, already comma-joined by the source for a genuinely
+multi-county race (a judicial circuit, a legislative district spanning two
+counties) - re-joined with `"; "` to match this project's own convention
+rather than left in the source's delimiter; unlike NM's `Filing County`, no
+office-type classification was needed here, since the source's own column
+is already the *correct* jurisdiction signal for every office live-checked,
+not merely where a candidate personally filed. Live-verified 2026-09-10:
+1,823 candidates across the two 2026 elections (383 primary, 1,440
+general), zero exact-duplicate rows, correct OCD ids for federal/state
+legislative districts, correct multi-county joins including a legislative
+district that is itself multi-county. No county directory; local/off-cycle
+elections (SC's own separate "Local" election kind) and the parallel
+referendum search the same portal offers are not attempted.
