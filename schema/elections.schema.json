@@ -7,16 +7,43 @@
   "items": {
     "type": "object",
     "additionalProperties": false,
-    "required": [ "state", "election_date", "election_type", "jurisdiction", "ocd_division_id", "name", "election_id", "source_url" ],
+    "required": [
+      "state",
+      "election_date",
+      "election_type",
+      "jurisdiction",
+      "ocd_division_id",
+      "name",
+      "election_id",
+      "source_url"
+    ],
     "properties": {
-      "state": { "$ref": "common.schema.json#/$defs/state" },
-      "election_date": { "$ref": "common.schema.json#/$defs/date" },
-      "election_type": { "$ref": "common.schema.json#/$defs/electionType" },
-      "jurisdiction": { "$ref": "common.schema.json#/$defs/nonEmptyString", "description": "state, Foo County, Congressional District 14, ..." },
-      "ocd_division_id": { "$ref": "common.schema.json#/$defs/nullableOcdDivisionId" },
-      "name": { "$ref": "common.schema.json#/$defs/nonEmptyString" },
-      "election_id": { "$ref": "common.schema.json#/$defs/nonEmptyString", "description": "Stable id within the state collector (source system id where one exists)." },
-      "source_url": { "$ref": "common.schema.json#/$defs/url" }
+      "state": {
+        "$ref": "common.schema.json#/$defs/state"
+      },
+      "election_date": {
+        "$ref": "common.schema.json#/$defs/date"
+      },
+      "election_type": {
+        "$ref": "common.schema.json#/$defs/electionType"
+      },
+      "jurisdiction": {
+        "$ref": "common.schema.json#/$defs/nonEmptyString",
+        "description": "state, Foo County, Congressional District 14, ..."
+      },
+      "ocd_division_id": {
+        "$ref": "common.schema.json#/$defs/nullableOcdDivisionId"
+      },
+      "name": {
+        "$ref": "common.schema.json#/$defs/nonEmptyString"
+      },
+      "election_id": {
+        "$ref": "common.schema.json#/$defs/nonEmptyString",
+        "description": "Stable id within the state collector (source system id where one exists)."
+      },
+      "source_url": {
+        "$ref": "common.schema.json#/$defs/url"
+      }
     }
   }
 }

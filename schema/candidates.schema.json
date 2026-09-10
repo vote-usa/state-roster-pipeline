@@ -2,52 +2,142 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://vote-usa.org/schema/roster/candidates.schema.json",
   "title": "candidates.json",
-  "description": "Candidates for a state. Every key is always present; unknown values are null, never invented.",
+  "description": "Candidates for a state. Unknown values are null.",
   "type": "array",
   "items": {
     "type": "object",
     "additionalProperties": false,
     "required": [
-      "state", "election_date", "election_type", "office", "district", "county", "ocd_division_id",
-      "candidate_name", "party", "incumbent", "source_url", "source_candidate_id", "filing_date",
-      "email", "phone", "campaign_phone", "website", "occupation",
-      "mailing_address_line", "mailing_city", "mailing_state", "mailing_zip",
-      "residential_city", "residential_county",
-      "source_office_id", "source_office_type", "local_jurisdiction",
-      "first_name", "middle_name", "last_name", "suffix"
+      "state",
+      "election_date",
+      "election_type",
+      "office",
+      "district",
+      "county",
+      "ocd_division_id",
+      "candidate_name",
+      "party",
+      "incumbent",
+      "source_url",
+      "source_candidate_id",
+      "filing_date",
+      "email",
+      "phone",
+      "campaign_phone",
+      "website",
+      "occupation",
+      "mailing_address_line",
+      "mailing_city",
+      "mailing_state",
+      "mailing_zip",
+      "residential_city",
+      "residential_county",
+      "source_office_id",
+      "source_office_type",
+      "local_jurisdiction",
+      "first_name",
+      "middle_name",
+      "last_name",
+      "suffix"
     ],
     "properties": {
-      "state": { "$ref": "common.schema.json#/$defs/state" },
-      "election_date": { "$ref": "common.schema.json#/$defs/date" },
-      "election_type": { "$ref": "common.schema.json#/$defs/electionType" },
-      "office": { "$ref": "common.schema.json#/$defs/nonEmptyString", "description": "Office name as published by the source." },
-      "district": { "$ref": "common.schema.json#/$defs/nullableString" },
-      "county": { "$ref": "common.schema.json#/$defs/nullableString", "description": "Null for statewide/federal/legislative/judicial rows; multi-county local races join names with '; '." },
-      "ocd_division_id": { "$ref": "common.schema.json#/$defs/nullableOcdDivisionId" },
-      "candidate_name": { "$ref": "common.schema.json#/$defs/nonEmptyString" },
-      "party": { "$ref": "common.schema.json#/$defs/nullableString" },
-      "incumbent": { "$ref": "common.schema.json#/$defs/nullableBoolean" },
-      "source_url": { "$ref": "common.schema.json#/$defs/url" },
-      "source_candidate_id": { "$ref": "common.schema.json#/$defs/nullableString" },
-      "filing_date": { "$ref": "common.schema.json#/$defs/nullableString" },
-      "email": { "$ref": "common.schema.json#/$defs/nullableString" },
-      "phone": { "$ref": "common.schema.json#/$defs/nullableString" },
-      "campaign_phone": { "$ref": "common.schema.json#/$defs/nullableString" },
-      "website": { "$ref": "common.schema.json#/$defs/nullableString" },
-      "occupation": { "$ref": "common.schema.json#/$defs/nullableString" },
-      "mailing_address_line": { "$ref": "common.schema.json#/$defs/nullableString" },
-      "mailing_city": { "$ref": "common.schema.json#/$defs/nullableString" },
-      "mailing_state": { "$ref": "common.schema.json#/$defs/nullableString" },
-      "mailing_zip": { "$ref": "common.schema.json#/$defs/nullableString" },
-      "residential_city": { "$ref": "common.schema.json#/$defs/nullableString" },
-      "residential_county": { "$ref": "common.schema.json#/$defs/nullableString" },
-      "source_office_id": { "$ref": "common.schema.json#/$defs/nullableString", "description": "Source system's office/race id (TX idOffice, WV officeId, VoteWA RaceID)." },
-      "source_office_type": { "$ref": "common.schema.json#/$defs/nullableString", "description": "Source's own office classification, verbatim." },
-      "local_jurisdiction": { "$ref": "common.schema.json#/$defs/nullableString" },
-      "first_name": { "$ref": "common.schema.json#/$defs/nullableString" },
-      "middle_name": { "$ref": "common.schema.json#/$defs/nullableString" },
-      "last_name": { "$ref": "common.schema.json#/$defs/nullableString" },
-      "suffix": { "$ref": "common.schema.json#/$defs/nullableString" }
+      "state": {
+        "$ref": "common.schema.json#/$defs/state"
+      },
+      "election_date": {
+        "$ref": "common.schema.json#/$defs/date"
+      },
+      "election_type": {
+        "$ref": "common.schema.json#/$defs/electionType"
+      },
+      "office": {
+        "$ref": "common.schema.json#/$defs/nonEmptyString",
+        "description": "Office name as published by the source."
+      },
+      "district": {
+        "$ref": "common.schema.json#/$defs/nullableString"
+      },
+      "county": {
+        "$ref": "common.schema.json#/$defs/nullableString",
+        "description": "Null for statewide/federal/legislative/judicial rows; multi-county local races join names with '; '."
+      },
+      "ocd_division_id": {
+        "$ref": "common.schema.json#/$defs/nullableOcdDivisionId"
+      },
+      "candidate_name": {
+        "$ref": "common.schema.json#/$defs/nonEmptyString"
+      },
+      "party": {
+        "$ref": "common.schema.json#/$defs/nullableString"
+      },
+      "incumbent": {
+        "$ref": "common.schema.json#/$defs/nullableBoolean"
+      },
+      "source_url": {
+        "$ref": "common.schema.json#/$defs/url"
+      },
+      "source_candidate_id": {
+        "$ref": "common.schema.json#/$defs/nullableString"
+      },
+      "filing_date": {
+        "$ref": "common.schema.json#/$defs/nullableString"
+      },
+      "email": {
+        "$ref": "common.schema.json#/$defs/nullableString"
+      },
+      "phone": {
+        "$ref": "common.schema.json#/$defs/nullableString"
+      },
+      "campaign_phone": {
+        "$ref": "common.schema.json#/$defs/nullableString"
+      },
+      "website": {
+        "$ref": "common.schema.json#/$defs/nullableString"
+      },
+      "occupation": {
+        "$ref": "common.schema.json#/$defs/nullableString"
+      },
+      "mailing_address_line": {
+        "$ref": "common.schema.json#/$defs/nullableString"
+      },
+      "mailing_city": {
+        "$ref": "common.schema.json#/$defs/nullableString"
+      },
+      "mailing_state": {
+        "$ref": "common.schema.json#/$defs/nullableString"
+      },
+      "mailing_zip": {
+        "$ref": "common.schema.json#/$defs/nullableString"
+      },
+      "residential_city": {
+        "$ref": "common.schema.json#/$defs/nullableString"
+      },
+      "residential_county": {
+        "$ref": "common.schema.json#/$defs/nullableString"
+      },
+      "source_office_id": {
+        "$ref": "common.schema.json#/$defs/nullableString",
+        "description": "Source system's office/race id (TX idOffice, WV officeId, VoteWA RaceID)."
+      },
+      "source_office_type": {
+        "$ref": "common.schema.json#/$defs/nullableString",
+        "description": "Source's own office classification, verbatim."
+      },
+      "local_jurisdiction": {
+        "$ref": "common.schema.json#/$defs/nullableString"
+      },
+      "first_name": {
+        "$ref": "common.schema.json#/$defs/nullableString"
+      },
+      "middle_name": {
+        "$ref": "common.schema.json#/$defs/nullableString"
+      },
+      "last_name": {
+        "$ref": "common.schema.json#/$defs/nullableString"
+      },
+      "suffix": {
+        "$ref": "common.schema.json#/$defs/nullableString"
+      }
     }
   }
 }

@@ -7,28 +7,72 @@
   "items": {
     "type": "object",
     "additionalProperties": false,
-    "required": [ "state", "county", "ocd_division_id", "election_date", "election_type", "candidates", "measures", "source_url" ],
+    "required": [
+      "state",
+      "county",
+      "ocd_division_id",
+      "election_date",
+      "election_type",
+      "candidates",
+      "measures",
+      "source_url"
+    ],
     "properties": {
-      "state": { "$ref": "common.schema.json#/$defs/state" },
-      "county": { "$ref": "common.schema.json#/$defs/nonEmptyString" },
-      "ocd_division_id": { "$ref": "common.schema.json#/$defs/nullableOcdDivisionId" },
-      "election_date": { "$ref": "common.schema.json#/$defs/date" },
-      "election_type": { "$ref": "common.schema.json#/$defs/electionType" },
+      "state": {
+        "$ref": "common.schema.json#/$defs/state"
+      },
+      "county": {
+        "$ref": "common.schema.json#/$defs/nonEmptyString"
+      },
+      "ocd_division_id": {
+        "$ref": "common.schema.json#/$defs/nullableOcdDivisionId"
+      },
+      "election_date": {
+        "$ref": "common.schema.json#/$defs/date"
+      },
+      "election_type": {
+        "$ref": "common.schema.json#/$defs/electionType"
+      },
       "candidates": {
         "type": "array",
         "items": {
           "type": "object",
           "additionalProperties": false,
-          "required": [ "office", "district", "ocd_division_id", "candidate_name", "party", "source_office_id", "source_office_type", "local_jurisdiction" ],
+          "required": [
+            "office",
+            "district",
+            "ocd_division_id",
+            "candidate_name",
+            "party",
+            "source_office_id",
+            "source_office_type",
+            "local_jurisdiction"
+          ],
           "properties": {
-            "office": { "$ref": "common.schema.json#/$defs/nonEmptyString" },
-            "district": { "$ref": "common.schema.json#/$defs/nullableString" },
-            "ocd_division_id": { "$ref": "common.schema.json#/$defs/nullableOcdDivisionId" },
-            "candidate_name": { "$ref": "common.schema.json#/$defs/nonEmptyString" },
-            "party": { "$ref": "common.schema.json#/$defs/nullableString" },
-            "source_office_id": { "$ref": "common.schema.json#/$defs/nullableString" },
-            "source_office_type": { "$ref": "common.schema.json#/$defs/nullableString" },
-            "local_jurisdiction": { "$ref": "common.schema.json#/$defs/nullableString" }
+            "office": {
+              "$ref": "common.schema.json#/$defs/nonEmptyString"
+            },
+            "district": {
+              "$ref": "common.schema.json#/$defs/nullableString"
+            },
+            "ocd_division_id": {
+              "$ref": "common.schema.json#/$defs/nullableOcdDivisionId"
+            },
+            "candidate_name": {
+              "$ref": "common.schema.json#/$defs/nonEmptyString"
+            },
+            "party": {
+              "$ref": "common.schema.json#/$defs/nullableString"
+            },
+            "source_office_id": {
+              "$ref": "common.schema.json#/$defs/nullableString"
+            },
+            "source_office_type": {
+              "$ref": "common.schema.json#/$defs/nullableString"
+            },
+            "local_jurisdiction": {
+              "$ref": "common.schema.json#/$defs/nullableString"
+            }
           }
         }
       },
@@ -37,17 +81,35 @@
         "items": {
           "type": "object",
           "additionalProperties": false,
-          "required": [ "measure_id", "title", "summary", "jurisdiction", "ocd_division_id" ],
+          "required": [
+            "measure_id",
+            "title",
+            "summary",
+            "jurisdiction",
+            "ocd_division_id"
+          ],
           "properties": {
-            "measure_id": { "$ref": "common.schema.json#/$defs/nonEmptyString" },
-            "title": { "$ref": "common.schema.json#/$defs/nonEmptyString" },
-            "summary": { "$ref": "common.schema.json#/$defs/nullableString" },
-            "jurisdiction": { "$ref": "common.schema.json#/$defs/nonEmptyString" },
-            "ocd_division_id": { "$ref": "common.schema.json#/$defs/nullableOcdDivisionId" }
+            "measure_id": {
+              "$ref": "common.schema.json#/$defs/nonEmptyString"
+            },
+            "title": {
+              "$ref": "common.schema.json#/$defs/nonEmptyString"
+            },
+            "summary": {
+              "$ref": "common.schema.json#/$defs/nullableString"
+            },
+            "jurisdiction": {
+              "$ref": "common.schema.json#/$defs/nonEmptyString"
+            },
+            "ocd_division_id": {
+              "$ref": "common.schema.json#/$defs/nullableOcdDivisionId"
+            }
           }
         }
       },
-      "source_url": { "$ref": "common.schema.json#/$defs/url" }
+      "source_url": {
+        "$ref": "common.schema.json#/$defs/url"
+      }
     }
   }
 }

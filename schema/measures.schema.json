@@ -7,18 +7,49 @@
   "items": {
     "type": "object",
     "additionalProperties": false,
-    "required": [ "state", "election_date", "measure_id", "title", "summary", "full_text_url", "jurisdiction", "county", "ocd_division_id", "source_url" ],
+    "required": [
+      "state",
+      "election_date",
+      "measure_id",
+      "title",
+      "summary",
+      "full_text_url",
+      "jurisdiction",
+      "county",
+      "ocd_division_id",
+      "source_url"
+    ],
     "properties": {
-      "state": { "$ref": "common.schema.json#/$defs/state" },
-      "election_date": { "$ref": "common.schema.json#/$defs/nullableDate" },
-      "measure_id": { "$ref": "common.schema.json#/$defs/nonEmptyString" },
-      "title": { "$ref": "common.schema.json#/$defs/nonEmptyString" },
-      "summary": { "$ref": "common.schema.json#/$defs/nullableString" },
-      "full_text_url": { "$ref": "common.schema.json#/$defs/nullableString" },
-      "jurisdiction": { "$ref": "common.schema.json#/$defs/nonEmptyString" },
-      "county": { "$ref": "common.schema.json#/$defs/nullableString" },
-      "ocd_division_id": { "$ref": "common.schema.json#/$defs/nullableOcdDivisionId" },
-      "source_url": { "$ref": "common.schema.json#/$defs/url" }
+      "state": {
+        "$ref": "common.schema.json#/$defs/state"
+      },
+      "election_date": {
+        "$ref": "common.schema.json#/$defs/nullableDate"
+      },
+      "measure_id": {
+        "$ref": "common.schema.json#/$defs/nonEmptyString"
+      },
+      "title": {
+        "$ref": "common.schema.json#/$defs/nonEmptyString"
+      },
+      "summary": {
+        "$ref": "common.schema.json#/$defs/nullableString"
+      },
+      "full_text_url": {
+        "$ref": "common.schema.json#/$defs/nullableString"
+      },
+      "jurisdiction": {
+        "$ref": "common.schema.json#/$defs/nonEmptyString"
+      },
+      "county": {
+        "$ref": "common.schema.json#/$defs/nullableString"
+      },
+      "ocd_division_id": {
+        "$ref": "common.schema.json#/$defs/nullableOcdDivisionId"
+      },
+      "source_url": {
+        "$ref": "common.schema.json#/$defs/url"
+      }
     }
   }
 }
