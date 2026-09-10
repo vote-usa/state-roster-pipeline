@@ -72,6 +72,17 @@ Requires .NET 8 SDK. Roster outputs under `data/output/<xx>/` are gitignored —
 re-run the collector to refresh them. Tracked inputs live under `data/input/`
 (`state_catalog.json`, per-state `county_fips.json`).
 
+## Tests
+
+xUnit project are located beside the code they cover: `StateBallot.Core.Tests`.
+They run offline against fixtures and never hit the source sites.
+
+```bash
+dotnet test state-ballot-roster.sln                                   # everything
+dotnet test src/StateBallot.Core.Tests                                # one project
+dotnet test src/StateBallot.Core.Tests --filter "FullyQualifiedName~SchemaValidator"   # one class
+```
+
 ## Published data repo
 
 Published snapshots go to
