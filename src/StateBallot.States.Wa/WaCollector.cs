@@ -204,9 +204,7 @@ public sealed class WaCollector : IStateCollector
         SourceUrl = _config.VoterGuideUrl(election.ElectionId),
         SourceOfficeId = string.IsNullOrWhiteSpace(race.RaceID) ? null : race.RaceID.Trim(),
         SourceOfficeType = string.IsNullOrWhiteSpace(category.CategoryCode) ? category.Name?.Trim() : category.CategoryCode.Trim(),
-        // VoteWA's Jurisdiction is the district/body name; for sub-state races it is the local jurisdiction.
         LocalJurisdiction = isStatewideCategory || string.IsNullOrWhiteSpace(race.Jurisdiction) ? null : race.Jurisdiction.Trim(),
-        // VoteWA publishes only a ballot name; name parts stay null (never split heuristically here).
     };
 
     private MeasureRow ToMeasureRow(Election election, GuideRace race, string? county) => new()

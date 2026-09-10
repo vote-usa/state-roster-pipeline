@@ -40,7 +40,7 @@ public sealed class CollectorRunner
         if (!StateCatalog.IsImplemented(entry.Status))
             throw new RunSetupException(
                 $"State '{state}' ({entry.Name}) is in the catalog but not implemented yet. " +
-                $"Implemented: {string.Join(", ", catalog.ImplementedCodes.Order())}. See logs/adding-a-state.md.");
+                $"Implemented: {string.Join(", ", catalog.ImplementedCodes.Order())}.");
 
         var collectors = CollectorDiscovery.Discover();
         if (!collectors.TryGetValue(state, out var factory))
