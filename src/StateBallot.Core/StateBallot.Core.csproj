@@ -8,6 +8,12 @@
 
   <ItemGroup>
     <PackageReference Include="CsvHelper" Version="33.1.0" />
+    <PackageReference Include="JsonSchema.Net" Version="9.4.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Ship the output contract with the build so validation works outside the repo checkout. -->
+    <Content Include="..\..\schema\*.schema.json" Link="schema\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

@@ -1,0 +1,62 @@
+[
+  {
+    "state": "CA",
+    "election_date": "2026-11-03",
+    "measure_id": "Proposition 1",
+    "title": "Authorizes Bonds for Housing Affordability Programs. Legislative Statute.",
+    "summary": null,
+    "full_text_url": "https://voterguide.sos.ca.gov/propositions/1/index.htm",
+    "jurisdiction": "state",
+    "county": null,
+    "ocd_division_id": "ocd-division/country:us/state:ca",
+    "source_url": "https://www.sos.ca.gov/elections/ballot-measures/qualified-ballot-measures"
+  },
+  {
+    "state": "CA",
+    "election_date": "2026-11-03",
+    "measure_id": "Proposition 2",
+    "title": "Increases State’s Rainy Day Fund. Legislative Constitutional Amendment.",
+    "summary": null,
+    "full_text_url": "https://voterguide.sos.ca.gov/propositions/2/index.htm",
+    "jurisdiction": "state",
+    "county": null,
+    "ocd_division_id": "ocd-division/country:us/state:ca",
+    "source_url": "https://www.sos.ca.gov/elections/ballot-measures/qualified-ballot-measures"
+  },
+  {
+    "state": "CA",
+    "election_date": "2026-11-03",
+    "measure_id": "Proposition 3",
+    "title": "Provides Permanent Funding for Schools and Health Care by Extending Existing Tax on High Incomes. Initiative Constitutional Amendment.",
+    "summary": null,
+    "full_text_url": "https://voterguide.sos.ca.gov/propositions/3/index.htm",
+    "jurisdiction": "state",
+    "county": null,
+    "ocd_division_id": "ocd-division/country:us/state:ca",
+    "source_url": "https://www.sos.ca.gov/elections/ballot-measures/qualified-ballot-measures"
+  },
+  {
+    "state": "CA",
+    "election_date": "2026-11-03",
+    "measure_id": "Proposition 4",
+    "title": "Repeals Prohibition Against Public Funding of Election Campaigns. Legislative Statute.",
+    "summary": null,
+    "full_text_url": "https://voterguide.sos.ca.gov/propositions/4/index.htm",
+    "jurisdiction": "state",
+    "county": null,
+    "ocd_division_id": "ocd-division/country:us/state:ca",
+    "source_url": "https://www.sos.ca.gov/elections/ballot-measures/qualified-ballot-measures"
+  },
+  {
+    "state": "CA",
+    "election_date": "2026-11-03",
+    "measure_id": "Proposition 5",
+    "title": "Changes Recall Election Process for Statewide Officers. Legislative Constitutional Amendment.",
+    "summary": null,
+    "full_text_url": "https://voterguide.sos.ca.gov/propositions/5/index.htm",
+    "jurisdiction": "state",
+    "county": null,
+    "ocd_division_id": "ocd-division/country:us/state:ca",
+    "source_url": "https://www.sos.ca.gov/elections/ballot-measures/qualified-ballot-measures"
+  }
+]

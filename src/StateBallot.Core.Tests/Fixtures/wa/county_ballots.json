@@ -1,0 +1,83 @@
+[
+  {
+    "state": "WA",
+    "county": "Clallam",
+    "ocd_division_id": "ocd-division/country:us/state:wa/county:clallam",
+    "election_date": "2026-11-03",
+    "election_type": "General",
+    "candidates": [
+      {
+        "office": "Assessor",
+        "district": "County",
+        "ocd_division_id": "ocd-division/country:us/state:wa/county:clallam",
+        "candidate_name": "Antonio Price",
+        "party": null,
+        "source_office_id": "186544",
+        "source_office_type": "CTY",
+        "local_jurisdiction": "County"
+      },
+      {
+        "office": "Assessor",
+        "district": "County",
+        "ocd_division_id": "ocd-division/country:us/state:wa/county:clallam",
+        "candidate_name": "Lee Hancock",
+        "party": null,
+        "source_office_id": "186544",
+        "source_office_type": "CTY",
+        "local_jurisdiction": "County"
+      },
+      {
+        "office": "Auditor",
+        "district": "County",
+        "ocd_division_id": "ocd-division/country:us/state:wa/county:clallam",
+        "candidate_name": "Shoona Riggs",
+        "party": null,
+        "source_office_id": "186545",
+        "source_office_type": "CTY",
+        "local_jurisdiction": "County"
+      }
+    ],
+    "measures": [
+      {
+        "measure_id": "7289",
+        "title": "County - Proposed Amendment No. 1",
+        "summary": "Charter Amendment Requiring County Commissioner District Town Hall Meetings",
+        "jurisdiction": "Local",
+        "ocd_division_id": "ocd-division/country:us/state:wa/county:clallam"
+      },
+      {
+        "measure_id": "7290",
+        "title": "County - Proposed Amendment No. 2",
+        "summary": "Charter Amendment Establishing an Ethics Review Board",
+        "jurisdiction": "Local",
+        "ocd_division_id": "ocd-division/country:us/state:wa/county:clallam"
+      }
+    ],
+    "source_url": "https://voter.votewa.gov/elections/voterguide.ashx?e=899&la=en&c=05&p="
+  },
+  {
+    "state": "WA",
+    "county": "Jefferson",
+    "ocd_division_id": "ocd-division/country:us/state:wa/county:jefferson",
+    "election_date": "2026-11-03",
+    "election_type": "General",
+    "candidates": [],
+    "measures": [
+      {
+        "measure_id": "7292",
+        "title": "Fire Protection District No. 1 - Proposition 1",
+        "summary": "Property Tax Levy for Fire Protection and Emergency Medical Services",
+        "jurisdiction": "Local",
+        "ocd_division_id": "ocd-division/country:us/state:wa/county:jefferson"
+      },
+      {
+        "measure_id": "7296",
+        "title": "Quillayute Valley School District 402 - Proposition 1",
+        "summary": "Bonds to Rebuild Forks Middle School",
+        "jurisdiction": "Local",
+        "ocd_division_id": "ocd-division/country:us/state:wa/county:jefferson"
+      }
+    ],
+    "source_url": "https://voter.votewa.gov/elections/voterguide.ashx?e=899&la=en&c=16&p="
+  }
+]

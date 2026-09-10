@@ -1,4 +1,5 @@
 using StateBallot.Core;
+using StateBallot.Core.Publishing;
 using StateBallot.States.Ca;
 using StateBallot.States.Tx;
 using StateBallot.States.Wa;
@@ -24,6 +25,7 @@ public static class Runner
         string? outRoot = null;
         var dryRun = false;
         string? wayback = null;
+        string? validatePath = null;
 
         for (var i = 0; i < args.Length; i++)
         {
@@ -50,6 +52,9 @@ public static class Runner
                 case "--wayback" when i + 1 < args.Length:
                     wayback = args[++i];
                     break;
+                case "--validate" when i + 1 < args.Length:
+                    validatePath = args[++i];
+                    break;
                 case "--help" or "-h":
                     Console.WriteLine($"""
                         StateBallot.Cli - state ballot roster collector
@@ -63,6 +68,8 @@ public static class Runner
                           --dry-run            Fetch sources and report counts without writing files
                           --wayback <ts>       Replay sources via web.archive.org at this timestamp
                                                (yyyyMMdd or yyyyMMddHHmmss; nearest capture is served)
+                          --validate <path>    Validate roster JSON (a file or a directory, recursive) against
+                                               schema/*.schema.json and exit 1 on errors (used by data-repo CI)
 
                         Snapshot publishes use --input-root pointing at this repo's data/ and
                         --output-root pointing at a checkout of vote-usa/state-roster-data.
@@ -73,6 +80,9 @@ public static class Runner
                     return 2;
             }
         }
+
+        if (validatePath is not null)
+            return Validate(validatePath);
 
         var pipelineDataRoot = inputRootArg ?? outRoot ?? FindDataRoot();
         var outputRoot = outputRootArg
@@ -148,6 +158,51 @@ public static class Runner
         Console.WriteLine($"\nOutputs written to {Path.GetFullPath(stateOutputDir)}");
         Console.WriteLine($"Sources written to {Path.GetFullPath(DataPaths.SourcesPath(inputDataRoot, state))}");
         return 0;
+    }
+
+    private static int Validate(string path)
+    {
+        SchemaValidator validator;
+        try
+        {
+            validator = new SchemaValidator();
+        }
+        catch (InvalidOperationException ex)
+        {
+            Console.Error.WriteLine(ex.Message);
+            return 2;
+        }
+
+        IReadOnlyList<SchemaError> errors;
+        int fileCount;
+        if (Directory.Exists(path))
+        {
+            fileCount = Directory.EnumerateFiles(path, "*.json", SearchOption.AllDirectories).Count(validator.HasSchemaFor);
+            errors = validator.ValidateDirectory(path);
+        }
+        else if (File.Exists(path))
+        {
+            if (!validator.HasSchemaFor(path))
+            {
+                Console.Error.WriteLine($"No schema for {Path.GetFileName(path)}. Known: {string.Join(", ", validator.KnownFileNames.Order())}.");
+                return 2;
+            }
+            fileCount = 1;
+            errors = validator.ValidateFile(path);
+        }
+        else
+        {
+            Console.Error.WriteLine($"Not found: {path}");
+            return 2;
+        }
+
+        Console.WriteLine($"Schemas: {validator.SchemaDir}");
+        foreach (var e in errors)
+            Console.Error.WriteLine(e);
+        Console.WriteLine(errors.Count == 0
+            ? $"OK: {fileCount} file(s) valid."
+            : $"FAILED: {errors.Count} error(s) across {fileCount} file(s).");
+        return errors.Count == 0 ? 0 : 1;
     }
 
     private static string ImplementedStates() =>

@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vote-usa.org/schema/roster/common.schema.json",
+  "title": "Shared definitions for state-roster-pipeline output files",
+  "$defs": {
+    "state": { "type": "string", "pattern": "^[A-Z]{2}$", "description": "Two-letter USPS state code." },
+    "date": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$", "description": "yyyy-MM-dd." },
+    "nullableDate": { "anyOf": [ { "$ref": "#/$defs/date" }, { "type": "null" } ] },
+    "electionType": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Election type. Preferred vocabulary: Primary, General, Special, Special Primary, Special General, Other. Normalized to that vocabulary by the collectors (see output-schema.md); raw source values are recorded in run.json."
+    },
+    "ocdDivisionId": {
+      "type": "string",
+      "pattern": "^ocd-division/country:us(/[a-z_]+:[a-z0-9_.~-]+)*$",
+      "description": "Open Civic Data division identifier."
+    },
+    "nullableOcdDivisionId": { "anyOf": [ { "$ref": "#/$defs/ocdDivisionId" }, { "type": "null" } ] },
+    "nonEmptyString": { "type": "string", "minLength": 1 },
+    "nullableString": { "type": [ "string", "null" ] },
+    "nullableBoolean": { "type": [ "boolean", "null" ] },
+    "url": { "type": "string", "description": "Source URL. Empty when the source is an API without a page URL." },
+    "countyFips": { "type": [ "string", "null" ], "pattern": "^\\d{5}$" }
+  }
+}

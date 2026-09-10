@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vote-usa.org/schema/roster/county_directory.schema.json",
+  "title": "county_directory.json",
+  "description": "County elections offices for a state.",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [ "state", "county_name", "county_fips", "ocd_division_id", "elections_office_url", "address", "phone" ],
+    "properties": {
+      "state": { "$ref": "common.schema.json#/$defs/state" },
+      "county_name": { "$ref": "common.schema.json#/$defs/nonEmptyString" },
+      "county_fips": { "$ref": "common.schema.json#/$defs/countyFips" },
+      "ocd_division_id": { "$ref": "common.schema.json#/$defs/nullableOcdDivisionId" },
+      "elections_office_url": { "$ref": "common.schema.json#/$defs/nullableString" },
+      "address": { "$ref": "common.schema.json#/$defs/nullableString" },
+      "phone": { "$ref": "common.schema.json#/$defs/nullableString" }
+    }
+  }
+}

@@ -1,0 +1,62 @@
+[
+  {
+    "state": "WA",
+    "election_date": null,
+    "measure_id": "IL26-001",
+    "title": "Initiative No. IL26-001",
+    "summary": "Ballot title letter: https://www.sos.wa.gov/sites/default/files/2026-03/INITIATIVE IL26-001 ballottitleletter.pdf",
+    "full_text_url": "https://www.sos.wa.gov/sites/default/files/2026-03/INITIATIVE IL26-001 fulltext.pdf",
+    "jurisdiction": "state",
+    "county": null,
+    "ocd_division_id": "ocd-division/country:us/state:wa",
+    "source_url": "https://www.sos.wa.gov/so/node/12667"
+  },
+  {
+    "state": "WA",
+    "election_date": null,
+    "measure_id": "IL26-638",
+    "title": "Initiative No. IL26-638",
+    "summary": "Ballot title letter: https://www.sos.wa.gov/sites/default/files/2026-03/INITIATIVE IL26-638 ballottitleletter.pdf",
+    "full_text_url": "https://www.sos.wa.gov/sites/default/files/2026-03/INITIATIVE IL26-638 fulltext.pdf",
+    "jurisdiction": "state",
+    "county": null,
+    "ocd_division_id": "ocd-division/country:us/state:wa",
+    "source_url": "https://www.sos.wa.gov/so/node/12667"
+  },
+  {
+    "state": "WA",
+    "election_date": null,
+    "measure_id": "IP26-645",
+    "title": "Initiative No. IP26-645",
+    "summary": "Ballot title letter: https://www.sos.wa.gov/sites/default/files/2026-07/IP26-645 Ballot title %26 Summary.pdf",
+    "full_text_url": "https://www.sos.wa.gov/sites/default/files/2026-07/Finaltext_IP26-645_fulltext.pdf",
+    "jurisdiction": "state",
+    "county": null,
+    "ocd_division_id": "ocd-division/country:us/state:wa",
+    "source_url": "https://www.sos.wa.gov/so/node/12667"
+  },
+  {
+    "state": "WA",
+    "election_date": "2026-11-03",
+    "measure_id": "7289",
+    "title": "County - Proposed Amendment No. 1",
+    "summary": "Charter Amendment Requiring County Commissioner District Town Hall Meetings",
+    "full_text_url": null,
+    "jurisdiction": "Local",
+    "county": "Clallam",
+    "ocd_division_id": "ocd-division/country:us/state:wa/county:clallam",
+    "source_url": "https://voter.votewa.gov/elections/voterguide.ashx?e=899&la=en&c=&p="
+  },
+  {
+    "state": "WA",
+    "election_date": "2026-11-03",
+    "measure_id": "7290",
+    "title": "County - Proposed Amendment No. 2",
+    "summary": "Charter Amendment Establishing an Ethics Review Board",
+    "full_text_url": null,
+    "jurisdiction": "Local",
+    "county": "Clallam",
+    "ocd_division_id": "ocd-division/country:us/state:wa/county:clallam",
+    "source_url": "https://voter.votewa.gov/elections/voterguide.ashx?e=899&la=en&c=&p="
+  }
+]

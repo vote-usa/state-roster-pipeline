@@ -1,5 +1,6 @@
 using System.Globalization;
 using StateBallot.Core.Output;
+using StateBallot.Core.Publishing;
 
 namespace StateBallot.Core;
 
@@ -59,6 +60,12 @@ public sealed class ResultWriter
         OutputWriter.WriteCsv(Path.Combine(_outDir, "county_ballots.csv"), flatBallotRows);
 
         OutputWriter.WriteJson(_sourcesPath, result.Sources.ToJsonObject(result.Gaps));
+
+        // The files are the contract. A collector that emits something outside the
+        // schema is a bug, so fail loudly rather than publish it.
+        var errors = new SchemaValidator().ValidateDirectory(_outDir);
+        if (errors.Count > 0)
+            throw new SchemaValidationException(errors);
     }
 
     public static ElectionOut ToElectionOut(Election e) => new()
