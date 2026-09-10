@@ -17,6 +17,7 @@ Currently implemented:
 1. Colorado (CO)
 1. Vermont (VT)
 1. Virginia (VA)
+1. New Mexico (NM)
 
 The structure is designed so additional states plug in without touching the shared code.
 For the full architecture (config-driven surfaces, shared parsing/fetch primitives, the
@@ -43,7 +44,8 @@ state-roster-pipeline/
       state_catalog.json     # all 50 states + DC (implemented | unimplemented)
       ca/ wa/ …               # county_fips.json, sources.json (tracked), plus
                               # per-state date_formats.json / selectors.json /
-                              # election_type_names.json where that state uses them
+                              # election_type_names.json / election_ids.json
+                              # where that state uses them
     output/
       ca/ wa/ …               # generated roster outputs (gitignored)
 ```
@@ -61,8 +63,9 @@ dotnet run --project StateBallot.Cli -- --out /tmp/ballots # alternate output ro
 Requires .NET 8 SDK. Roster outputs under `data/output/<xx>/` are gitignored —
 re-run the collector to refresh them. Tracked inputs live under `data/input/`
 (`state_catalog.json`, and per-state `county_fips.json`, `sources.json`, and
-whichever of `date_formats.json` / `selectors.json` / `election_type_names.json`
-that state's collector loads - see `configDrivenPipelineInfo.md` for which).
+whichever of `date_formats.json` / `selectors.json` / `election_type_names.json` /
+`election_ids.json` that state's collector loads - see
+`configDrivenPipelineInfo.md` for which).
 
 ## Adding a state
 
@@ -132,6 +135,8 @@ Quick reference:
 | VT | Election dates | `sos.vermont.gov/elections/election-info-resources/candidates` page text | HTML |
 | VA | Candidates (general only) | `elections.virginia.gov/casting-a-ballot/candidate-list/` → linked `.xlsx` | HTML → XLSX |
 | VA | Election dates | Candidate list page's own `<title>` | HTML |
+| NM | Candidates + judicial retention (general only) | `candidateportal.servis.sos.state.nm.us/CandidateList.aspx?eid=…` "Excel (xls)" export button | HTML table (mislabeled `.xls`) |
+| NM | Election dates | `sos.nm.gov/voting-and-elections/view-all-elections/` page text | HTML |
 
 Notable per-state quirks (see `configDrivenPipelineInfo.md` for the rest):
 
@@ -185,6 +190,19 @@ Notable per-state quirks (see `configDrivenPipelineInfo.md` for the rest):
   qualifier at all, so an earlier CO-motivated loosening of the state-house
   matcher was wrongly claiming it - `IsUsHouse`/`IsStateHouse` now key off an
   explicit `"state house of representatives"` qualifier instead.
+- **NM**'s ASP.NET candidate portal exposes no discoverable index of its own
+  election ids (no dropdown, no sibling links) and no live source for a
+  *past* election's date once it's passed (the SOS site removes per-election
+  date/results pages once they're no longer current) - so v1 scope is the
+  general election only, with its id hand-maintained in
+  `data/input/nm/election_ids.json` rather than derived from the year. The
+  export's own CSV option has a real data-quality bug (unescaped commas in
+  some fields shift every later column on that row, ~13% of rows) fixed by
+  exporting "Excel (xls)" instead - actually a plain HTML `<table>` wearing a
+  misleading extension (a common Telerik RadGrid trick), read via a new
+  `HtmlTableParser` (Core) rather than a real spreadsheet library. Judicial
+  retention rows map to `StatewideProposedMeasures` like NE's, not
+  `CandidateRow` (no opponent, no party).
 
 ## Outputs (`data/output/<state>/`) and inputs (`data/input/`)
 
@@ -194,8 +212,9 @@ Roster outputs (gitignored): `elections.json|csv`, `candidates.json|csv`,
 Tracked inputs: `data/input/state_catalog.json`, `data/input/<state>/county_fips.json`,
 and `data/input/<state>/sources.json` (provenance with URL + format per data group,
 known gaps, and a machine-readable `next_run` recommendation) - plus, for states that
-use them, `date_formats.json`, `selectors.json`, and `election_type_names.json` (see
-`configDrivenPipelineInfo.md` for what each does and its fail-loud/permissive policy).
+use them, `date_formats.json`, `selectors.json`, `election_type_names.json`, and
+`election_ids.json` (see `configDrivenPipelineInfo.md` for what each does and its
+fail-loud/permissive policy).
 
 `candidates.*` carries a canonical set of fields across every state (see
 `StateBallot.Core/Models.cs`'s `CandidateRow`): `source_candidate_id`, `filing_date`,

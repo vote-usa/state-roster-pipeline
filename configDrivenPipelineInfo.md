@@ -53,7 +53,7 @@ too much per state to normalize without losing information.
 
 ### Config-driven per-state surfaces
 
-Five kinds of per-state values live in tracked JSON under `data/input/<xx>/`
+Six kinds of per-state values live in tracked JSON under `data/input/<xx>/`
 rather than in C# — each with its own fail-loud-or-permissive loading policy,
 chosen deliberately per what a wrong value would do downstream:
 
@@ -64,10 +64,12 @@ chosen deliberately per what a wrong value would do downstream:
 | `candidate_field_map.json` (canonical `CandidateRow` field name → that state's own column name, e.g. `{"Party": "Party Affiliation", ...}`) | `LookupTableLoader.Load` (same loader, same permissive-empty semantics — it's the identical flat-string-map shape) | Missing file throws; a field simply absent from the map means "not published/needs a transform," not an error | See `CandidateFieldMapper` below — the Tier 2 config-table extraction from the collector-abstraction analysis. |
 | `selectors.json` (named CSS-selector/regex strings, CA and WA today) | Each state's own `Selectors.Load(path)` | Missing file or missing key throws | Selectors are load-bearing for every scrape; a missing pattern should fail at the exact call site that needed it. |
 | `county_fips.json` (county name → FIPS code) | `CountyFipsLoader.LoadRequired` / `.LoadOrEmpty` | State's choice — CA/WA differ (WA treats a missing FIPS as an acceptable null enrichment field; CA treats the file as authoritative for the expected county set) | Two real states, two real different semantics — modeled as two explicit methods, not a boolean flag. |
+| `election_ids.json` (canonical election type name → that source's own opaque id, e.g. NM's `{"General": "2917"}`) | `LookupTableLoader.Load` (same loader/shape as the field map above) | Missing file throws; missing entry for the requested type throws with a message pointing at how to re-derive it | For a source with no discoverable index of its own current elections at all (no dropdown, no sibling links) — the id has to be found by a human once per cycle; see NmSourceConfig. |
 
 `DataPaths` (Core) centralizes every one of these paths so no state hand-builds
 `Path.Combine` logic itself: `DateFormatsPath`, `ElectionTypeNamesPath`,
-`CandidateFieldMapPath`, `SelectorsPath`, `CountyFipsPath`, `SourcesPath`.
+`CandidateFieldMapPath`, `SelectorsPath`, `CountyFipsPath`, `SourcesPath`,
+`ElectionIdsPath`.
 
 ### `CandidateFieldMapper` (Core) — the config-table field mapping
 
@@ -142,10 +144,24 @@ exception) on empty/header-only input** — an empty source is a
   from the same workbook (its judicial-retention questions live on sheet 1
   alongside sheet 0's candidates) — every prior/default call site is
   unaffected.
+- `HtmlTableParser.Parse(html, tableIndex = 0)` — AngleSharp-backed (added to
+  Core's own dependencies for this, following the same one-library-per-parser
+  pattern as the two above); reads a `<table>`'s rows into the same shape.
+  Added for New Mexico's candidate export, which is nominally "Excel (xls)"
+  but is actually a plain HTML table wearing a misleading extension/
+  content-type (a common Telerik RadGrid trick) — reading it as HTML rather
+  than trusting the *real* CSV export the same page offers sidesteps a
+  genuine data-quality bug in that CSV (unescaped commas in some fields shift
+  every later column on that row). A cell's text is read with each `<br>`
+  treated as a space rather than silently vanishing (plain `TextContent`
+  concatenates a multi-line cell's text nodes with no separator at all for a
+  `<br>`, since it carries no text of its own) — needed for NM's own
+  "Judicial Retention&lt;br /&gt;Judge of the Metropolitan Court DIVISION 2"
+  contest names.
 
 Deliberately **no `IFormatParser` interface or format-string-keyed registry** —
 every state dispatches directly to whichever library it needs
-(AngleSharp/System.Text.Json/PdfPig/these two), since no state has ever needed
+(System.Text.Json/PdfPig/these three), since no state has ever needed
 to pick a parser by a runtime `format` string. Revisit if that changes.
 
 ### Fetch primitives (`HttpFetcher`, Core)
@@ -168,12 +184,16 @@ transient errors:
 `WebFormsPostback` (Core) is the newest fetch primitive: `HiddenFields(html)`
 regex-extracts every hidden `<input>` name/value from raw HTML (deliberately
 no DOM-parser dependency), and `ClickButtonAsync(fetcher, url, html,
-buttonName)` replays those fields plus one button's name to simulate a form
-submit. Built for Hawaii's Telerik "Export to CSV" button — a genuine
-`<input type="submit">`, not a client-side-only `doPostBack` — so a plain
-replay returns the full export directly with no headless browser needed. This
-is the first concrete piece of what the plan calls "fetch-strategy tiering":
-generalizing beyond plain-GET and TX's header-spoofed GET.
+buttonName, extraFields = null)` replays those fields plus one button's name
+to simulate a form submit. Built for Hawaii's Telerik "Export to CSV" button —
+a genuine `<input type="submit">`, not a client-side-only `doPostBack` — so a
+plain replay returns the full export directly with no headless browser
+needed. The optional `extraFields` parameter was added for New Mexico, the
+first consumer that also needs a *visible* `<select>` set to a specific value
+(its export-format dropdown) before the button click is replayed — every
+prior call site (HI, MS) omits it and is unaffected. This is the first
+concrete piece of what the plan calls "fetch-strategy tiering": generalizing
+beyond plain-GET and TX's header-spoofed GET.
 
 ### Other shared utilities
 
@@ -205,11 +225,11 @@ Ballotpedia is never a data source — verification only.
 
 ## 2. Implemented states
 
-Thirteen states are implemented as of 2026-09-03: WA, CA, TX, WV (pre-dating
-this consolidation effort) and MD, NC, WY, HI, MS, NE, CO, VT, VA (added on
-the CSV/XLSX parser infrastructure, one per onboarding session). Each section
-below covers only what's *unique* to that state — shared behavior is in
-section 1.
+Fourteen states are implemented as of 2026-09-09: WA, CA, TX, WV (pre-dating
+this consolidation effort) and MD, NC, WY, HI, MS, NE, CO, VT, VA, NM (added
+on the CSV/XLSX parser infrastructure, one per onboarding session). Each
+section below covers only what's *unique* to that state — shared behavior is
+in section 1.
 
 ### Washington (`StateBallot.States.Wa`)
 
@@ -727,3 +747,105 @@ of those spanning more than one locality), zero duplicate (Office, District,
 Party, CandidateName) keys remaining after the merge pass. No county
 directory; no measures attempted (the same index lists a separate "Proposed
 Constitutional Amendments and Local Referendums" page, not attempted here).
+
+### New Mexico (`StateBallot.States.Nm`)
+
+| Data | Source | Format |
+| --- | --- | --- |
+| Candidates + judicial retention (general only) | `candidateportal.servis.sos.state.nm.us/CandidateList.aspx?eid=…`, "Excel (xls)" export button | HTML table wearing an `.xls` label |
+| Election dates | `sos.nm.gov/voting-and-elections/view-all-elections/` page's own plain text | HTML |
+
+Picked after independently curl-verifying it was a false positive in the
+original "flagged blocked" research (wide open, no UA needed at all -
+`configDrivenPipelinePlan.md` has the full triage). Onboarding surfaced two
+genuinely new problems no prior state had, both handled with new,
+reusable Core additions rather than one-off code:
+
+**No discoverable election-id index.** The candidate portal (a
+Telerik-grid-backed ASP.NET WebForms app, `?eid=NNNN` in every URL) has no
+election-selector dropdown, no link to any sibling election, nothing - each
+`eid` is a fully opaque integer good for exactly one election, and the one
+nominally-current link on `sos.nm.gov`'s own site turned out to be a dead
+link to a 2021 election (its real 2026 eids were only findable via a web
+search, which is not something a collector can depend on repeating). HI hit a
+milder version of this same problem and solved it by reading its *own* page's
+election dropdown; NM's page doesn't have one to read. So this is the first
+state whose election id is hand-maintained config instead of discovered at
+all: `data/input/nm/election_ids.json` (loaded via a new `DataPaths.
+ElectionIdsPath`, using the same generic `LookupTableLoader` the field-map
+config already uses) - a human re-derives the value once per cycle and the
+collector fails loudly, naming the file, if the entry it needs is missing.
+**v1 scope is the general election only** for a related but distinct reason:
+even though the *candidate* data for NM's primary is sitting at its own,
+still-fetchable `eid`, this pipeline could find no live source anywhere for
+the primary's *exact date* once the primary itself had passed - the
+`view-all-elections` page only ever states the next *upcoming* election, and
+several search-indexed NM SOS pages that did once state the primary's date
+(`/2026-primary-election-day/`, `/2026-primary-election-results/`) now 404.
+Rather than hardcode a well-known public date against this project's
+otherwise-universal "never hardcode, always scrape" rule, the primary was
+left out instead - the same trade-off VA made for its own primary, for a
+different underlying reason.
+
+**The CSV export corrupts itself; the "Excel" export doesn't (because it
+isn't one).** The same page offers "Text File (csv)" and "Excel (xls)"
+exports side by side. The CSV is genuinely broken for real data: some fields
+(a name suffix like `", SR"`, a street address like `"2003 Southern Blvd.
+SE, Box 102-59"`) contain a literal, unescaped comma the exporter never
+quotes, silently shifting every column after it on that row - confirmed live,
+69 of 524 rows (~13%) corrupted this way, `Party` cells ending up holding
+fragments like `"SR"` or `"CHAVEZ"`. The "Excel (xls)" option turned out to
+be a plain HTML `<table>` served with an `.xls` filename and
+`content-type: application/vnd.ms-excel` - a well-known Telerik RadGrid trick
+that most spreadsheet software still opens correctly, but is not a real
+binary or OOXML spreadsheet at all (ClosedXML, Core's only spreadsheet
+reader, would reject it outright). Reading it as what it actually is - HTML -
+sidesteps the comma problem entirely (a `<td>` has no delimiter to escape).
+This is the first state to need an HTML-table reader as a *generic* format
+rather than page-specific scraping, so it became a new sibling to
+`DelimitedTableParser`/`XlsxTableParser`: `HtmlTableParser` (Core, new
+AngleSharp dependency there). Its own wrinkle: some of NM's own contest names
+embed a real `<br />` inside one cell (`"Judicial Retention<br />Judge of
+the Metropolitan Court DIVISION 2"`, distinguishing multiple simultaneous
+retention votes) - plain `TextContent` would concatenate the two halves with
+no separator at all (a `<br>` carries no text of its own), so the parser
+reads each `<br>` as a space explicitly.
+
+The export is also the first WebForms consumer needing more than a bare
+button click: the target format is itself a `<select>` the page must be told
+to change before the export button is "clicked", so `WebFormsPostback.
+ClickButtonAsync` gained an optional `extraFields` parameter (every existing
+HI/MS call site omits it, unaffected).
+
+Field/district design, all live-verified against the real 524-row export:
+`Filing County` is the office's true jurisdiction only for a fixed set of
+whole-or-sub-divided-county offices (`NmSelectors.CountyScopedOffices`:
+County Assessor/Clerk/Commissioner/Sheriff/Treasurer, Probate Judge,
+Magistrate Judge, Judge of the Metropolitan Court) - for everything else
+(State Senator/Representative, US Representative, District Court Judge,
+Municipal Judge, Public Education Commissioner) it's merely where that
+particular candidate personally filed, not the race's real scope, so it's
+left null there even when populated (a District Court Judge's judicial
+district spans several counties; attributing it to just one would be a
+"never invented" violation, not a convenience). `District` cells shaped like
+"DISTRICT N" / "COUNTY COMMISSION DISTRICT N" normalize to a bare number
+(feeding `OcdDivisionId`'s `sldu`/`sldl`/`cd` mapping correctly, confirmed
+live); "DIVISION N", a named judicial district, or a municipal district are
+kept verbatim, since neither is a plain numbered legislative seat. Judicial
+retention rows (`Contest` starting with "Judicial Retention") map to
+`StatewideProposedMeasures` via a dedicated `NmRetentionMapper`, same
+modeling choice as NE's own retention sheet (a yes/no vote on one named
+incumbent, no party, no opponent) - the seat descriptor, when the contest
+names one, becomes both part of the constructed `Title` ("Shall {name} be
+retained in office as {seat}?") and `Jurisdiction`, since `MeasureRow` has no
+separate slot for it. NM is also the first state whose candidate export
+folds a two-person joint ticket (Governor and Lieutenant Governor, on a
+"Republican Party" ballot line) across First/Middle/Last Name in an unusual
+way (`"GREGGORY D HULL"` / `"AND"` / `"DAVID M GALLEGOS"`) - the ordinary
+name-join logic renders it correctly with no special-casing needed. Live-
+verified 2026-09-09: 481 candidates + 43 judicial retention questions from
+524 raw rows (zero dropped), correct `cd`/`sldu`/`sldl` OCD ids, correct
+county attribution across every office type tested, the exact
+comma-in-address case that broke the CSV export confirmed intact in the
+real output. No county directory; local/party-run elections (a separate
+`eid`, "2026 Local Election Contest/Candidate List") not attempted.

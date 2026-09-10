@@ -43,9 +43,20 @@ public static class WebFormsPostback
     /// empty-valued field added, simulating a click on the
     /// &lt;input type="submit" name="buttonName"&gt; button of that name.
     /// </summary>
-    public static async Task<string> ClickButtonAsync(HttpFetcher fetcher, string url, string html, string buttonName)
+    /// <param name="extraFields">
+    /// Additional field name/value pairs to submit alongside the page's own
+    /// hidden fields - e.g. a visible &lt;select&gt; the page needs set to a
+    /// particular value before the button click is replayed (NM's export-
+    /// format dropdown). Overrides a same-named hidden field, if any.
+    /// </param>
+    public static async Task<string> ClickButtonAsync(
+        HttpFetcher fetcher, string url, string html, string buttonName,
+        IReadOnlyDictionary<string, string>? extraFields = null)
     {
         var fields = HiddenFields(html);
+        if (extraFields is not null)
+            foreach (var (name, value) in extraFields)
+                fields[name] = value;
         fields[buttonName] = "";
         return await fetcher.PostFormAsync(url, fields);
     }

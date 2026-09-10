@@ -188,8 +188,8 @@
   "NM": {
     "name": "New Mexico",
     "fips": "35",
-    "status": "unimplemented",
-    "project": null
+    "status": "implemented",
+    "project": "StateBallot.States.Nm"
   },
   "NY": {
     "name": "New York",

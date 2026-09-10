@@ -37,6 +37,16 @@ public static class DataPaths
     public static string CandidateFieldMapPath(string dataRoot, string stateCode) =>
         Path.Combine(StateInputDir(dataRoot, stateCode), "candidate_field_map.json");
 
+    /// <summary>
+    /// For a state whose source exposes no way to discover its own current
+    /// election ids (no index page, no predictable URL template) - a
+    /// hand-maintained canonical type name (e.g. "General") -> the source's
+    /// own id, re-derived by a human each cycle. See NmSourceConfig for the
+    /// first consumer.
+    /// </summary>
+    public static string ElectionIdsPath(string dataRoot, string stateCode) =>
+        Path.Combine(StateInputDir(dataRoot, stateCode), "election_ids.json");
+
     public static string SelectorsPath(string dataRoot, string stateCode) =>
         Path.Combine(StateInputDir(dataRoot, stateCode), "selectors.json");
 
