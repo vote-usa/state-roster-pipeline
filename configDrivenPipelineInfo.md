@@ -64,7 +64,7 @@ chosen deliberately per what a wrong value would do downstream:
 | `candidate_field_map.json` (canonical `CandidateRow` field name → that state's own column name, e.g. `{"Party": "Party Affiliation", ...}`) | `LookupTableLoader.Load` (same loader, same permissive-empty semantics — it's the identical flat-string-map shape) | Missing file throws; a field simply absent from the map means "not published/needs a transform," not an error | See `CandidateFieldMapper` below — the Tier 2 config-table extraction from the collector-abstraction analysis. |
 | `selectors.json` (named CSS-selector/regex strings, CA and WA today) | Each state's own `Selectors.Load(path)` | Missing file or missing key throws | Selectors are load-bearing for every scrape; a missing pattern should fail at the exact call site that needed it. |
 | `county_fips.json` (county name → FIPS code) | `CountyFipsLoader.LoadRequired` / `.LoadOrEmpty` | State's choice — CA/WA differ (WA treats a missing FIPS as an acceptable null enrichment field; CA treats the file as authoritative for the expected county set) | Two real states, two real different semantics — modeled as two explicit methods, not a boolean flag. |
-| `election_ids.json` (canonical election type name → that source's own opaque id, e.g. NM's `{"General": "2917"}`) | `LookupTableLoader.Load` (same loader/shape as the field map above) | Missing file throws; missing entry for the requested type throws with a message pointing at how to re-derive it | For a source with no discoverable index of its own current elections at all (no dropdown, no sibling links) — the id has to be found by a human once per cycle; see NmSourceConfig. |
+| `election_ids.json` (canonical election type name → that source's own opaque id, e.g. NM's `{"General": "2917"}` or SD's `{"Primary": "773", "General": "774"}`) | `LookupTableLoader.Load` (same loader/shape as the field map above) | Missing file throws; missing entry for the requested type throws with a message pointing at how to re-derive it | For a source with no discoverable index of its own current elections at all (no dropdown, no sibling links) — the id has to be found by a human once per cycle; see NmSourceConfig/SdSourceConfig. |
 
 `DataPaths` (Core) centralizes every one of these paths so no state hand-builds
 `Path.Combine` logic itself: `DateFormatsPath`, `ElectionTypeNamesPath`,
@@ -191,9 +191,17 @@ plain replay returns the full export directly with no headless browser
 needed. The optional `extraFields` parameter was added for New Mexico, the
 first consumer that also needs a *visible* `<select>` set to a specific value
 (its export-format dropdown) before the button click is replayed — every
-prior call site (HI, MS) omits it and is unaffected. This is the first
-concrete piece of what the plan calls "fetch-strategy tiering": generalizing
-beyond plain-GET and TX's header-spoofed GET.
+prior call site (HI, MS) omits it and is unaffected.
+`TriggerPostbackAsync(fetcher, url, html, eventTarget, eventArgument = "")`
+is its sibling, added for South Dakota: its own Telerik "Export to CSV"
+button turned out to be `type="button"` with an inline
+`onclick="__doPostBack(...)"` handler rather than HI's simpler genuine
+`type="submit"`, so no literal `buttonName=value` field exists to add at
+all — this instead sets `__EVENTTARGET`/`__EVENTARGUMENT` directly, replaying
+exactly what that inline handler would have done immediately before calling
+`form.submit()`. This whole class of helper is the first concrete piece of
+what the plan calls "fetch-strategy tiering": generalizing beyond plain-GET
+and TX's header-spoofed GET.
 
 ### Other shared utilities
 
@@ -225,8 +233,8 @@ Ballotpedia is never a data source — verification only.
 
 ## 2. Implemented states
 
-Fifteen states are implemented as of 2026-09-10: WA, CA, TX, WV (pre-dating
-this consolidation effort) and MD, NC, WY, HI, MS, NE, CO, VT, VA, NM, SC
+Sixteen states are implemented as of 2026-09-10: WA, CA, TX, WV (pre-dating
+this consolidation effort) and MD, NC, WY, HI, MS, NE, CO, VT, VA, NM, SC, SD
 (added on the CSV/XLSX parser infrastructure, one per onboarding session).
 Each section below covers only what's *unique* to that state — shared
 behavior is in section 1.
@@ -937,3 +945,107 @@ legislative districts, correct multi-county joins including a legislative
 district that is itself multi-county. No county directory; local/off-cycle
 elections (SC's own separate "Local" election kind) and the parallel
 referendum search the same portal offers are not attempted.
+
+### South Dakota (`StateBallot.States.Sd`)
+
+| Data | Source | Format |
+| --- | --- | --- |
+| Candidates (primary + general) | `vip.sdsos.gov/candidatelist.aspx?eid=…`, "Export to CSV" RadGrid toolbar button | CSV |
+| Election dates | `sdsos.gov/.../general-information/default.aspx` → current `*-candidate-calendar.aspx` link's own plain text | HTML |
+
+Next in the user's own stated sequence (OR, SC, SD, MT) after SC. VIP (the
+SD SOS's "Voter Information Portal") shares NM's exact election-id problem -
+no dropdown, no sibling links, nothing discoverable at all, the id is
+opaque and has to be found by a human (confirmed live: `eid=773` is the 2026
+primary, `774` the general, found only via a web search, not any page on the
+site itself) - so `data/input/sd/election_ids.json` hand-maintains both,
+same mechanism NM's onboarding introduced. Where SD differs from NM in a way
+that actually matters: NM's SOS site removes a *past* election's date once
+it's over, which is why NM's v1 scope stops at the general; SD's own
+election-calendar page keeps *both* the primary's and the general's real
+date in plain text long after the primary has passed (confirmed live,
+2026-09-10, four months post-primary: `"June 2, 2026 Primary Election"` and
+`"November 3, 2026 General Election"` both still present, verbatim, on the
+same evergreen page), so SD's v1 scope covers both elections - the ids are
+the only hand-maintained piece here, not the dates. The calendar page's own
+URL is itself discovered fresh each run (a regex for `*-candidate-
+calendar.aspx` against the stable `general-information/default.aspx`
+page's current links) rather than templated by year, since its path embeds
+a year-named folder (`.../2026 Election Information/2026-candidate-
+calendar.aspx`) whose exact folder-naming convention across future cycles
+isn't something this onboarding pass could confirm. The date/label text
+itself sits in separate sibling `<li>` elements with real markup between
+them (`<li><strong>June 2, 2026</strong></li> ... <ul><li>Primary Election`)
+- unlike NE's plain-text page, a bare regex against the raw HTML can't
+bridge that gap, so this is the first plain-text date scrape to actually
+need AngleSharp's parsed `Body.TextContent` (already precedented for VA's
+`<title>` read, just applied here to a whole page) before the regex ever runs.
+
+**A second, different kind of WebForms button than HI's.** SD's own
+Telerik RadGrid "Export to CSV" toolbar button renders as
+`<input type="button" ... onclick="javascript:__doPostBack('ctl00$Main
+Content$grdCandidates$ctl00$ctl02$ctl00$ExportToCsvButton','')">` - not a
+genuine `<input type="submit">` the way HI's identically-labeled button
+happens to be, so `WebFormsPostback.ClickButtonAsync`'s "add one named
+field" replay doesn't apply (there is no `buttonName=value` field to add;
+ASP.NET dispatches a `__doPostBack`-triggered control by inspecting the
+already-present, normally-blank `__EVENTTARGET`/`__EVENTARGUMENT` hidden
+fields instead). Verified server-side before writing any C#, the same way
+NM's postback mechanism was: a bare `HttpFetcher.PostFormAsync` with
+`__EVENTTARGET` set to that control's full dotted name and the page's own
+other hidden fields carried through returns the identical CSV a real click
+would (296KB, 745 rows, confirmed byte-for-byte against a live-session
+capture) - no headless browser needed after all, just the right two fields.
+Generalized into a new Core sibling, `WebFormsPostback.TriggerPostbackAsync`,
+rather than special-cased in SD's own collector, since any other Telerik-
+grid state (there will likely be more) could hit the same button shape.
+
+**The CSV itself, unlike NM's, is genuinely well-formed** (RFC4180 quoting,
+including a doubled-quote-escaped nickname - `"Nicole ""Nikki"" Gronli"` -
+parsed correctly by the existing CsvHelper-backed `DelimitedTableParser`
+with no changes), so no `HtmlTableParser` detour was needed here despite
+both portals being the same underlying Telerik product. The one CSV
+housekeeping detail: the export carries a UTF-8 BOM that needs stripping
+before parsing (`DelimitedTableParser` doesn't do this itself, so
+`SdCollector` does after fetching).
+
+Field design needed real live verification, not just a first look: the
+export's single "District/County" column is genuinely overloaded and
+*inconsistently formatted even within one office*. County Commissioner's own
+sub-district shows up as `"Aurora-1"` in most counties, `"Deuel - District
+1"` in a few (a spelled-out label word most counties omit), and `"Lyman -
+District 3-4-5"` in one (a *compound* multi-sub-district seat with no single
+bare number to extract at all). `SdCandidateMapper` first tried a narrow
+`"{county}-{n}"` pattern; a first live write caught two real gaps output
+inspection surfaced, not the initial design: `"Deuel - District 1"` fell
+through un-split into a garbled `County` value, and two more real offices -
+`"County Finance Officer"` and the party-organizational `"Delegates to
+State Convention"`/`"Precinct Committeeman"`/`"Precinct Committeewoman"` (the
+latter two sub-divided further still, by *precinct* rather than district,
+with their own third separator variant, `"Aurora - Precinct-2"`) - were
+missing from the county-office allowlist entirely, confirmed by
+cross-checking every office's values against the real 66-county set derived
+from `Sheriff`'s own (always-bare-county) column. Both fixed: the regex
+generalized to `^(?<county>[^-]+?)\s*-\s*(?:\w+[\s-]*)?0*(?<n>\d+)$` (a
+generic optional label word, not hardcoded to "District"), which correctly
+splits all three real separator shapes while still *failing to match* -
+deliberately - the one compound case (`"1-2"`/`"3-4-5"` isn't purely
+numeric, so `"Lyman - District 3-4-5"` stays whole in `County` rather than
+guessing at a wrong single sub-district); the allowlist grew to include the
+two missed offices. `Mailing Address` is one undelimited blob (`"2604 S
+Kierra Ct Sioux Falls SD 57106-5008"` - no comma anywhere between street and
+city) - only the trailing `state`/`zip` are reliably separable off the end
+(743 of 745 general-election rows matched cleanly; the 2 that didn't are
+genuine source typos - a `"572.34"` zip, a bare trailing `"-"` - left whole
+with a null state/zip rather than guessed at); street and city stay merged
+in `MailingAddressLine` since there's no delimiter or lookup table to split
+them further. No phone/email/website/status columns exist in this export at
+all - sparser even than SC's. Live-verified 2026-09-10 (after the fixes):
+2,977 candidates across the two 2026 elections (2,232 primary - SD's own
+June primary date is also when most nonpartisan local/municipal races and
+party-organizational precinct positions are decided, which is why the
+primary substantially outnumbers the general here, confirmed a real count
+matching the live source exactly, not a parsing artifact - 745 general),
+zero exact-duplicate rows, zero remaining county-attribution gaps after a
+second full cross-check against all 745+2232 raw rows, correct `sldu`/`sldl`
+OCD ids. No county directory; no measures attempted.

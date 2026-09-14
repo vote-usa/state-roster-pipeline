@@ -248,8 +248,8 @@
   "SD": {
     "name": "South Dakota",
     "fips": "46",
-    "status": "unimplemented",
-    "project": null
+    "status": "implemented",
+    "project": "StateBallot.States.Sd"
   },
   "TN": {
     "name": "Tennessee",

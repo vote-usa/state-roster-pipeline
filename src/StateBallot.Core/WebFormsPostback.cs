@@ -60,4 +60,26 @@ public static class WebFormsPostback
         fields[buttonName] = "";
         return await fetcher.PostFormAsync(url, fields);
     }
+
+    /// <summary>
+    /// Replays a client-side-only postback that <see cref="ClickButtonAsync"/>
+    /// can't trigger - a control wired to
+    /// <c>javascript:__doPostBack('target','argument')</c> rather than being a
+    /// genuine &lt;input type="submit"&gt; (confirmed for South Dakota's own
+    /// Telerik RadGrid "Export to CSV" toolbar button: `type="button"` with an
+    /// `onclick` handler, not `type="submit"` - HI's equivalent button happened
+    /// to be the simpler shape). Submits the page's own hidden fields (which
+    /// already include a blank `__EVENTTARGET`/`__EVENTARGUMENT` pair, since
+    /// every WebForms page renders them) with those two overridden to the
+    /// values that inline handler would have set immediately before calling
+    /// `form.submit()`.
+    /// </summary>
+    public static async Task<string> TriggerPostbackAsync(
+        HttpFetcher fetcher, string url, string html, string eventTarget, string eventArgument = "")
+    {
+        var fields = HiddenFields(html);
+        fields["__EVENTTARGET"] = eventTarget;
+        fields["__EVENTARGUMENT"] = eventArgument;
+        return await fetcher.PostFormAsync(url, fields);
+    }
 }

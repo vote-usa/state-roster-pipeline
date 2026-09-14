@@ -30,11 +30,11 @@ away at:
 | 0 — Core utility extraction + mapper convention | **Done** | Deduped whitespace/date/address/FIPS/empty-guard logic into Core; standardized the mapper-class seam across WA/CA/TX/WV; added test coverage where none existed (CA, WA). |
 | 1 — Config-driven value tables | **Done** | `date_formats.json` (all states) and `election_type_names.json` (TX) — externalized, fail-loud or permissive per the field's semantics. |
 | 2 — Selectors externalization | **Done** | CA and WA's CSS-selector/regex constants moved from compiled `static class` fields to `sealed class` instances loaded from `selectors.json`, with a `Default` compiled-in fallback for tests/seeding. |
-| 3 — 50-state reality check + new-state onboarding | **In progress** | Research across all 50 states' real formats/fetch-blocking; format-parser infra (CSV, XLSX, HTML table) built; 11 new states onboarded (MD, NC, WY, HI, MS, NE, CO, VT, VA, NM, SC); remaining 36 states' bot-blocking status independently verified 2026-09-08/09/10 (see below). |
+| 3 — 50-state reality check + new-state onboarding | **In progress** | Research across all 50 states' real formats/fetch-blocking; format-parser infra (CSV, XLSX, HTML table) built; 12 new states onboarded (MD, NC, WY, HI, MS, NE, CO, VT, VA, NM, SC, SD); remaining 35 states' bot-blocking status independently verified 2026-09-08/09/10 (see below). |
 
-15 states implemented total: WA, CA, TX, WV (pre-existing) + MD, NC, WY, HI,
-MS, NE, CO, VT, VA, NM, SC (added under Phase 3). Full technical detail on
-all 15 is in `configDrivenPipelineInfo.md`.
+16 states implemented total: WA, CA, TX, WV (pre-existing) + MD, NC, WY, HI,
+MS, NE, CO, VT, VA, NM, SC, SD (added under Phase 3). Full technical detail
+on all 16 is in `configDrivenPipelineInfo.md`.
 
 ## Phase 3 in detail
 
@@ -92,18 +92,18 @@ built — every state still dispatches to its own library directly, since no
 call site has ever needed to pick a parser by a runtime format string.
 Revisit if that stops being true.
 
-### New-state onboarding — 11 done
+### New-state onboarding — 12 done
 
-MD, NC, WY, HI, MS, NE, CO, VT, VA, NM, SC. Each was researched live (direct
+MD, NC, WY, HI, MS, NE, CO, VT, VA, NM, SC, SD. Each was researched live (direct
 `curl`/browser checks against the real government site), designed, built
 following the established file-per-concern convention (SourceConfig /
 Selectors / Mapper / Collector / PublishSchedule), wired into the
 catalog/CLI/solution, tested, and live-verified end-to-end before being
 called done. Full per-state writeups are in `configDrivenPipelineInfo.md`.
 
-### Remaining-state triage (36 states, verified 2026-09-08/09/10)
+### Remaining-state triage (35 states, verified 2026-09-08/09/10)
 
-Every one of the 36 not-yet-implemented states now has a live-verified
+Every one of the 35 not-yet-implemented states now has a live-verified
 bot-blocking status and a known format (from the CSV above, cross-checked
 against the live site). Grouped by what's actually blocking progress:
 
@@ -118,7 +118,7 @@ still eyeballed for real content (not just re-derived from this bug), but OR
 itself has been moved down to "Confirmed blocked" below - see its entry
 there for what was actually checked this time.
 
-**Ready to build — confirmed open, format known (21 states):**
+**Ready to build — confirmed open, format known (20 states):**
 
 | State | Format | Notes |
 | --- | --- | --- |
@@ -140,7 +140,6 @@ there for what was actually checked this time.
 | North Dakota | (unlisted in CSV; page loads live) | — |
 | New Jersey | pdf ×2 | An official PDF (name/party/address) and an unofficial one (name/party/email) — need both. |
 | Pennsylvania | html | — |
-| South Dakota | csv, xlsx, pdf | No email/phone published — address is the only contact field. |
 | Tennessee | xlsx, pdf | Separate file **per office type** — no single roster file. |
 | Utah | html or xlsx | Has both an HTML table and a direct Excel download — take the XLSX. |
 
@@ -228,11 +227,14 @@ begun yet:
    least four genuinely different election-discovery algorithms (HTML
    `<dt>/<dd>` scrape, JSON-LD tree walk, plain-text regex, two different
    "derive from the file itself" mechanisms) and two different row-attribution
-   rules exist across just these six — and CO/VT/VA/NM/SC (five more
+   rules exist across just these six — and CO/VT/VA/NM/SC/SD (six more
    discovery algorithms: page-heading-year-crosscheck, evergreen-page-plus-
    templated-XLSX, two-hop-index-then-page discovery, NM's own hand-
-   maintained-id-plus-separate-evergreen-date-page, and SC's single-JSON-call
-   election-list-with-dates-included) only reinforced that conclusion. A full
+   maintained-id-plus-separate-evergreen-date-page, SC's single-JSON-call
+   election-list-with-dates-included, and SD's hand-maintained-id-plus-
+   still-live-evergreen-date-page - a fourth distinct variant on "how much
+   of election discovery is actually derivable live" even within states
+   that otherwise look alike) only reinforced that conclusion. A full
    collector-level abstraction would either grow an
    escape-hatch interface with as many strategy slots as states (a config
    table in name only) or force real algorithmic differences to pretend to

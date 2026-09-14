@@ -19,6 +19,7 @@ Currently implemented:
 1. Virginia (VA)
 1. New Mexico (NM)
 1. South Carolina (SC)
+1. South Dakota (SD)
 
 The structure is designed so additional states plug in without touching the shared code.
 For the full architecture (config-driven surfaces, shared parsing/fetch primitives, the
@@ -140,6 +141,8 @@ Quick reference:
 | NM | Election dates | `sos.nm.gov/voting-and-elections/view-all-elections/` page text | HTML |
 | SC | Candidates (primary + general) | `vrems.scvotes.sc.gov/Candidate/CandidateSearch/` (POST `ElectionId`) | HTML table |
 | SC | Elections + dates | `vrems.scvotes.sc.gov/Candidate/GetElections?electionType=General&year=…` | JSON |
+| SD | Candidates (primary + general) | `vip.sdsos.gov/candidatelist.aspx?eid=…`, "Export to CSV" RadGrid button | CSV |
+| SD | Election dates | `sdsos.gov/.../*-candidate-calendar.aspx` page text | HTML |
 
 Notable per-state quirks (see `configDrivenPipelineInfo.md` for the rest):
 
@@ -220,8 +223,22 @@ Notable per-state quirks (see `configDrivenPipelineInfo.md` for the rest):
   endpoints return a real, well-defended block page disguised as a normal
   `200` - the earlier "OR is open" call (status + byte count only) was
   wrong; see `configDrivenPipelinePlan.md`'s "Confirmed blocked" table.
-
-## Outputs (`data/output/<state>/`) and inputs (`data/input/`)
+- **SD**'s "Export to CSV" button on its Telerik RadGrid is `type="button"`
+  wired to a client-side-only `__doPostBack(...)`, not a genuine
+  `type="submit"` the existing `WebFormsPostback.ClickButtonAsync` could
+  replay - `WebFormsPostback.TriggerPostbackAsync` (Core) was added for this,
+  setting `__EVENTTARGET`/`__EVENTARGUMENT` directly rather than a named
+  button field. Both election ids are hand-maintained
+  (`data/input/sd/election_ids.json`, same reason and mechanism as NM's) -
+  VIP has no discoverable index of its own elections either - but unlike NM,
+  both the primary's and general's real dates stay live and scrapable from
+  the election-calendar page even after the primary has passed, so v1 scope
+  covers both elections here, not just the general. The single "District/
+  County" column is heavily overloaded and inconsistently formatted even
+  within one office (`"Aurora-1"` vs `"Deuel - District 1"` vs `"Lyman -
+  District 3-4-5"`, all County Commissioner) - `SdCandidateMapper` splits
+  the two clean, single-number shapes and deliberately leaves the compound
+  multi-district case (`"3-4-5"`) unsplit rather than guessing.
 
 Roster outputs (gitignored): `elections.json|csv`, `candidates.json|csv`,
 `measures.json|csv`, `county_directory.json`, `county_ballots.json|csv`.
