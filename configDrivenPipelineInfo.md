@@ -233,11 +233,11 @@ Ballotpedia is never a data source — verification only.
 
 ## 2. Implemented states
 
-Sixteen states are implemented as of 2026-09-10: WA, CA, TX, WV (pre-dating
-this consolidation effort) and MD, NC, WY, HI, MS, NE, CO, VT, VA, NM, SC, SD
-(added on the CSV/XLSX parser infrastructure, one per onboarding session).
-Each section below covers only what's *unique* to that state — shared
-behavior is in section 1.
+Seventeen states are implemented as of 2026-09-13: WA, CA, TX, WV (pre-dating
+this consolidation effort) and MD, NC, WY, HI, MS, NE, CO, VT, VA, NM, SC,
+SD, MT (added on the CSV/XLSX parser infrastructure, one per onboarding
+session). Each section below covers only what's *unique* to that state —
+shared behavior is in section 1.
 
 ### Washington (`StateBallot.States.Wa`)
 
@@ -1049,3 +1049,78 @@ matching the live source exactly, not a parsing artifact - 745 general),
 zero exact-duplicate rows, zero remaining county-attribution gaps after a
 second full cross-check against all 745+2232 raw rows, correct `sldu`/`sldl`
 OCD ids. No county directory; no measures attempted.
+
+### Montana (`StateBallot.States.Mt`)
+
+| Data | Source | Format |
+| --- | --- | --- |
+| Candidates + elections + dates (primary + general) | `candidatefiling.mt.gov/candidatefiling/CandidateList.aspx?e=…`, "Export to CSV" RadGrid toolbar button | CSV |
+
+Last in the user's own stated sequence (OR, SC, SD, MT). MT is the third
+state onboarded on the same underlying Telerik RadGrid election-management
+platform (after NM and SD), and by far the smoothest of the three to
+discover: the bare `CandidateList.aspx` URL (no election id at all) `302`s
+to whatever election is presently current, and *that* redirected page's own
+`ddlElection` dropdown lists **every** election - both the primary and the
+general, each with its own id, name, *and* real date all embedded directly
+in one option's text (confirmed live: `"FEDERAL PRIMARY 2026 (06/02/2026)
+(Primary)"`) - so a single fetch (the redirect followed transparently by
+`HttpFetcher`'s default `HttpClient` behavior) discovers everything this
+collector needs. No hand-maintained `election_ids.json` at all, unlike NM
+and SD - the one thing distinguishing this portal from those two isn't the
+underlying software (identical Telerik grid, identical `type="button"` +
+`__doPostBack` export toolbar button, so `WebFormsPostback.
+TriggerPostbackAsync` - built for SD - applied here completely unchanged),
+it's that MT's own page happens to expose a real election-selector
+dropdown where NM's and SD's don't.
+
+**No county-level offices exist in this export at all** - confirmed by
+checking every one of the "District Type" column's values (`Statewide`,
+`Congressional`, `House`, `Senate`, `Judicial`, `Public Service Commission`,
+`Supreme Court Justice`) across both the 2026 primary and general exports;
+Montana's county races are filed with county clerks separately, not with
+the Secretary of State, matching the original research notes' own caveat
+("comprehensive county-level candidate data is not standardized statewide").
+`CandidateRow.County` stays null throughout - simplest scope of any
+XLSX/CSV-backed state onboarded so far in that one respect.
+
+**Office/district splitting needed a per-`District Type` dispatch, not one
+regex** - confirmed live that the actual district number lives in a
+different place depending on race type, in a way no single pattern against
+the `Race` column could cover on its own: `Race` is the bare `"UNITED STATES
+REPRESENTATIVE"` for *both* Montana congressional districts (the number
+lives only in the separate `District` column, `"1ST CONGRESSIONAL"`/`"2ND
+CONGRESSIONAL"`) - the opposite problem VA's own US House rows had, where
+`Race` was the one column that *did* carry it; a `"#N"` seat suffix for
+Supreme Court Justice (a numbered seat, not a geographic district -
+`"SUPREME COURT JUSTICE #4"`); a `"DISTRICT N, DEPT M[ UNEXPIRED]"` suffix
+worth keeping whole for District Court Judge, since more than one judge can
+share the same numbered judicial district and dropping the department (or
+an unexpired-term flag) would silently conflate two different seats; and a
+plain trailing `"[,] DISTRICT N"` for House/Senate/Public Service
+Commission (the comma being present only for the latter -
+`"PUBLIC SERVICE COMMISSIONER, DISTRICT 1"` vs `"STATE SENATOR DISTRICT
+1"`). `MtCandidateMapper.SplitOfficeDistrict` switches on `District Type`
+rather than trying to unify these into one pattern.
+
+Richest contact-field export of any Telerik-platform state so far:
+`Email/Web Address` is one cell with an embedded `"<br />"` separator
+(confirmed live, exactly one literal variant across every row checked) -
+email always first, a website second when present, told apart from that
+column's own placeholder values (`"Not Provided"`, `"WRITE-IN"`) by whether
+the second part contains a literal `.` at all rather than hardcoding those
+specific sentinel strings. `Mailing Address` is a comma-joined
+`"street[, city][, state][, zip]"` cell parsed right-to-left, since city
+and/or state are each sometimes dropped entirely by the source (confirmed
+live: `"3405 NORTH AVE W, MISSOULA, 59804"` has no state;
+`"31 WAVING GRASS WAY, MT, 59912"` has no city) - a city is only ever
+extracted when a part is actually left over after zip and state are both
+accounted for, so the ambiguous one-part-remaining case (street with the
+city dropped) doesn't get misread as a city with the street dropped; a
+"never invented" call that has no way to be verified further from the
+export alone. Live-verified 2026-09-13: 652 candidates across the two 2026
+elections (380 primary, 272 general - both matching the raw CSV row counts
+exactly), zero duplicate rows, correct `cd`/`sldu`/`sldl` OCD ids including
+the Congressional-column-derived one, the no-city mailing-address edge case
+confirmed handled correctly in real output rather than just in a unit test.
+No county directory; no measures attempted.

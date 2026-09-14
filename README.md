@@ -5,21 +5,22 @@ ballot measures, county elections office directory, and per-county ballots.
 
 Currently implemented:
 1. Washington (WA)
-1. California (CA)
-1. Texas (TX)
-1. West Virginia (WV)
-1. Maryland (MD)
-1. North Carolina (NC)
-1. Wyoming (WY)
-1. Hawaii (HI)
-1. Mississippi (MS)
-1. Nebraska (NE)
-1. Colorado (CO)
-1. Vermont (VT)
-1. Virginia (VA)
-1. New Mexico (NM)
-1. South Carolina (SC)
-1. South Dakota (SD)
+2. California (CA)
+3. Texas (TX)
+4. West Virginia (WV)
+5. Maryland (MD)
+6. North Carolina (NC)
+7. Wyoming (WY)
+8. Hawaii (HI)
+9. Mississippi (MS)
+10. Nebraska (NE)
+11. Colorado (CO)
+12. Vermont (VT)
+13. Virginia (VA)
+14. New Mexico (NM)
+15. South Carolina (SC)
+16. South Dakota (SD)
+17. Montana (MT)
 
 The structure is designed so additional states plug in without touching the shared code.
 For the full architecture (config-driven surfaces, shared parsing/fetch primitives, the
@@ -143,6 +144,7 @@ Quick reference:
 | SC | Elections + dates | `vrems.scvotes.sc.gov/Candidate/GetElections?electionType=General&year=…` | JSON |
 | SD | Candidates (primary + general) | `vip.sdsos.gov/candidatelist.aspx?eid=…`, "Export to CSV" RadGrid button | CSV |
 | SD | Election dates | `sdsos.gov/.../*-candidate-calendar.aspx` page text | HTML |
+| MT | Candidates + elections + dates (primary + general) | `candidatefiling.mt.gov/candidatefiling/CandidateList.aspx?e=…`, "Export to CSV" RadGrid button | CSV |
 
 Notable per-state quirks (see `configDrivenPipelineInfo.md` for the rest):
 
@@ -239,6 +241,22 @@ Notable per-state quirks (see `configDrivenPipelineInfo.md` for the rest):
   District 3-4-5"`, all County Commissioner) - `SdCandidateMapper` splits
   the two clean, single-number shapes and deliberately leaves the compound
   multi-district case (`"3-4-5"`) unsplit rather than guessing.
+- **MT** is the third state (after NM, SD) on the same underlying Telerik
+  RadGrid platform, but the first needing no hand-maintained election id at
+  all: the bare candidate-list URL redirects to whatever's current, and
+  *that* page's own election dropdown lists every election - id, name, and
+  real date all in one option's text - so a single fetch discovers
+  everything. No county-level offices exist in this export at all (filed
+  with county clerks, not the SOS). Office/district splitting needed a
+  per-`District Type` dispatch rather than one regex: the district number
+  lives in a different place depending on race type - absent from the Race
+  text entirely for US House (both districts share the bare "UNITED STATES
+  REPRESENTATIVE", the number only in a separate column), a "#N" seat suffix
+  for Supreme Court Justice, and a "DISTRICT N, DEPT M" suffix worth keeping
+  whole for District Court Judge (more than one judge can share a numbered
+  judicial district).
+
+## Outputs (`data/output/<state>/`) and inputs (`data/input/`)
 
 Roster outputs (gitignored): `elections.json|csv`, `candidates.json|csv`,
 `measures.json|csv`, `county_directory.json`, `county_ballots.json|csv`.

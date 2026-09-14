@@ -158,8 +158,8 @@
   "MT": {
     "name": "Montana",
     "fips": "30",
-    "status": "unimplemented",
-    "project": null
+    "status": "implemented",
+    "project": "StateBallot.States.Mt"
   },
   "NE": {
     "name": "Nebraska",
