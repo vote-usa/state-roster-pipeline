@@ -87,6 +87,7 @@ public sealed class ResultWriter
         Incumbent = c.Incumbent,
         SourceUrl = c.SourceUrl,
         SourceCandidateId = c.SourceCandidateId,
+        SourceElectionId = c.SourceElectionId,
         FilingDate = c.FilingDate,
         Email = c.Email,
         Phone = c.Phone,
@@ -112,6 +113,7 @@ public sealed class ResultWriter
     {
         State = m.State,
         ElectionDate = m.ElectionDate,
+        SourceElectionId = m.SourceElectionId,
         MeasureId = m.MeasureId,
         Title = m.Title,
         Summary = m.Summary,

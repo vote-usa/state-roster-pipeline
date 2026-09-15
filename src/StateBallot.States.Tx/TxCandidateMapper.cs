@@ -47,6 +47,7 @@ public static class TxCandidateMapper
         Incumbent = null, // not published
         SourceUrl = sourceUrl,
         SourceCandidateId = c.IdCandidate.ToString(CultureInfo.InvariantCulture),
+        SourceElectionId = election.ElectionId,
         FilingDate = c.DtFiled,
         Email = c.TxEmail,
         Occupation = c.TxOccupation,

@@ -43,6 +43,7 @@ public static class RowHelpers
         Incumbent = c.Incumbent,
         SourceUrl = c.SourceUrl,
         SourceCandidateId = c.SourceCandidateId,
+        SourceElectionId = c.SourceElectionId,
         FilingDate = c.FilingDate,
         Email = c.Email,
         Phone = c.Phone,

@@ -65,10 +65,12 @@ year in one fetch, because that is how the sources publish, and that fetch is a
 | `PassProposedMeasures` | state level | statewide measures with no ballot date yet |
 | `PassUnassignedRows` | exception log | rows whose election could not be identified, with the reason |
 
-Candidate and measure rows carry an election date and type but no election id, so
-the election is identified from those. A unique type match wins, then a single
-election on the date. Anything left over lands in `PassUnassignedRows` rather
-than being dropped.
+Each row records the source system's own election id, so placing it on a run is
+exact. Where an id is missing the matcher falls back to a unique election-type
+match on the date, then to a single election on the date. Anything it still
+cannot place lands in `PassUnassignedRows` rather than being dropped. The
+fallback is not always enough on its own: TX ran two special elections on
+2026-11-03, both typed Special.
 
 ```bash
 # every election for a state and year

@@ -3,9 +3,10 @@ using StateBallot.Core.Output;
 namespace StateBallot.Staging;
 
 /// <summary>
-/// Assigns collector rows to the election they belong to. Runs are per election, but
-/// candidate and measure rows carry only an election date and type, so the election has
-/// to be identified from those. A row that cannot be placed is reported, never dropped.
+/// Assigns collector rows to the election they belong to. The source's own election id is
+/// used when the collector recorded one. Older rows carry only a date and a type, which is
+/// not always enough: TX ran two special elections on 2026-11-03, both typed Special.
+/// A row that cannot be placed is reported, never dropped.
 /// </summary>
 public static class ElectionMatcher
 {
@@ -13,14 +14,25 @@ public static class ElectionMatcher
     public const string AmbiguousElection = "ambiguous_election";
 
     /// <summary>
-    /// The index of the one election a row belongs to, or null plus a reason. A unique type
-    /// match wins. Failing that, a single election on the date wins. Several elections share
-    /// a date in some states (WA ran a Special and a Conservation election on 2025-02-11),
-    /// so a date alone is not always enough.
+    /// The index of the one election a row belongs to, or null plus a reason. The source
+    /// election id decides it outright. Failing that, a unique type match on the date wins,
+    /// then a single election on the date.
     /// </summary>
     public static (int? Index, string? Reason) Find(
-        IReadOnlyList<ElectionOut> elections, string? electionDate, string? electionType)
+        IReadOnlyList<ElectionOut> elections, string? sourceElectionId, string? electionDate, string? electionType)
     {
+        if (!string.IsNullOrWhiteSpace(sourceElectionId))
+        {
+            var byId = new List<int>();
+            for (var i = 0; i < elections.Count; i++)
+            {
+                if (string.Equals(elections[i].ElectionId, sourceElectionId, StringComparison.Ordinal))
+                    byId.Add(i);
+            }
+            if (byId.Count == 1)
+                return (byId[0], null);
+        }
+
         if (string.IsNullOrWhiteSpace(electionDate))
             return (null, NoMatchingElection);
 
@@ -59,15 +71,15 @@ public static class ElectionMatcher
     public static Grouping<T> Group<T>(
         IReadOnlyList<ElectionOut> elections,
         IEnumerable<T> rows,
-        Func<T, (string? Date, string? Type)> key)
+        Func<T, (string? SourceElectionId, string? Date, string? Type)> key)
     {
         var byElection = new Dictionary<int, List<T>>();
         var unassigned = new List<Unassigned<T>>();
 
         foreach (var row in rows)
         {
-            var (date, type) = key(row);
-            var (index, reason) = Find(elections, date, type);
+            var (sourceElectionId, date, type) = key(row);
+            var (index, reason) = Find(elections, sourceElectionId, date, type);
             if (index is { } i)
             {
                 if (!byElection.TryGetValue(i, out var list))

@@ -202,6 +202,7 @@ public sealed class WaCollector : IStateCollector
         Party = VoterGuideClient.NormalizeParty(candidate.PartyName),
         Incumbent = null, // not published by VoteWA
         SourceUrl = _config.VoterGuideUrl(election.ElectionId),
+        SourceElectionId = election.ElectionId,
         SourceOfficeId = string.IsNullOrWhiteSpace(race.RaceID) ? null : race.RaceID.Trim(),
         SourceOfficeType = string.IsNullOrWhiteSpace(category.CategoryCode) ? category.Name?.Trim() : category.CategoryCode.Trim(),
         LocalJurisdiction = isStatewideCategory || string.IsNullOrWhiteSpace(race.Jurisdiction) ? null : race.Jurisdiction.Trim(),
@@ -211,6 +212,7 @@ public sealed class WaCollector : IStateCollector
     {
         State = StateCode,
         ElectionDate = election.ElectionDate.ToString("yyyy-MM-dd"),
+        SourceElectionId = election.ElectionId,
         MeasureId = race.RaceID ?? "",
         Title = (race.BallotTitle ?? race.MeasureName ?? race.Name ?? "").Trim(),
         Summary = VoterGuideClient.StripHtml(race.ShortDescription),

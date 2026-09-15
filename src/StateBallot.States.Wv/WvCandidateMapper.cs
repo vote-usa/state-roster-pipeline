@@ -36,6 +36,7 @@ public static class WvCandidateMapper
         Incumbent = null, // not published
         SourceUrl = sourceUrl,
         SourceCandidateId = c.CandidateId.ToString(CultureInfo.InvariantCulture),
+        SourceElectionId = election.ElectionId,
         FilingDate = c.FilingDate,
         Email = c.CandidateEmail,
         Phone = c.CandidatePhoneNumber,

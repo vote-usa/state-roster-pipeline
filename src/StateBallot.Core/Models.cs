@@ -35,6 +35,13 @@ public sealed class CandidateRow
 
     /// <summary>The source system's identifier for the candidate, e.g. TX idCandidate.</summary>
     public string? SourceCandidateId { get; set; }
+
+    /// <summary>
+    /// The source system's election id this row was collected for. Runs are per election,
+    /// and a date plus a type cannot always identify one: TX ran two special elections on
+    /// 2026-11-03, both typed Special.
+    /// </summary>
+    public string? SourceElectionId { get; set; }
     public string? FilingDate { get; set; }
     public string? Email { get; set; }
     public string? Phone { get; set; }
@@ -71,6 +78,9 @@ public sealed class MeasureRow
 {
     public string State { get; set; } = "";
     public string? ElectionDate { get; set; }
+
+    /// <summary>The source system's election id this measure was collected for, when known.</summary>
+    public string? SourceElectionId { get; set; }
     public string MeasureId { get; set; } = "";
     public string Title { get; set; } = "";
     public string? Summary { get; set; }

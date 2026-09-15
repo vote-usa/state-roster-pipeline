@@ -72,19 +72,20 @@ public sealed class RunWriter
         var candidates = ElectionMatcher.Group(
             elections,
             result.Candidates.Select(ResultWriter.ToCandidateOut),
-            c => (c.ElectionDate, (string?)c.ElectionType));
+            c => (c.SourceElectionId, (string?)c.ElectionDate, (string?)c.ElectionType));
 
         var datedMeasures = result.Measures.Select(m => (Row: ResultWriter.ToMeasureOut(m), Statewide: false))
             .Concat(result.StatewideProposedMeasures
                 .Where(m => m.ElectionDate is not null)
                 .Select(m => (Row: ResultWriter.ToMeasureOut(m), Statewide: true)))
             .ToList();
-        var measures = ElectionMatcher.Group(elections, datedMeasures, m => (m.Row.ElectionDate, (string?)null));
+        var measures = ElectionMatcher.Group(
+            elections, datedMeasures, m => (m.Row.SourceElectionId, m.Row.ElectionDate, (string?)null));
 
         var ballots = ElectionMatcher.Group(
             elections,
             result.CountyBallots.Select(ResultWriter.ToBallotOut),
-            b => (b.ElectionDate, (string?)b.ElectionType));
+            b => ((string?)null, (string?)b.ElectionDate, (string?)b.ElectionType));
 
         var undatedProposed = result.StatewideProposedMeasures
             .Where(m => m.ElectionDate is null)
@@ -251,12 +252,12 @@ public sealed class RunWriter
         await cn.ExecuteAsync(new CommandDefinition(
             """
             INSERT INTO RunCandidates (RunId, StateCode, ElectionDate, ElectionType, Office, District, County,
-                OcdDivisionId, CandidateName, Party, Incumbent, SourceUrl, SourceCandidateId, FilingDate, Email, Phone,
+                OcdDivisionId, CandidateName, Party, Incumbent, SourceUrl, SourceCandidateId, SourceElectionId, FilingDate, Email, Phone,
                 CampaignPhone, Website, Occupation, MailingAddressLine, MailingCity, MailingState, MailingZip,
                 ResidentialCity, ResidentialCounty, SourceOfficeId, SourceOfficeType, LocalJurisdiction,
                 FirstName, MiddleName, LastName, Suffix)
             VALUES (@RunId, @State, @ElectionDate, @ElectionType, @Office, @District, @County,
-                @OcdDivisionId, @CandidateName, @Party, @Incumbent, @SourceUrl, @SourceCandidateId, @FilingDate, @Email, @Phone,
+                @OcdDivisionId, @CandidateName, @Party, @Incumbent, @SourceUrl, @SourceCandidateId, @SourceElectionId, @FilingDate, @Email, @Phone,
                 @CampaignPhone, @Website, @Occupation, @MailingAddressLine, @MailingCity, @MailingState, @MailingZip,
                 @ResidentialCity, @ResidentialCounty, @SourceOfficeId, @SourceOfficeType, @LocalJurisdiction,
                 @FirstName, @MiddleName, @LastName, @Suffix)
@@ -265,7 +266,7 @@ public sealed class RunWriter
             {
                 RunId = runId,
                 c.State, c.ElectionDate, c.ElectionType, c.Office, c.District, c.County, c.OcdDivisionId,
-                c.CandidateName, c.Party, c.Incumbent, c.SourceUrl, c.SourceCandidateId, c.FilingDate,
+                c.CandidateName, c.Party, c.Incumbent, c.SourceUrl, c.SourceCandidateId, c.SourceElectionId, c.FilingDate,
                 c.Email, c.Phone, c.CampaignPhone, c.Website, c.Occupation,
                 c.MailingAddressLine, c.MailingCity, c.MailingState, c.MailingZip,
                 c.ResidentialCity, c.ResidentialCounty, c.SourceOfficeId, c.SourceOfficeType, c.LocalJurisdiction,
@@ -283,15 +284,15 @@ public sealed class RunWriter
 
         await cn.ExecuteAsync(new CommandDefinition(
             """
-            INSERT INTO RunMeasures (RunId, StateCode, ElectionDate, MeasureId, Title, Summary, FullTextUrl,
-                Jurisdiction, County, OcdDivisionId, SourceUrl, IsStatewideProposed)
-            VALUES (@RunId, @State, @ElectionDate, @MeasureId, @Title, @Summary, @FullTextUrl,
-                @Jurisdiction, @County, @OcdDivisionId, @SourceUrl, @IsStatewideProposed)
+            INSERT INTO RunMeasures (RunId, StateCode, ElectionDate, SourceElectionId, MeasureId, Title, Summary,
+                FullTextUrl, Jurisdiction, County, OcdDivisionId, SourceUrl, IsStatewideProposed)
+            VALUES (@RunId, @State, @ElectionDate, @SourceElectionId, @MeasureId, @Title, @Summary,
+                @FullTextUrl, @Jurisdiction, @County, @OcdDivisionId, @SourceUrl, @IsStatewideProposed)
             """,
             rows.Select(x => new
             {
                 RunId = runId,
-                x.Row.State, x.Row.ElectionDate, x.Row.MeasureId, x.Row.Title, x.Row.Summary, x.Row.FullTextUrl,
+                x.Row.State, x.Row.ElectionDate, x.Row.SourceElectionId, x.Row.MeasureId, x.Row.Title, x.Row.Summary, x.Row.FullTextUrl,
                 x.Row.Jurisdiction, x.Row.County, x.Row.OcdDivisionId, x.Row.SourceUrl,
                 IsStatewideProposed = x.Statewide,
             }).ToList(),
