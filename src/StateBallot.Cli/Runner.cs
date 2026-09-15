@@ -71,7 +71,7 @@ public static class Runner
                           --input-root <dir>   Pipeline data root for inputs (default: repo data/)
                           --output-root <dir>  Also export files to <dir>/<state>/ (e.g. a state-roster-data checkout)
                           --out <dir>          Legacy: a data root with input/ + output/, exports files too
-                          --migrate            Apply db/migrations/*.sql to the staging schema and exit
+                          --migrate            Apply pending migrations to the staging schema and exit
 
                         The staging connection comes from ROSTER_STAGING_CONNECTION and defaults to
                         the local Docker MySQL in db/. Run --migrate once before the first collection.
@@ -122,10 +122,10 @@ public static class Runner
 
     private static async Task<int> MigrateAsync(StagingDb db)
     {
-        var dir = Migrator.FindMigrationsDir();
-        Console.WriteLine($"Migrating {StagingDb.Describe(db.StagingConnectionString)} from {dir}");
-        var report = await new Migrator(db.StagingConnectionString, dir).ApplyAsync(Console.Out);
-        Console.WriteLine($"Applied: {report.Applied.Count}; already applied: {report.AlreadyApplied.Count}.");
+        Console.WriteLine($"Migrating {StagingDb.Describe(db.StagingConnectionString)}");
+        var report = await new Migrator(db.StagingConnectionString).ApplyAsync();
+        Console.WriteLine(
+            $"Applied: {report.Applied}; already applied: {report.AlreadyApplied}; at version {report.CurrentVersion}.");
         return 0;
     }
 

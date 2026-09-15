@@ -21,7 +21,7 @@ Two schemas live in the one local MySQL:
 | Schema | Created by | Contents |
 | --- | --- | --- |
 | `vote` | `schema.sql` + `smoke.sql` at container init | VoteUSA-shaped roster tables, `Security` (console sign-in), `LocalDistricts`, `RosterProvenance` |
-| `roster_staging` | `dotnet run --project src/StateBallot.Cli -- --migrate` | Collection passes, per-election runs, and their rows (`migrations/*.sql`) |
+| `roster_staging` | `dotnet run --project src/StateBallot.Cli -- --migrate` | Collection passes, per-election runs, and their rows (FluentMigrator, `src/StateBallot.Staging/Migrations/`) |
 
 ## Run
 
@@ -88,14 +88,16 @@ record. `--dry-run` collects and reports without storing.
 
 ## Migrations
 
-Plain SQL under `migrations/`, applied in filename order by
-`StateBallot.Staging.Migrator` (run via `--migrate`, and by the console API at
-startup). Each applied file is recorded in `roster_staging.SchemaMigrations`
-with a checksum.
+[FluentMigrator](https://fluentmigrator.github.io/) classes under
+`src/StateBallot.Staging/Migrations/`. `StateBallot.Staging.Migrator` wraps the
+runner (run via `--migrate`, and by the console API at startup) and creates the
+schema itself when missing. Applied versions are recorded in `roster_staging.VersionInfo`.
+
+Adding one: a new class `M00n_<Name>` with `[Migration(n, "<description>")]`,
+implementing `Up` and `Down`.
 
 Connection strings come from `ROSTER_STAGING_CONNECTION` and `VOTE_CONNECTION`
-(defaults point at this Docker setup). `ROSTER_MIGRATIONS_DIR` overrides the
-migrations path.
+(defaults point at this Docker setup).
 
 Host port **3307** (avoids colliding with a local 3306). User/password/database:
 `roster` / `roster` / `vote`. Root password: `roster` (local test only).

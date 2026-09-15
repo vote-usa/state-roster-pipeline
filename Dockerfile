@@ -24,7 +24,6 @@ ENV DOTNET_CLI_TELEMETRY_OPTOUT=1 \
 
 COPY --from=build /out/ src/StateBallot.Cli/
 COPY data/input/ data/input/
-COPY db/migrations/ db/migrations/
 RUN mkdir -p data/output && chown -R app:app /app
 
 USER app
