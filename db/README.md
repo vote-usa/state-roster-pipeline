@@ -1,17 +1,12 @@
-# VoteUSA-shaped test database
+# Partial VoteUSA test database
 
-Local MySQL 8.4 with the **roster-relevant** VoteProject.5 tables, reconstructed
-from `VoteLibrary/DB/Vote.designer.cs` (`InitAllColumns`). VoteProject has no
-checked-in `CREATE TABLE` dump.
+Local MySQL 8.4 with the VoteProject.5 tables relevant to the ballot roster, so it does not include all tables. Based on the contents of `VoteLibrary/DB/Vote.designer.cs` (`InitAllColumns`).
 
-This is a test harness for mapping pipeline output onto VoteUSA keys, then
-exporting the existing JSON/CSV into `state-roster-data`. It is **not** a clone
-of production VoteUSA and must not be pointed at the RDS instances in
-VoteProject `Web.config`.
+This is a staging db for mapping pipeline output onto VoteUSA keys. It is not a clone of production VoteUSA.
 
-## Reuse verdict
+## Design
 
-**Yes, for the civic roster tables.** Map pipeline entities onto:
+For the civic roster tables, map pipeline entities onto:
 
 | Pipeline | VoteUSA table | Identity |
 | --- | --- | --- |
@@ -21,18 +16,6 @@ VoteProject `Web.config`.
 | measure | `Referendums` | `ReferendumKey` (up to 150 chars). |
 | county directory | `Counties` | `CountyCode` is the **3-digit** county FIPS (pipeline `county_fips.json` is 5-digit; use the last three). |
 
-**No, for the full VoteUSA schema.** Skip politicians’ bios/images/passwords,
-answers, zip streets, cache, ads-as-product, etc. Those are augmentation or
-app infrastructure. `Politicians` still has those columns (empty defaults) so
-a later load into VoteUSA is column-compatible.
-
-**Do not add FKs yet.** `PartyKey` is a VoteUSA 5-char code (`CAD`), not a
-scraped party string. Seeding `Parties` from scrapes is a separate mapping.
-
-Pipeline fields VoteUSA does not store (`source_url`, `ocd_division_id`,
-`source_candidate_id`) go in `RosterProvenance` so the data-repo JSON/CSV can
-be regenerated without inventing values.
-
 Two schemas live in the one local MySQL:
 
 | Schema | Created by | Contents |
@@ -40,35 +23,41 @@ Two schemas live in the one local MySQL:
 | `vote` | `schema.sql` + `smoke.sql` at container init | VoteUSA-shaped roster tables, `Security` (console sign-in), `LocalDistricts`, `RosterProvenance` |
 | `roster_staging` | `dotnet run --project src/StateBallot.Cli -- --migrate` | Collection passes, per-election runs, and their rows (`migrations/*.sql`) |
 
-`Security` and `LocalDistricts` are included because the console authenticates
-against VoteProject's user table and office resolution needs local-jurisdiction
-keys. `CacheInvalidation` lives in VoteProject's separate cache database and is
-not reconstructed here.
-
 ## Run
 
+MySQL is a service in the repo root `docker-compose.yml`, alongside the
+collector. Start it from the repo root, not from this directory.
+
 ```bash
-cd db
-docker compose up -d
-# wait until healthy, then apply the staging migrations:
-cd .. && dotnet run --project src/StateBallot.Cli -- --migrate
+docker compose up -d mysql
+# wait until healthy, then create the staging schema:
+dotnet run --project src/StateBallot.Cli -- --migrate
 docker exec roster-vote-test mysql -uroot -proster vote -e \
   "SELECT ElectionKey, ElectionDesc FROM Elections; SELECT UserName, UserSecurity FROM Security;"
 docker exec roster-vote-test mysql -uroot -proster roster_staging -e "SHOW TABLES; SELECT * FROM SchemaMigrations;"
 ```
 
+The collector can also run in its container, reaching the database by service
+name instead of the published port:
+
+```bash
+docker compose run --rm collector --migrate
+docker compose run --rm collector --state WV
+docker compose run --rm --no-deps collector --state TX --dry-run   # skips starting MySQL
+```
+
 Smoke sign-in users: `master` / `master` (MASTER) and `wvadmin` / `wvadmin`
-(ADMIN scoped to WV). Local test only.
+(ADMIN scoped to WV).
 
 ## Staging shape
 
-The unit of record is one election. A CLI invocation collects a whole state and
+The unit of record is one election. A CLI run collects a whole state and
 year in one fetch, because that is how the sources publish, and that fetch is a
 **collection pass**. The pass fans out into one **run** per election.
 
 | Table | Grain | Holds |
 | --- | --- | --- |
-| `CollectionPasses` | one invocation | who ran it, args, git sha, log, gaps, source manifest, counts |
+| `CollectionPasses` | one run | who ran it, args, git sha, log, gaps, source manifest, counts |
 | `Runs` | one election | the election's own fields, pending flag, counts, resolution columns |
 | `RunCandidates`, `RunMeasures` | one row per candidate or measure | the collector output, plus resolution columns |
 | `RunCountyBallots` + `...Candidates` / `...Measures` | one county's ballot for that election | what that county's voters see, verbatim |
@@ -100,12 +89,10 @@ record. `--dry-run` collects and reports without storing.
 Plain SQL under `migrations/`, applied in filename order by
 `StateBallot.Staging.Migrator` (run via `--migrate`, and by the console API at
 startup). Each applied file is recorded in `roster_staging.SchemaMigrations`
-with a checksum. Applied files are immutable: to change the schema, add a new
-numbered file. The migrator creates the `roster_staging` schema if missing;
-`00-grants.sql` gives the `roster` user rights on it at container init.
+with a checksum.
 
 Connection strings come from `ROSTER_STAGING_CONNECTION` and `VOTE_CONNECTION`
-(defaults point at this Docker setup); `ROSTER_MIGRATIONS_DIR` overrides the
+(defaults point at this Docker setup). `ROSTER_MIGRATIONS_DIR` overrides the
 migrations path.
 
 Host port **3307** (avoids colliding with a local 3306). User/password/database:
@@ -117,15 +104,9 @@ Regen DDL after a VoteProject designer change:
 dotnet run --project src/StateBallot.Tools
 ```
 
-Re-init from scratch (destroys the volume):
+Re-init from scratch (destroys the volume, so `--migrate` again afterwards):
 
 ```bash
-cd db && docker compose down -v && docker compose up -d
+docker compose down -v && docker compose up -d mysql
+dotnet run --project src/StateBallot.Cli -- --migrate
 ```
-
-## Not done yet
-
-Collectors still write JSON/CSV via `ResultWriter`. Wiring `CollectResult` →
-this DB → export is the next slice. Office classification (free-text `office`
-→ `OfficeClass` / `OfficeKey`) is the hard mapping; do not invent fuzzy
-matchers — that is the `offices.yml` problem from the mini-spec.
