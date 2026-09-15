@@ -1,0 +1,13 @@
+# Collector CLI in a container. Outputs land in ./data/output/<xx>/ and
+# ./data/input/<xx>/sources.json on the host through the bind mount.
+#
+#   docker compose build
+#   docker compose run --rm collector --state TX --dry-run
+#   docker compose run --rm collector --state WA
+
+services:
+  collector:
+    build: .
+    image: state-roster-pipeline:local
+    volumes:
+      - ./data:/app/data

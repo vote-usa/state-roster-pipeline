@@ -72,6 +72,25 @@ Requires .NET 8 SDK. Roster outputs under `data/output/<xx>/` are gitignored —
 re-run the collector to refresh them. Tracked inputs live under `data/input/`
 (`state_catalog.json`, per-state `county_fips.json` and `sources.json`).
 
+## Docker
+
+The image builds the CLI with the .NET 8 SDK and runs it on the .NET 8 runtime,
+so no local SDK is needed. `data/` is bind-mounted, so outputs and
+`sources.json` land on the host exactly as with a local run.
+
+```bash
+docker compose build
+docker compose run --rm collector --help
+docker compose run --rm collector --state TX --dry-run
+docker compose run --rm collector --state WA --year 2024
+```
+
+Everything after `collector` is passed to the CLI unchanged.
+
+The container runs as the image's non-root `app` user. On Linux hosts make
+sure `data/` is writable by that uid (1654), or add `user: "${UID}:${GID}"`
+to the service.
+
 ## Published data repo
 
 Published snapshots go to
