@@ -66,9 +66,6 @@ public sealed class WaCollector : IStateCollector
         result.Elections.AddRange(targetElections);
 
         var guideClient = new VoterGuideClient(_fetcher, _config);
-        // Nothing to attempt when there are no target elections - don't treat that
-        // as a fetch failure (that's the case just handled above via Gaps).
-        var anyGuideData = targetElections.Count == 0;
 
         foreach (var election in targetElections)
         {
@@ -83,7 +80,6 @@ public sealed class WaCollector : IStateCollector
                 result.PendingElections.Add(election);
                 continue;
             }
-            anyGuideData = true;
 
             // Map RaceID -> counties whose filtered guide includes it, so local
             // races can be attributed to counties.
@@ -125,16 +121,22 @@ public sealed class WaCollector : IStateCollector
             }
         }
 
-        if (!anyGuideData)
-            throw new InvalidOperationException(
-                "Every upcoming election's VoteWA voters' guide was empty; refusing to write hollow outputs. " +
-                "Check https://voter.votewa.gov manually.");
+        // Every target election's guide can be pending
+        // (e.g. after the primary, before the general guide is published). The
+        // elections still publish with gaps, and next_run says when to re-run.
+        if (targetElections.Count > 0 && result.PendingElections.Count == targetElections.Count)
+            Console.WriteLine("  Note: no target election's voters' guide is published yet; see gaps.");
 
         // Statewide proposed measures from the SoS page (not yet certified to a ballot).
         var measuresScraper = new StatewideMeasuresScraper(_fetcher, _config);
         try
         {
-            foreach (var measure in await measuresScraper.FetchAsync(_year))
+            var statewideMeasures = await measuresScraper.FetchAsync(_year);
+            if (statewideMeasures.Count == 0)
+                result.Gaps.Add(
+                    $"Statewide measures: the SoS proposed-measures page lists no measures for {_year} " +
+                    "(it only covers the current filing cycle, so back-fill years come up empty).");
+            foreach (var measure in statewideMeasures)
             {
                 RowHelpers.StampState(measure, StateCode);
                 result.StatewideProposedMeasures.Add(measure);

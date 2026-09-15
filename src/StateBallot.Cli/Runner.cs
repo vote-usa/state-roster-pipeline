@@ -23,6 +23,7 @@ public static class Runner
         // Legacy: --out sets both roots (pipeline-style data/ with input/ + output/).
         string? outRoot = null;
         var dryRun = false;
+        string? wayback = null;
 
         for (var i = 0; i < args.Length; i++)
         {
@@ -46,6 +47,9 @@ public static class Runner
                 case "--dry-run":
                     dryRun = true;
                     break;
+                case "--wayback" when i + 1 < args.Length:
+                    wayback = args[++i];
+                    break;
                 case "--help" or "-h":
                     Console.WriteLine($"""
                         StateBallot.Cli - state ballot roster collector
@@ -57,6 +61,8 @@ public static class Runner
                           --input-root <dir>   Pipeline data root for inputs (overrides --out for reads)
                           --output-root <dir>  Roster output root; writes <dir>/<state>/ (default: <data>/output)
                           --dry-run            Fetch sources and report counts without writing files
+                          --wayback <ts>       Replay sources via web.archive.org at this timestamp
+                                               (yyyyMMdd or yyyyMMddHHmmss; nearest capture is served)
 
                         Snapshot publishes use --input-root pointing at this repo's data/ and
                         --output-root pointing at a checkout of vote-usa/state-roster-data.
@@ -119,6 +125,14 @@ public static class Runner
         var inputDataRoot = Path.GetFullPath(pipelineDataRoot);
 
         using var fetcher = new HttpFetcher();
+        if (wayback is not null)
+        {
+            Console.WriteLine($"Wayback replay: rewriting fetches to web.archive.org captures near {wayback}.");
+            fetcher.RewriteUrl = url =>
+                url.Contains("web.archive.org", StringComparison.OrdinalIgnoreCase)
+                    ? url
+                    : $"https://web.archive.org/web/{wayback}id_/{url}";
+        }
         var collector = factory(fetcher, year, stateOutputDir, inputDataRoot);
         var result = await collector.CollectAsync();
 

@@ -41,6 +41,33 @@ dotnet run --project StateBallot.Cli -- --year 2028        # back-fill a specifi
 dotnet run --project StateBallot.Cli -- --out /tmp/ballots # alternate data root (input/ + output/)
 ```
 
+### Backtesting against the Wayback Machine
+
+`--wayback <timestamp>` replays a run against web.archive.org captures instead of
+the live sources - useful for testing scraper resilience against past versions of
+a state's site. Every fetch is rewritten to
+`https://web.archive.org/web/<timestamp>id_/<original-url>` (the `id_` suffix asks
+for the raw capture, without Wayback's injected toolbar); Wayback serves the
+capture nearest the timestamp (`yyyyMMdd` or `yyyyMMddHHmmss`).
+
+```bash
+# Replay CA's November 2024 cycle from captures near Oct 1, 2024
+dotnet run --project StateBallot.Cli -- --state CA --year 2024 --wayback 20241001 --dry-run
+```
+
+Caveats:
+
+- Works best for HTML/PDF GET sources (CA, and the WA SoS pages). POST APIs
+  (TX, WV) and query-string APIs (WA's voters' guide) are rarely captured, and
+  Wayback matches query strings exactly - expect gaps or 404 failures there.
+- API-backed states usually don't need Wayback at all: VoteWA's election list
+  and voters' guide serve past years directly, so `--state WA --year 2024`
+  back-fills against the live API (verified back to 2020).
+- Check capture coverage first via the CDX API, e.g.
+  `https://web.archive.org/cdx/search/cdx?url=<url>&fl=timestamp,statuscode`.
+- Pair `--wayback` with `--year` matching the era being replayed, and `--dry-run`
+  to avoid overwriting current outputs with historical data.
+
 Requires .NET 8 SDK. Roster outputs under `data/output/<xx>/` are gitignored —
 re-run the collector to refresh them. Tracked inputs live under `data/input/`
 (`state_catalog.json`, per-state `county_fips.json` and `sources.json`).

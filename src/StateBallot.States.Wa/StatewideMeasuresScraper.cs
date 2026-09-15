@@ -27,6 +27,7 @@ public sealed class StatewideMeasuresScraper
         var baseUri = new Uri(_config.StatewideMeasuresUrl);
 
         var measures = new List<MeasureRow>();
+        var anyHeadingMatched = false;
 
         foreach (var heading in doc.QuerySelectorAll(Selectors.MeasureHeading))
         {
@@ -34,12 +35,16 @@ public sealed class StatewideMeasuresScraper
             var match = Selectors.MeasureHeadingText.Match(headingText);
             if (!match.Success)
                 continue;
+            anyHeadingMatched = true;
 
-            // Only keep measures under the section for the target year, when year
-            // headings are present. Measure ids like "IL26-001" also embed the year.
+            // Attribute the measure to a year via the section heading and/or the
+            // filing year embedded in ids like "IL26-001"; keep it only when a
+            // signal matches the target year (or no year signal exists at all,
+            // e.g. classic ids like "2124" outside any year section).
             var sectionYear = FindSectionYear(heading);
-            var idYearMatches = match.Groups["id"].Value.Contains((year % 100).ToString());
-            if (sectionYear is int sy && sy != year && !idYearMatches)
+            var idYearMatch = Selectors.MeasureIdYear.Match(match.Groups["id"].Value);
+            int? idYear = idYearMatch.Success ? 2000 + int.Parse(idYearMatch.Groups["yy"].Value) : null;
+            if ((sectionYear ?? idYear) is not null && sectionYear != year && idYear != year)
                 continue;
 
             string? fullTextUrl = null;
@@ -65,11 +70,14 @@ public sealed class StatewideMeasuresScraper
             });
         }
 
-        if (measures.Count == 0)
+        if (!anyHeadingMatched)
             throw new InvalidOperationException(
                 $"No statewide measures parsed from {_config.StatewideMeasuresUrl} using heading selector '{Selectors.MeasureHeading}'. " +
                 "Either no measures are filed yet for the year or the page markup changed; verify the page manually.");
 
+        // Empty with headings present: the page parses fine but covers a
+        // different filing cycle than the target year (e.g. a back-fill run);
+        // the caller records the gap.
         return measures.OrderBy(m => m.MeasureId, StringComparer.Ordinal).ToList();
     }
 

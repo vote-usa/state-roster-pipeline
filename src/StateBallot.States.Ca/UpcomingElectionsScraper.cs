@@ -36,8 +36,8 @@ public sealed class UpcomingElectionsScraper
                 continue;
             }
 
-            var isStatewide = string.Equals(currentSection, CaSelectors.StatewideSectionTitle, StringComparison.OrdinalIgnoreCase);
-            var isSpecialVacancy = string.Equals(currentSection, CaSelectors.SpecialVacancySectionTitle, StringComparison.OrdinalIgnoreCase);
+            var isStatewide = currentSection?.EndsWith(CaSelectors.StatewideSectionTitle, StringComparison.OrdinalIgnoreCase) == true;
+            var isSpecialVacancy = currentSection?.EndsWith(CaSelectors.SpecialVacancySectionTitle, StringComparison.OrdinalIgnoreCase) == true;
             if (!isStatewide && !isSpecialVacancy)
                 continue;
 

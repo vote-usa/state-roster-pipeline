@@ -31,6 +31,9 @@ public static class Selectors
     public static readonly Regex MeasureHeadingText =
         new(@"(?<kind>Initiative|Referendum|Senate Joint Resolution|House Joint Resolution|Engrossed.+?Resolution)\s*(?:Measure\s*)?(?:No\.?\s*)?(?<id>[A-Z]{0,4}\d[\w-]*)", RegexOptions.Compiled);
 
+    /// <summary>Two-digit filing year embedded in measure ids like "IL26-001" / "IP26-645" (absent in classic ids like "2124").</summary>
+    public static readonly Regex MeasureIdYear = new(@"^[A-Z]{1,4}(?<yy>\d{2})-", RegexOptions.Compiled);
+
     public const string MeasurePdfLink = "a[href$='.pdf' i]";
     public static readonly Regex FullTextLink = new(@"full\s*text", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
