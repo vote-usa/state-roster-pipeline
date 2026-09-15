@@ -8,8 +8,10 @@ using StateBallot.States.Wv;
 namespace StateBallot.Staging;
 
 /// <summary>
-/// Executes one collector run end to end: catalog check, discovery, collect, write the
-/// JSON/CSV + sources.json, and (optionally) persist the run into the staging schema.
+/// Executes one collection pass end to end: catalog check, discovery, collect, record the
+/// pass and its per-election runs in the staging schema, and optionally also export files.
+/// The staging database is the store of record. Files are written only when the caller
+/// names an output root, which is how the data-repo export still works.
 /// Shared by the CLI and the console's background job runner.
 /// </summary>
 public sealed class CollectorRunner
@@ -48,24 +50,28 @@ public sealed class CollectorRunner
                 $"State '{state}' is marked implemented in the catalog but no [StateCode(\"{state}\")] " +
                 "collector was discovered. Ensure the state project is referenced and its DLL is copied to the output directory.");
 
-        if (request.Persist && _db is null)
-            throw new RunSetupException("Persist requested but no staging database was configured.");
+        if (request.ElectionDate is { } filterDate
+            && !DateOnly.TryParseExact(filterDate, "yyyy-MM-dd", out _))
+            throw new RunSetupException($"--election must be yyyy-MM-dd, got '{filterDate}'.");
 
-        var stateOutputDir = DataPaths.StateOutputDir(outputRoot, state);
+        var persist = request.Persist && !request.DryRun;
+        if (persist && _db is null)
+            throw new RunSetupException("No staging database was configured. Pass --dry-run to collect without storing.");
+
         var inputDataRoot = Path.GetFullPath(pipelineDataRoot);
-        var sourcesPath = DataPaths.SourcesPath(inputDataRoot, state);
+        var stateOutputDir = outputRoot is null ? null : DataPaths.StateOutputDir(outputRoot, state);
 
         RunWriter? writer = null;
-        int? runId = null;
-        if (request.Persist)
+        int? passId = null;
+        if (persist)
         {
             writer = new RunWriter(_db!);
-            runId = await writer.BeginAsync(request, TryGetGitSha(inputDataRoot), ct);
-            log.WriteLine($"Staging run {runId} ({StagingDb.Describe(_db!.StagingConnectionString)})");
+            passId = await writer.BeginPassAsync(request, TryGetGitSha(inputDataRoot), ct);
+            log.WriteLine($"Collection pass {passId} ({StagingDb.Describe(_db!.StagingConnectionString)})");
         }
 
         // Collectors write progress with Console.WriteLine. Tee the console into a buffer
-        // so the run's log can be stored. Process-global: one run at a time per process.
+        // so the pass log can be stored. Process-global: one pass at a time per process.
         var captured = new StringWriter();
         var originalOut = Console.Out;
         var tee = new TeeTextWriter(log, captured);
@@ -83,39 +89,69 @@ public sealed class CollectorRunner
                         : $"https://web.archive.org/web/{stamp}id_/{url}";
             }
 
-            var collector = factory(fetcher, request.Year, stateOutputDir, inputDataRoot);
-            var result = await collector.CollectAsync();
+            // The sources publish a whole state and year in one fetch, so the collect stays
+            // state-scoped. The result is then narrowed and fanned out per election.
+            var collector = factory(fetcher, request.Year, stateOutputDir ?? inputDataRoot, inputDataRoot);
+            var collected = await collector.CollectAsync();
+
+            var result = collected;
+            if (request.ElectionDate is { } wanted)
+            {
+                var available = CollectResultFilter.ElectionDates(collected);
+                result = CollectResultFilter.ToElectionDate(collected, wanted);
+                if (result.Elections.Count == 0)
+                    throw new RunSetupException(
+                        $"No {state} election on {wanted} for {request.Year}. " +
+                        $"Found: {(available.Count == 0 ? "none" : string.Join(", ", available))}.");
+                tee.WriteLine($"Filtered to the {wanted} election.");
+            }
 
             var summary = new StringWriter();
             result.PrintSummary(summary);
             tee.Write(summary.ToString());
 
             var filesWritten = false;
-            if (request.DryRun)
+            if (stateOutputDir is not null && !request.DryRun)
             {
-                tee.WriteLine("\nDry run - no files written.");
-            }
-            else
-            {
+                var sourcesPath = DataPaths.SourcesPath(inputDataRoot, state);
                 new ResultWriter(stateOutputDir, sourcesPath).WriteAll(result);
                 filesWritten = true;
-                tee.WriteLine($"\nOutputs written to {Path.GetFullPath(stateOutputDir)}");
-                tee.WriteLine($"Sources written to {Path.GetFullPath(sourcesPath)}");
+                tee.WriteLine($"\nFiles exported to {Path.GetFullPath(stateOutputDir)}");
             }
 
+            IReadOnlyList<ElectionRun> runs = [];
+            var unassigned = 0;
             if (writer is not null)
             {
                 tee.Flush();
-                await writer.CompleteAsync(runId!.Value, result, summary.ToString(), captured.ToString(), ct);
-                tee.WriteLine($"Run {runId} persisted to staging.");
+                var stored = await writer.CompletePassAsync(
+                    passId!.Value, result, summary.ToString(), captured.ToString(), ct);
+                runs = stored.Runs;
+                unassigned = stored.UnassignedRowCount;
+
+                tee.WriteLine($"\nPass {passId} stored {runs.Count} election run(s):");
+                foreach (var run in runs)
+                {
+                    var pending = run.IsPending ? ", pending at the source" : "";
+                    tee.WriteLine(
+                        $"  run {run.RunId}  {run.ElectionDate}  {run.ElectionType,-16} " +
+                        $"{run.CandidateCount} candidate(s), {run.MeasureCount} measure(s), " +
+                        $"{run.CountyBallotCount} county ballot(s){pending}");
+                }
+                if (unassigned > 0)
+                    tee.WriteLine($"  {unassigned} row(s) could not be matched to an election, see PassUnassignedRows.");
+            }
+            else if (request.DryRun)
+            {
+                tee.WriteLine("\nDry run - nothing stored.");
             }
 
-            return new RunOutcome(result, stateOutputDir, sourcesPath, filesWritten, runId);
+            return new RunOutcome(result, passId, runs, unassigned, filesWritten, stateOutputDir);
         }
         catch (Exception ex) when (writer is not null && ex is not RunSetupException)
         {
             tee.Flush();
-            await writer.FailAsync(runId!.Value, ex.ToString(), captured.ToString(), CancellationToken.None);
+            await writer.FailPassAsync(passId!.Value, ex.ToString(), captured.ToString(), CancellationToken.None);
             throw;
         }
         finally
@@ -124,14 +160,15 @@ public sealed class CollectorRunner
         }
     }
 
-    /// <summary>Mirrors the CLI's root rules: --input-root, else --out, else the repo data/ folder.</summary>
-    private static (string PipelineDataRoot, string OutputRoot) ResolveRoots(RunRequest request)
+    /// <summary>
+    /// Inputs come from --input-root, else --out, else the repo data/ folder. The output root
+    /// is null unless the caller asked for files with --output-root or --out.
+    /// </summary>
+    private static (string PipelineDataRoot, string? OutputRoot) ResolveRoots(RunRequest request)
     {
         var pipelineDataRoot = request.InputRoot ?? request.LegacyOutRoot ?? FindDataRoot();
         var outputRoot = request.OutputRoot
-            ?? (request.LegacyOutRoot is not null
-                ? DataPaths.OutputRoot(request.LegacyOutRoot)
-                : DataPaths.OutputRoot(pipelineDataRoot));
+            ?? (request.LegacyOutRoot is not null ? DataPaths.OutputRoot(request.LegacyOutRoot) : null);
 
         // A data-repo checkout passed as --input-root has no catalog; fall back to the repo's.
         try

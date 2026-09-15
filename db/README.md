@@ -38,7 +38,7 @@ Two schemas live in the one local MySQL:
 | Schema | Created by | Contents |
 | --- | --- | --- |
 | `vote` | `schema.sql` + `smoke.sql` at container init | VoteUSA-shaped roster tables, `Security` (console sign-in), `LocalDistricts`, `RosterProvenance` |
-| `roster_staging` | `dotnet run --project src/StateBallot.Cli -- --migrate` | Pipeline runs, resolution, change sets, merges (`migrations/*.sql`) |
+| `roster_staging` | `dotnet run --project src/StateBallot.Cli -- --migrate` | Collection passes, per-election runs, and their rows (`migrations/*.sql`) |
 
 `Security` and `LocalDistricts` are included because the console authenticates
 against VoteProject's user table and office resolution needs local-jurisdiction
@@ -59,6 +59,41 @@ docker exec roster-vote-test mysql -uroot -proster roster_staging -e "SHOW TABLE
 
 Smoke sign-in users: `master` / `master` (MASTER) and `wvadmin` / `wvadmin`
 (ADMIN scoped to WV). Local test only.
+
+## Staging shape
+
+The unit of record is one election. A CLI invocation collects a whole state and
+year in one fetch, because that is how the sources publish, and that fetch is a
+**collection pass**. The pass fans out into one **run** per election.
+
+| Table | Grain | Holds |
+| --- | --- | --- |
+| `CollectionPasses` | one invocation | who ran it, args, git sha, log, gaps, source manifest, counts |
+| `Runs` | one election | the election's own fields, pending flag, counts, resolution columns |
+| `RunCandidates`, `RunMeasures` | one row per candidate or measure | the collector output, plus resolution columns |
+| `RunCountyBallots` + `...Candidates` / `...Measures` | one county's ballot for that election | what that county's voters see, verbatim |
+| `PassCountyDirectory` | state level | county elections offices, belongs to no election |
+| `PassProposedMeasures` | state level | statewide measures with no ballot date yet |
+| `PassUnassignedRows` | exception log | rows whose election could not be identified, with the reason |
+
+Candidate and measure rows carry an election date and type but no election id, so
+the election is identified from those. A unique type match wins, then a single
+election on the date. Anything left over lands in `PassUnassignedRows` rather
+than being dropped.
+
+```bash
+# every election for a state and year
+dotnet run --project src/StateBallot.Cli -- --state WV --year 2026
+
+# one election only
+dotnet run --project src/StateBallot.Cli -- --state WV --year 2026 --election 2026-11-03
+
+# also export files (the data-repo path)
+dotnet run --project src/StateBallot.Cli -- --state WV --output-root ../state-roster-data
+```
+
+Without an output root nothing is written to disk: the database is the store of
+record. `--dry-run` collects and reports without storing.
 
 ## Migrations
 

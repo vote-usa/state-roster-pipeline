@@ -13,10 +13,10 @@ public static class Runner
         string? outputRootArg = null;
         // Legacy: --out sets both roots (pipeline-style data/ with input/ + output/).
         string? outRoot = null;
+        string? electionDate = null;
         var dryRun = false;
         string? wayback = null;
         var migrate = false;
-        var persist = false;
         string? triggeredBy = null;
 
         for (var i = 0; i < args.Length; i++)
@@ -28,6 +28,9 @@ public static class Runner
                     break;
                 case "--year" when i + 1 < args.Length:
                     year = int.Parse(args[++i]);
+                    break;
+                case "--election" when i + 1 < args.Length:
+                    electionDate = args[++i];
                     break;
                 case "--out" when i + 1 < args.Length:
                     outRoot = args[++i];
@@ -47,9 +50,6 @@ public static class Runner
                 case "--migrate":
                     migrate = true;
                     break;
-                case "--persist":
-                    persist = true;
-                    break;
                 case "--triggered-by" when i + 1 < args.Length:
                     triggeredBy = args[++i];
                     break;
@@ -57,22 +57,24 @@ public static class Runner
                     Console.WriteLine($"""
                         StateBallot.Cli - state ballot roster collector
 
+                        Collects a state and year in one pass, then stores one run per election
+                        in the staging database. Files are only written when an output root is given.
+
                         Options:
                           --state <XX>         Two-letter state code (default: WA; implemented: {ImplementedStates()})
                           --year <yyyy>        Target election year (default: current UTC year)
-                          --out <dir>          Pipeline data root with input/ + output/ (default: data/)
-                          --input-root <dir>   Pipeline data root for inputs (overrides --out for reads)
-                          --output-root <dir>  Roster output root; writes <dir>/<state>/ (default: <data>/output)
-                          --dry-run            Fetch sources and report counts without writing files
+                          --election <date>    Store only this election (yyyy-MM-dd); default is every one found
+                          --dry-run            Fetch and report counts, store nothing
                           --wayback <ts>       Replay sources via web.archive.org at this timestamp
                                                (yyyyMMdd or yyyyMMddHHmmss; nearest capture is served)
-                          --persist            Also record the run in the staging schema (ignored with --dry-run)
-                          --triggered-by <who> Name recorded on the staging run (default: current OS user)
+                          --triggered-by <who> Name recorded on the pass (default: current OS user)
+                          --input-root <dir>   Pipeline data root for inputs (default: repo data/)
+                          --output-root <dir>  Also export files to <dir>/<state>/ (e.g. a state-roster-data checkout)
+                          --out <dir>          Legacy: a data root with input/ + output/, exports files too
                           --migrate            Apply db/migrations/*.sql to the staging schema and exit
-                                               (connection from ROSTER_STAGING_CONNECTION; local Docker default)
 
-                        Snapshot publishes use --input-root pointing at this repo's data/ and
-                        --output-root pointing at a checkout of vote-usa/state-roster-data.
+                        The staging connection comes from ROSTER_STAGING_CONNECTION and defaults to
+                        the local Docker MySQL in db/. Run --migrate once before the first collection.
                         """);
                     return 0;
                 default:
@@ -91,16 +93,13 @@ public static class Runner
             InputRoot = inputRootArg,
             OutputRoot = outputRootArg,
             LegacyOutRoot = outRoot,
+            ElectionDate = electionDate,
             DryRun = dryRun,
             Wayback = wayback,
-            Persist = persist && !dryRun,
             RequestedBy = triggeredBy ?? Environment.UserName,
             Source = "cli",
             CliArgs = string.Join(' ', args),
         };
-
-        if (persist && dryRun)
-            Console.WriteLine("Note: --persist is ignored with --dry-run.");
 
         try
         {
@@ -115,7 +114,7 @@ public static class Runner
         catch (Exception ex)
         {
             // Critical failure (source unreachable, empty page that should have data, IO).
-            // A staging run, if begun, has already been marked failed with the full error.
+            // The pass, if begun, has already been marked failed with the full error.
             Console.Error.WriteLine($"Run failed: {ex.Message}");
             return 1;
         }
