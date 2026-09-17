@@ -1,0 +1,10 @@
+{
+  "repository": "https://github.com/vote-usa/state-roster-data.git",
+  "commit": "b6f7db7e96a41beaeffef814477558dbad62af81",
+  "generated_at": "2026-08-06T03:56:18Z",
+  "year": 2026,
+  "states": [
+    "CA",
+    "WA"
+  ]
+}

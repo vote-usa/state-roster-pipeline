@@ -1,4 +1,3 @@
-using System.Globalization;
 using AngleSharp.Dom;
 using AngleSharp.Html.Parser;
 using StateBallot.Core;
@@ -41,8 +40,8 @@ public sealed class UpcomingElectionsScraper
                 continue;
             }
 
-            var isStatewide = string.Equals(currentSection, _selectors.StatewideSectionTitle, StringComparison.OrdinalIgnoreCase);
-            var isSpecialVacancy = string.Equals(currentSection, _selectors.SpecialVacancySectionTitle, StringComparison.OrdinalIgnoreCase);
+            var isStatewide = currentSection?.EndsWith(_selectors.StatewideSectionTitle, StringComparison.OrdinalIgnoreCase) == true;
+            var isSpecialVacancy = currentSection?.EndsWith(_selectors.SpecialVacancySectionTitle, StringComparison.OrdinalIgnoreCase) == true;
             if (!isStatewide && !isSpecialVacancy)
                 continue;
 

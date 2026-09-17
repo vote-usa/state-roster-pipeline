@@ -1,4 +1,3 @@
-using System.Globalization;
 using AngleSharp.Dom;
 using AngleSharp.Html.Parser;
 using StateBallot.Core;
@@ -51,29 +50,45 @@ public sealed class QualifiedMeasuresScraper
                 continue;
             }
 
+            if (currentElectionDate is null)
+                continue;
+
             var propMatch = _selectors.PropositionHeading.Match(text);
-            if (!propMatch.Success || currentElectionDate is null)
-                continue;
-
-            // Content = everything after the "Proposition N" heading up to the
-            // next proposition heading, section heading, or divider (measures
-            // with bulleted summaries span several paragraphs and lists).
-            var content = new List<IElement>();
-            for (var j = i + 1; j < elements.Count; j++)
+            if (propMatch.Success)
             {
-                var next = elements[j];
-                var nextText = TextNormalization.CollapseWhitespace(next.TextContent);
-                if (next.LocalName is "h2" or "hr" || _selectors.PropositionHeading.IsMatch(nextText))
-                    break;
-                if (nextText.Length == 0 || nextText.StartsWith("Note:", StringComparison.OrdinalIgnoreCase))
+                // Multi-paragraph format with a standalone "Proposition N" heading, then the measure's content in the
+                // following paragraphs/lists up to the next heading or divider.
+                var content = new List<IElement>();
+                for (var j = i + 1; j < elements.Count; j++)
+                {
+                    var next = elements[j];
+                    var nextText = TextNormalization.CollapseWhitespace(next.TextContent);
+                    if (next.LocalName is "h2" or "hr" || _selectors.PropositionHeading.IsMatch(nextText))
+                        break;
+                    if (nextText.Length == 0 || nextText.StartsWith("Note:", StringComparison.OrdinalIgnoreCase))
+                        continue;
+                    content.Add(next);
+                }
+                if (content.Count == 0)
                     continue;
-                content.Add(next);
-            }
-            if (content.Count == 0)
-                continue;
 
-            measures.Add(ToMeasureRow(
-                $"Proposition {propMatch.Groups["num"].Value}", currentElectionDate.Value, content, _config.QualifiedMeasuresUrl));
+                measures.Add(ToMeasureRow(
+                    $"Proposition {propMatch.Groups["num"].Value}", currentElectionDate.Value, content, _config.QualifiedMeasuresUrl));
+                continue;
+            }
+
+            // Single-paragraph format with one <p> per measure holding
+            // both the bolded "Proposition N" heading and the linked title.
+            if (element.QuerySelector("strong") is { } strong)
+            {
+                var inlineMatch = _selectors.PropositionHeading.Match(TextNormalization.CollapseWhitespace(strong.TextContent));
+                if (inlineMatch.Success)
+                {
+                    strong.Remove();
+                    measures.Add(ToMeasureRow(
+                        $"Proposition {inlineMatch.Groups["num"].Value}", currentElectionDate.Value, [element], _config.QualifiedMeasuresUrl));
+                }
+            }
         }
 
         ScrapeGuard.RequireAny(measures, () =>

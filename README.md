@@ -29,6 +29,9 @@ mapper-class convention) and per-state implementation detail, see
 states, fetch-strategy tiering, the field-mapping engine), see
 [`configDrivenPipelinePlan.md`](configDrivenPipelinePlan.md).
 
+Published roster snapshots: [vote-usa/state-roster-data](https://github.com/vote-usa/state-roster-data)
+(pointer: [`data/input/snapshot.json`](data/input/snapshot.json)).
+
 ## Structure
 
 ```
@@ -60,8 +63,35 @@ cd state-roster-pipeline/src
 dotnet run --project StateBallot.Cli                       # WA, current year
 dotnet run --project StateBallot.Cli -- --state TX --dry-run   # fetch + counts, no writes
 dotnet run --project StateBallot.Cli -- --year 2028        # back-fill a specific year
-dotnet run --project StateBallot.Cli -- --out /tmp/ballots # alternate output root
+dotnet run --project StateBallot.Cli -- --out /tmp/ballots # alternate data root (input/ + output/)
 ```
+
+### Backtesting against the Wayback Machine
+
+`--wayback <timestamp>` replays a run against web.archive.org captures instead of
+the live sources - useful for testing scraper resilience against past versions of
+a state's site. Every fetch is rewritten to
+`https://web.archive.org/web/<timestamp>id_/<original-url>` (the `id_` suffix asks
+for the raw capture, without Wayback's injected toolbar); Wayback serves the
+capture nearest the timestamp (`yyyyMMdd` or `yyyyMMddHHmmss`).
+
+```bash
+# Replay CA's November 2024 cycle from captures near Oct 1, 2024
+dotnet run --project StateBallot.Cli -- --state CA --year 2024 --wayback 20241001 --dry-run
+```
+
+Caveats:
+
+- Works best for HTML/PDF GET sources (CA, and the WA SoS pages). POST APIs
+  (TX, WV) and query-string APIs (WA's voters' guide) are rarely captured, and
+  Wayback matches query strings exactly - expect gaps or 404 failures there.
+- API-backed states usually don't need Wayback at all: VoteWA's election list
+  and voters' guide serve past years directly, so `--state WA --year 2024`
+  back-fills against the live API (verified back to 2020).
+- Check capture coverage first via the CDX API, e.g.
+  `https://web.archive.org/cdx/search/cdx?url=<url>&fl=timestamp,statuscode`.
+- Pair `--wayback` with `--year` matching the era being replayed, and `--dry-run`
+  to avoid overwriting current outputs with historical data.
 
 Requires .NET 8 SDK. Roster outputs under `data/output/<xx>/` are gitignored —
 re-run the collector to refresh them. Tracked inputs live under `data/input/`
@@ -69,6 +99,48 @@ re-run the collector to refresh them. Tracked inputs live under `data/input/`
 whichever of `date_formats.json` / `selectors.json` / `election_type_names.json` /
 `election_ids.json` that state's collector loads - see
 `configDrivenPipelineInfo.md` for which).
+
+## Docker
+
+The image builds the CLI with the .NET 8 SDK and runs it on the .NET 8 runtime,
+so no local SDK is needed. `data/` is bind-mounted, so outputs and
+`sources.json` land on the host exactly as with a local run.
+
+```bash
+docker compose build
+docker compose run --rm collector --help
+docker compose run --rm collector --state TX --dry-run
+docker compose run --rm collector --state WA --year 2024
+```
+
+Everything after `collector` is passed to the CLI unchanged.
+
+The container runs as the image's non-root `app` user. On Linux hosts make
+sure `data/` is writable by that uid (1654), or add `user: "${UID}:${GID}"`
+to the service.
+
+## Published data repo
+
+Published snapshots go to
+[vote-usa/state-roster-data](https://github.com/vote-usa/state-roster-data)
+(`ca/`, `wa/`, … at the repo root). This repo keeps a pointer at
+`data/input/snapshot.json`.
+
+The manual GitHub Action **Publish roster data** collects into that repo and
+can push when `push` is checked. Pushing requires the `ROSTER_DATA_TOKEN` repo
+secret (a PAT with Contents write on `vote-usa/state-roster-data`).
+
+```bash
+# Sync local data/output into ../state-roster-data, commit, update snapshot.json
+# (does not push)
+./scripts/sync-roster-data.sh
+
+# Or collect straight into the data-repo checkout
+dotnet run --project src/StateBallot.Cli -- \
+  --state CA --input-root ./data --output-root ../state-roster-data
+```
+
+Details: [`logs/roster-data.md`](logs/roster-data.md).
 
 ## Adding a state
 

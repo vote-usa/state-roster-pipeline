@@ -31,8 +31,12 @@ public static class Runner
 
         var state = "WA";
         int year = DateTime.UtcNow.Year;
+        string? inputRootArg = null;
+        string? outputRootArg = null;
+        // Legacy: --out sets both roots (pipeline-style data/ with input/ + output/).
         string? outRoot = null;
         var dryRun = false;
+        string? wayback = null;
 
         for (var i = 0; i < args.Length; i++)
         {
@@ -47,19 +51,34 @@ public static class Runner
                 case "--out" when i + 1 < args.Length:
                     outRoot = args[++i];
                     break;
+                case "--input-root" when i + 1 < args.Length:
+                    inputRootArg = args[++i];
+                    break;
+                case "--output-root" when i + 1 < args.Length:
+                    outputRootArg = args[++i];
+                    break;
                 case "--dry-run":
                     dryRun = true;
+                    break;
+                case "--wayback" when i + 1 < args.Length:
+                    wayback = args[++i];
                     break;
                 case "--help" or "-h":
                     Console.WriteLine($"""
                         StateBallot.Cli - state ballot roster collector
 
                         Options:
-                          --state <XX>    Two-letter state code (default: WA; implemented: {ImplementedStates()})
-                          --year <yyyy>   Target election year (default: current UTC year)
-                          --out <dir>     Data root; roster files go in <dir>/output/<state>,
-                                          inputs expected under <dir>/input/ (default: data/)
-                          --dry-run       Fetch sources and report counts without writing files
+                          --state <XX>         Two-letter state code (default: WA; implemented: {ImplementedStates()})
+                          --year <yyyy>        Target election year (default: current UTC year)
+                          --out <dir>          Pipeline data root with input/ + output/ (default: data/)
+                          --input-root <dir>   Pipeline data root for inputs (overrides --out for reads)
+                          --output-root <dir>  Roster output root; writes <dir>/<state>/ (default: <data>/output)
+                          --dry-run            Fetch sources and report counts without writing files
+                          --wayback <ts>       Replay sources via web.archive.org at this timestamp
+                                               (yyyyMMdd or yyyyMMddHHmmss; nearest capture is served)
+
+                        Snapshot publishes use --input-root pointing at this repo's data/ and
+                        --output-root pointing at a checkout of vote-usa/state-roster-data.
                         """);
                     return 0;
                 default:
@@ -68,21 +87,25 @@ public static class Runner
             }
         }
 
-        var dataRoot = outRoot ?? FindDataRoot();
+        var pipelineDataRoot = inputRootArg ?? outRoot ?? FindDataRoot();
+        var outputRoot = outputRootArg
+            ?? (outRoot is not null ? DataPaths.OutputRoot(outRoot) : DataPaths.OutputRoot(pipelineDataRoot));
+
         StateCatalog catalog;
         try
         {
-            catalog = StateCatalog.LoadFromDataRoot(dataRoot);
+            catalog = StateCatalog.LoadFromDataRoot(pipelineDataRoot);
         }
         catch (InvalidOperationException ex)
         {
             var repoData = FindDataRoot();
-            if (repoData == dataRoot)
+            if (repoData == pipelineDataRoot)
             {
                 Console.Error.WriteLine(ex.Message);
                 return 2;
             }
             catalog = StateCatalog.LoadFromDataRoot(repoData);
+            pipelineDataRoot = repoData;
         }
 
         if (!catalog.TryGet(state, out var entry))
@@ -111,11 +134,19 @@ public static class Runner
             return 2;
         }
 
-        var stateOutputDir = DataPaths.StateOutputDir(dataRoot, state);
+        var stateOutputDir = DataPaths.StateOutputDir(outputRoot, state);
+        var inputDataRoot = Path.GetFullPath(pipelineDataRoot);
 
         using var fetcher = new HttpFetcher();
-        // Collectors receive the output dir; they resolve input paths via DataPaths.
-        var collector = factory(fetcher, year, stateOutputDir);
+        if (wayback is not null)
+        {
+            Console.WriteLine($"Wayback replay: rewriting fetches to web.archive.org captures near {wayback}.");
+            fetcher.RewriteUrl = url =>
+                url.Contains("web.archive.org", StringComparison.OrdinalIgnoreCase)
+                    ? url
+                    : $"https://web.archive.org/web/{wayback}id_/{url}";
+        }
+        var collector = factory(fetcher, year, stateOutputDir, inputDataRoot);
         var result = await collector.CollectAsync();
 
         result.PrintSummary(Console.Out);
@@ -126,9 +157,9 @@ public static class Runner
             return 0;
         }
 
-        new ResultWriter(stateOutputDir, DataPaths.SourcesPath(dataRoot, state)).WriteAll(result);
+        new ResultWriter(stateOutputDir, DataPaths.SourcesPath(inputDataRoot, state)).WriteAll(result);
         Console.WriteLine($"\nOutputs written to {Path.GetFullPath(stateOutputDir)}");
-        Console.WriteLine($"Sources written to {Path.GetFullPath(DataPaths.SourcesPath(dataRoot, state))}");
+        Console.WriteLine($"Sources written to {Path.GetFullPath(DataPaths.SourcesPath(inputDataRoot, state))}");
         return 0;
     }
 

@@ -13,4 +13,16 @@ public static class ScrapeGuard
         if (items.Count == 0)
             throw new InvalidOperationException(message());
     }
+
+    /// <summary>
+    /// Throws InvalidOperationException with the given (scraper-specific) message
+    /// if the condition is false. For guards that can't be expressed as "a
+    /// collection came back empty" - e.g. "no heading on the page matched at all",
+    /// as distinct from "headings matched but none applied to this year".
+    /// </summary>
+    public static void Require(bool condition, Func<string> message)
+    {
+        if (!condition)
+            throw new InvalidOperationException(message());
+    }
 }

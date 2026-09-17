@@ -1,0 +1,15 @@
+.git
+.github
+.vscode
+.claude
+.agent
+**/bin
+**/obj
+**/.DS_Store
+data/output
+*.md
+*.sln
+scripts
+Dockerfile
+docker-compose.yml
+.dockerignore

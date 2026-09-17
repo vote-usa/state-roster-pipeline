@@ -12,10 +12,10 @@ public sealed class ResultWriter
     private readonly string _outDir;
     private readonly string _sourcesPath;
 
-    /// <param name="outDir">Per-state output directory (data/output/&lt;xx&gt;/).</param>
+    /// <param name="outDir">Per-state output directory (data/output/&lt;xx&gt;/ or data-repo/&lt;xx&gt;/).</param>
     /// <param name="sourcesPath">
-    /// Path for sources.json. Defaults to data/input/&lt;xx&gt;/sources.json when
-    /// <paramref name="outDir"/> is data/output/&lt;xx&gt;/.
+    /// Path for sources.json. Required when <paramref name="outDir"/> is not under
+    /// data/output/&lt;xx&gt;/ (sources always stay in the pipeline input tree).
     /// </param>
     public ResultWriter(string outDir, string? sourcesPath = null)
     {
@@ -26,7 +26,10 @@ public sealed class ResultWriter
         }
         else
         {
-            var (dataRoot, stateCode) = DataPaths.FromStateOutputDir(outDir);
+            var dataRoot = DataPaths.TryInferPipelineDataRoot(outDir)
+                ?? throw new InvalidOperationException(
+                    $"Cannot infer sources path from '{outDir}'. Pass an explicit sourcesPath.");
+            var stateCode = new DirectoryInfo(Path.GetFullPath(outDir)).Name;
             _sourcesPath = DataPaths.SourcesPath(dataRoot, stateCode);
         }
     }

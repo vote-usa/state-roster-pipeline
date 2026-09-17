@@ -6,6 +6,7 @@
   "measuresYearHeading": "h2",
   "measureHeading": "h3",
   "measureHeadingText": "(?<kind>Initiative|Referendum|Senate Joint Resolution|House Joint Resolution|Engrossed.+?Resolution)\\s*(?:Measure\\s*)?(?:No\\.?\\s*)?(?<id>[A-Z]{0,4}\\d[\\w-]*)",
+  "measureIdYear": "^[A-Z]{1,4}(?<yy>\\d{2})-",
   "measurePdfLink": "a[href$='.pdf' i]",
   "fullTextLink": "full\\s*text",
   "countyOfficeRows": "#officegrid table tbody tr, table.cols-4 tbody tr",

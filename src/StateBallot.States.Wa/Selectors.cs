@@ -33,6 +33,9 @@ public sealed class Selectors
 
     public required Regex MeasureHeadingText { get; init; }
 
+    /// <summary>Two-digit filing year embedded in measure ids like "IL26-001" / "IP26-645" (absent in classic ids like "2124").</summary>
+    public required Regex MeasureIdYear { get; init; }
+
     public required string MeasurePdfLink { get; init; }
     public required Regex FullTextLink { get; init; }
 
@@ -71,6 +74,7 @@ public sealed class Selectors
             MeasuresYearHeading = Str("measuresYearHeading"),
             MeasureHeading = Str("measureHeading"),
             MeasureHeadingText = Rx("measureHeadingText"),
+            MeasureIdYear = Rx("measureIdYear"),
             MeasurePdfLink = Str("measurePdfLink"),
             FullTextLink = Rx("fullTextLink"),
             CountyOfficeRows = Str("countyOfficeRows"),
@@ -96,6 +100,7 @@ public sealed class Selectors
         MeasureHeadingText = new(
             @"(?<kind>Initiative|Referendum|Senate Joint Resolution|House Joint Resolution|Engrossed.+?Resolution)\s*(?:Measure\s*)?(?:No\.?\s*)?(?<id>[A-Z]{0,4}\d[\w-]*)",
             RegexOptions.Compiled),
+        MeasureIdYear = new(@"^[A-Z]{1,4}(?<yy>\d{2})-", RegexOptions.Compiled),
         MeasurePdfLink = "a[href$='.pdf' i]",
         FullTextLink = new(@"full\s*text", RegexOptions.IgnoreCase | RegexOptions.Compiled),
         CountyOfficeRows = "#officegrid table tbody tr, table.cols-4 tbody tr",
