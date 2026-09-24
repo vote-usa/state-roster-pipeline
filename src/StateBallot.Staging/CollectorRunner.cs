@@ -148,7 +148,7 @@ public sealed class CollectorRunner
 
             return new RunOutcome(result, passId, runs, unassigned, filesWritten, stateOutputDir);
         }
-        catch (Exception ex) when (writer is not null && ex is not RunSetupException)
+        catch (Exception ex) when (writer is not null)
         {
             tee.Flush();
             await writer.FailPassAsync(passId!.Value, ex.ToString(), captured.ToString(), CancellationToken.None);
