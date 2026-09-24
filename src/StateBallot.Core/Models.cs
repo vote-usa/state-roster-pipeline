@@ -35,6 +35,13 @@ public sealed class CandidateRow
 
     /// <summary>The source system's identifier for the candidate, e.g. TX idCandidate.</summary>
     public string? SourceCandidateId { get; set; }
+
+    /// <summary>
+    /// The source system's election id this row was collected for. Runs are per election,
+    /// and a date plus a type cannot always identify one: TX ran two special elections on
+    /// 2026-11-03, both typed Special.
+    /// </summary>
+    public string? SourceElectionId { get; set; }
     public string? FilingDate { get; set; }
     public string? Email { get; set; }
     public string? Phone { get; set; }
@@ -47,12 +54,33 @@ public sealed class CandidateRow
     public string? MailingZip { get; set; }
     public string? ResidentialCity { get; set; }
     public string? ResidentialCounty { get; set; }
+
+    /// <summary>
+    /// The source system's identifier for the office/race (e.g. TX idOffice, WV officeId,
+    /// VoteWA RaceID). Used to alias scraped offices to VoteUSA office keys.
+    /// </summary>
+    public string? SourceOfficeId { get; set; }
+
+    /// <summary>The source system's office classification code or name, verbatim (e.g. TX cdOfficeType, VoteWA CategoryCode).</summary>
+    public string? SourceOfficeType { get; set; }
+
+    /// <summary>Local jurisdiction name as published by the source for sub-county races (e.g. "City Of Quincy").</summary>
+    public string? LocalJurisdiction { get; set; }
+
+    /// <summary>Name parts as published by the source. Null when the source only publishes a ballot name.</summary>
+    public string? FirstName { get; set; }
+    public string? MiddleName { get; set; }
+    public string? LastName { get; set; }
+    public string? Suffix { get; set; }
 }
 
 public sealed class MeasureRow
 {
     public string State { get; set; } = "";
     public string? ElectionDate { get; set; }
+
+    /// <summary>The source system's election id this measure was collected for, when known.</summary>
+    public string? SourceElectionId { get; set; }
     public string MeasureId { get; set; } = "";
     public string Title { get; set; } = "";
     public string? Summary { get; set; }

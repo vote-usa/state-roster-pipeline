@@ -91,6 +91,18 @@ The container runs as the image's non-root `app` user. On Linux hosts make
 sure `data/` is writable by that uid (1654), or add `user: "${UID}:${GID}"`
 to the service.
 
+## Tests
+
+xUnit projects are located beside the code they cover: `StateBallot.Staging.Tests`,
+`StateBallot.States.Tx.Tests`, `StateBallot.States.Wv.Tests`. They run offline
+against fixtures and never hit the source sites or the database.
+
+```bash
+dotnet test state-ballot-roster.sln                                   # everything
+dotnet test src/StateBallot.Staging.Tests                             # one project
+dotnet test src/StateBallot.Staging.Tests --filter "FullyQualifiedName~RunWriter"   # one class
+```
+
 ## Published data repo
 
 Published snapshots go to
@@ -111,8 +123,6 @@ secret (a PAT with Contents write on `vote-usa/state-roster-data`).
 dotnet run --project src/StateBallot.Cli -- \
   --state CA --input-root ./data --output-root ../state-roster-data
 ```
-
-Details: [`logs/roster-data.md`](logs/roster-data.md).
 
 ## Adding a state
 
