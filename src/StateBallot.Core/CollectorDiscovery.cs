@@ -4,18 +4,18 @@ namespace StateBallot.Core;
 
 /// <summary>
 /// Discovers IStateCollector implementations via [StateCode("XX")] and a
-/// constructor invokable as (HttpFetcher, int, string[, string? inputDataRoot, ...]).
+/// constructor invokable as (int, string[, string? inputDataRoot, ...]).
 /// Loads any StateBallot.States.*.dll beside the entry assembly so collectors are found
 /// even before their types are otherwise referenced.
 /// </summary>
 public static class CollectorDiscovery
 {
-    public static Dictionary<string, Func<HttpFetcher, int, string, string?, IStateCollector>> Discover(
+    public static Dictionary<string, Func<int, string, string?, IStateCollector>> Discover(
         IEnumerable<Assembly>? assemblies = null)
     {
         EnsureStateAssembliesLoaded();
 
-        var map = new Dictionary<string, Func<HttpFetcher, int, string, string?, IStateCollector>>(
+        var map = new Dictionary<string, Func<int, string, string?, IStateCollector>>(
             StringComparer.OrdinalIgnoreCase);
 
         foreach (var assembly in assemblies ?? AppDomain.CurrentDomain.GetAssemblies())
@@ -42,14 +42,14 @@ public static class CollectorDiscovery
                 var ctor = FindCollectorConstructor(type)
                     ?? throw new InvalidOperationException(
                         $"{type.FullName} is marked [StateCode(\"{attr.Code}\")] but lacks a public " +
-                        "constructor callable as (HttpFetcher, int year, string stateDataDir, ...).");
+                        "constructor callable as (int year, string stateDataDir, ...).");
 
                 if (map.ContainsKey(attr.Code))
                     throw new InvalidOperationException(
                         $"Duplicate [StateCode(\"{attr.Code}\")] on {type.FullName} and another collector.");
 
-                map[attr.Code] = (fetcher, year, dir, inputRoot) =>
-                    (IStateCollector)ctor.Invoke(BuildCtorArgs(ctor, fetcher, year, dir, inputRoot))!;
+                map[attr.Code] = (year, dir, inputRoot) =>
+                    (IStateCollector)ctor.Invoke(BuildCtorArgs(ctor, year, dir, inputRoot))!;
             }
         }
 
@@ -107,16 +107,15 @@ public static class CollectorDiscovery
     }
 
     private static object?[] BuildCtorArgs(
-        ConstructorInfo ctor, HttpFetcher fetcher, int year, string dir, string? inputRoot)
+        ConstructorInfo ctor, int year, string dir, string? inputRoot)
     {
         var parms = ctor.GetParameters();
         var args = new object?[parms.Length];
-        args[0] = fetcher;
-        args[1] = year;
-        args[2] = dir;
+        args[0] = year;
+        args[1] = dir;
 
         var assignedInput = false;
-        for (var i = 3; i < parms.Length; i++)
+        for (var i = 2; i < parms.Length; i++)
         {
             if (!assignedInput && parms[i].ParameterType == typeof(string))
             {
@@ -137,15 +136,13 @@ public static class CollectorDiscovery
         foreach (var ctor in type.GetConstructors())
         {
             var parms = ctor.GetParameters();
-            if (parms.Length < 3)
+            if (parms.Length < 2)
                 continue;
-            if (parms[0].ParameterType != typeof(HttpFetcher))
+            if (parms[0].ParameterType != typeof(int))
                 continue;
-            if (parms[1].ParameterType != typeof(int))
+            if (parms[1].ParameterType != typeof(string))
                 continue;
-            if (parms[2].ParameterType != typeof(string))
-                continue;
-            if (parms.Skip(3).All(p => p.HasDefaultValue))
+            if (parms.Skip(2).All(p => p.HasDefaultValue))
                 return ctor;
         }
 

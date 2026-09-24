@@ -1,6 +1,7 @@
 using System.Globalization;
 using AngleSharp.Html.Parser;
 using StateBallot.Core;
+using StateBallot.Core.Raw;
 
 namespace StateBallot.States.Ca;
 
@@ -10,17 +11,20 @@ namespace StateBallot.States.Ca;
 /// Those pages have one dated h2 per round ("Special General Election, August 18, 2026",
 /// "Special Primary Election, June 16, 2026"), each followed by document links.
 /// </summary>
-public sealed class SpecialElectionPageScraper
+public static class SpecialElectionPageScraper
 {
-    private readonly HttpFetcher _fetcher;
+    public const string Role = "special-election-page";
 
-    public SpecialElectionPageScraper(HttpFetcher fetcher) => _fetcher = fetcher;
+    public static async Task<string?> CaptureCertifiedListUrlAsync(HttpFetcher fetcher, Election election) =>
+        FindCertifiedListUrl(
+            await fetcher.GetStringAsync(election.SourceUrl, FetchTag.Of(Role, CaCollector.ElectionKeys(election))),
+            election.SourceUrl,
+            election.ElectionDate);
 
     /// <summary>Returns the certified-list PDF URL for the round held on <paramref name="electionDate"/>, or null if not posted.</summary>
-    public async Task<string?> FindCertifiedListUrlAsync(string pageUrl, DateOnly electionDate)
+    public static string? FindCertifiedListUrl(string html, string pageUrl, DateOnly electionDate)
     {
-        var html = await _fetcher.GetStringAsync(pageUrl);
-        var doc = await new HtmlParser().ParseDocumentAsync(html);
+        var doc = new HtmlParser().ParseDocument(html);
 
         DateOnly? currentSectionDate = null;
         foreach (var element in doc.QuerySelectorAll("h2, a[href]"))

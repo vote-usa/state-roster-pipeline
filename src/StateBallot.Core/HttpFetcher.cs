@@ -1,4 +1,7 @@
+using System.Diagnostics;
 using System.Net.Http.Json;
+using System.Text.Json;
+using StateBallot.Core.Raw;
 
 namespace StateBallot.Core;
 
@@ -9,9 +12,10 @@ public sealed class HttpFetcher : IDisposable
     private readonly TimeSpan _delayBetweenRequests = TimeSpan.FromMilliseconds(250);
     private DateTime _lastRequestUtc = DateTime.MinValue;
 
-    public HttpFetcher()
+    /// <param name="handler">Replaces the network handler, for tests.</param>
+    public HttpFetcher(HttpMessageHandler? handler = null)
     {
-        var handler = new HttpClientHandler
+        handler ??= new HttpClientHandler
         {
             // Decompress gzip/deflate/br responses (Wayback Machine captures send Content-Encoding regardless of Accept-Encoding).
             AutomaticDecompression = System.Net.DecompressionMethods.All,
@@ -44,44 +48,31 @@ public sealed class HttpFetcher : IDisposable
 
     private string Rewrite(string url) => RewriteUrl?.Invoke(url) ?? url;
 
-    public async Task<string> GetStringAsync(string url) =>
-        await SendWithRetryAsync(() => _http.GetAsync(Rewrite(url)), url);
+    /// <summary>
+    /// When set, every fetch is written to disk before it is parsed, failures included. The
+    /// optional tag on each call names the payload for the normalize stage.
+    /// </summary>
+    public RawSink? RawSink { get; set; }
+
+    public async Task<string> GetStringAsync(string url, FetchTag? tag = null)
+    {
+        var fetched = await FetchAsync("GET", url, null, tag, () => _http.GetAsync(Rewrite(url)), nullOn4xx: false);
+        return PayloadText.Decode(fetched!.Payload, fetched.ContentType);
+    }
 
     /// <summary>POSTs a JSON-serialized body; returns the raw response string (caller deserializes).</summary>
-    public async Task<string> PostJsonAsync<TRequest>(string url, TRequest body) =>
-        await SendWithRetryAsync(() => _http.PostAsJsonAsync(Rewrite(url), body), url);
-
-    private async Task<string> SendWithRetryAsync(Func<Task<HttpResponseMessage>> send, string url)
+    public async Task<string> PostJsonAsync<TRequest>(string url, TRequest body, FetchTag? tag = null)
     {
-        var sinceLast = DateTime.UtcNow - _lastRequestUtc;
-        if (sinceLast < _delayBetweenRequests)
-            await Task.Delay(_delayBetweenRequests - sinceLast);
-
-        Exception? last = null;
-        for (var attempt = 1; attempt <= 3; attempt++)
-        {
-            try
-            {
-                _lastRequestUtc = DateTime.UtcNow;
-                using var response = await send();
-                response.EnsureSuccessStatusCode();
-                return await response.Content.ReadAsStringAsync();
-            }
-            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
-            {
-                last = ex;
-                if (attempt < 3)
-                    await Task.Delay(TimeSpan.FromSeconds(2 * attempt));
-            }
-        }
-
-        throw new InvalidOperationException($"Failed to fetch {url} after 3 attempts.", last);
+        // Same bytes PostAsJsonAsync sends, so the log identifies the request by its body.
+        var requestSha = RawSink.Sha256(JsonSerializer.SerializeToUtf8Bytes(body, WebJson));
+        var fetched = await FetchAsync("POST", url, requestSha, tag, () => _http.PostAsJsonAsync(Rewrite(url), body), nullOn4xx: false);
+        return PayloadText.Decode(fetched!.Payload, fetched.ContentType);
     }
 
     /// <summary>Fetches binary content (e.g. a PDF), with the same retry/throttle behavior.</summary>
-    public async Task<byte[]> GetBytesAsync(string url)
+    public async Task<byte[]> GetBytesAsync(string url, FetchTag? tag = null)
     {
-        var bytes = await TryGetBytesAsync(url);
+        var bytes = await TryGetBytesAsync(url, tag);
         if (bytes is null)
             throw new InvalidOperationException($"Fetch of {url} was rejected by the server (4xx).");
         return bytes;
@@ -92,23 +83,48 @@ public sealed class HttpFetcher : IDisposable
     /// with a 4xx status (e.g. a document that is not published yet). Transient
     /// network errors and 5xx responses are still retried and then thrown.
     /// </summary>
-    public async Task<byte[]?> TryGetBytesAsync(string url)
+    public async Task<byte[]?> TryGetBytesAsync(string url, FetchTag? tag = null)
+    {
+        var fetched = await FetchAsync("GET", url, null, tag, () => _http.GetAsync(Rewrite(url)), nullOn4xx: true);
+        return fetched?.Payload;
+    }
+
+    private sealed record Fetched(byte[] Payload, string? ContentType);
+
+    private static readonly JsonSerializerOptions WebJson = new(JsonSerializerDefaults.Web);
+
+    /// <summary>
+    /// Sends with throttle and retries, and records the final outcome of the request in
+    /// <see cref="RawSink"/>. Returns null for a 4xx only when the caller tolerates one.
+    /// </summary>
+    private async Task<Fetched?> FetchAsync(
+        string method, string url, string? requestSha, FetchTag? tag, Func<Task<HttpResponseMessage>> send, bool nullOn4xx)
     {
         var sinceLast = DateTime.UtcNow - _lastRequestUtc;
         if (sinceLast < _delayBetweenRequests)
             await Task.Delay(_delayBetweenRequests - sinceLast);
 
+        var clock = Stopwatch.StartNew();
         Exception? last = null;
+        int? status = null;
         for (var attempt = 1; attempt <= 3; attempt++)
         {
+            status = null;
             try
             {
                 _lastRequestUtc = DateTime.UtcNow;
-                using var response = await _http.GetAsync(Rewrite(url));
-                if ((int)response.StatusCode is >= 400 and < 500)
+                using var response = await send();
+                status = (int)response.StatusCode;
+                if (nullOn4xx && status is >= 400 and < 500)
+                {
+                    RawSink?.Record(method, url, requestSha, status, null, null, clock.ElapsedMilliseconds, null, tag);
                     return null;
+                }
                 response.EnsureSuccessStatusCode();
-                return await response.Content.ReadAsByteArrayAsync();
+                var payload = await response.Content.ReadAsByteArrayAsync();
+                var contentType = response.Content.Headers.ContentType?.ToString();
+                RawSink?.Record(method, url, requestSha, status, contentType, payload, clock.ElapsedMilliseconds, null, tag);
+                return new Fetched(payload, contentType);
             }
             catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
             {
@@ -118,6 +134,7 @@ public sealed class HttpFetcher : IDisposable
             }
         }
 
+        RawSink?.Record(method, url, requestSha, status, null, null, clock.ElapsedMilliseconds, last?.Message, tag);
         throw new InvalidOperationException($"Failed to fetch {url} after 3 attempts.", last);
     }
 

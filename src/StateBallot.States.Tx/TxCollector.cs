@@ -1,4 +1,5 @@
 using StateBallot.Core;
+using StateBallot.Core.Raw;
 
 namespace StateBallot.States.Tx;
 
@@ -6,7 +7,6 @@ namespace StateBallot.States.Tx;
 [StateCode("TX")]
 public sealed class TxCollector : IStateCollector
 {
-    private readonly HttpFetcher _fetcher;
     private readonly TxSourceConfig _config;
     private readonly IPublishSchedule _schedule;
     private readonly int _year;
@@ -15,30 +15,39 @@ public sealed class TxCollector : IStateCollector
 
     /// <param name="stateDataDir">Per-state output directory (data/output/&lt;xx&gt;/). Inputs are under data/input/&lt;xx&gt;/.</param>
     // Unused today: TX has no per-state input files (no county_fips.json). Kept to match
-    // Runner.cs's shared IStateCollector factory signature.
-    public TxCollector(HttpFetcher fetcher, int year, string stateDataDir, TxSourceConfig? config = null)
+    // the shared IStateCollector factory signature.
+    public TxCollector(int year, string stateDataDir, TxSourceConfig? config = null)
     {
-        _fetcher = fetcher;
         _year = year;
         _config = config ?? new TxSourceConfig();
         _schedule = new TxPublishSchedule();
+    }
+
+    public async Task CaptureAsync(HttpFetcher fetcher, DateOnly asOf)
+    {
+        Console.WriteLine($"Capturing Texas sources for {_year}...");
 
         // Stamps Cloudflare-spoofing headers onto the fetcher for every request it
         // makes from now on - assumes one HttpFetcher per single-state run (true today
-        // since Runner.cs builds a fresh one per invocation). Do not share this fetcher
+        // since the runner builds a fresh one per invocation). Do not share this fetcher
         // instance with another state's collector.
         foreach (var (name, value) in TxSourceConfig.ExtraHeaders)
-            _fetcher.AddDefaultHeader(name, value);
+            fetcher.AddDefaultHeader(name, value);
+
+        var rawElections = await new TxElectionClient(_config).CaptureElectionsByYearAsync(fetcher, _year);
+        var candidateClient = new TxCandidateClient(_config);
+        foreach (var election in ElectionFilters.ForTargetYear(rawElections.Select(TxCandidateMapper.ToElection), _year, asOf))
+        {
+            Console.WriteLine($"  {election.Name} ({election.ElectionDate:yyyy-MM-dd})...");
+            await candidateClient.CaptureCandidatesAsync(fetcher, _year, election.ElectionId);
+        }
     }
 
-    public async Task<CollectResult> CollectAsync()
+    public CollectResult Normalize(CaptureReader capture)
     {
-        Console.WriteLine($"Collecting Texas ballot roster for {_year}...");
+        Console.WriteLine($"Normalizing Texas capture {capture.CaptureId} for {_year}...");
 
-        var electionClient = new TxElectionClient(_fetcher, _config);
-        var candidateClient = new TxCandidateClient(_fetcher, _config);
-
-        var rawElections = await electionClient.FetchElectionsByYearAsync(_year);
+        var rawElections = TxElectionClient.Parse(capture.Require(TxElectionClient.Role).Text(), _year);
         Console.WriteLine($"  Elections listed for {_year}: {rawElections.Count}");
 
         if (rawElections.Count == 0)
@@ -47,7 +56,7 @@ public sealed class TxCollector : IStateCollector
                 "If this is early in the year the API may not list the year's elections yet.");
 
         var mappedElections = rawElections.Select(TxCandidateMapper.ToElection);
-        var targetElections = ElectionFilters.ForTargetYear(mappedElections, _year);
+        var targetElections = ElectionFilters.ForTargetYear(mappedElections, _year, capture.AsOf);
 
         var result = new CollectResult();
 
@@ -57,7 +66,7 @@ public sealed class TxCollector : IStateCollector
             // today - not a broken source, nothing to fail loudly about.
             result.Gaps.Add(
                 $"All {rawElections.Count} election(s) listed for {_year} have already passed as of " +
-                $"{DateOnly.FromDateTime(DateTime.UtcNow.Date):yyyy-MM-dd}; nothing upcoming to collect this run.");
+                $"{capture.AsOf:yyyy-MM-dd}; nothing upcoming to collect this run.");
         }
 
         result.Elections.AddRange(targetElections);
@@ -68,7 +77,8 @@ public sealed class TxCollector : IStateCollector
         foreach (var election in targetElections)
         {
             Console.WriteLine($"  {election.Name} ({election.ElectionDate:yyyy-MM-dd})...");
-            var rawCandidates = await candidateClient.FetchCandidatesAsync(_year, int.Parse(election.ElectionId));
+            var captured = capture.Require(TxCandidateClient.Role, ("election", election.ElectionId));
+            var rawCandidates = TxCandidateClient.Parse(captured.Text(), election.ElectionId);
 
             if (rawCandidates.Count == 0)
             {

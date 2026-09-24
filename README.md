@@ -41,6 +41,18 @@ dotnet run --project StateBallot.Cli -- --year 2028        # back-fill a specifi
 dotnet run --project StateBallot.Cli -- --out /tmp/ballots # alternate data root (input/ + output/)
 ```
 
+### Capture, then normalize
+
+Every run has two stages. **Capture** fetches every source page for the state and year and saves each one to a file before anything parses it, under `data/raw/<xx>/<capture id>/` (or `dry-<utc stamp>/` for a dry run), with a `fetch_log.json` recording method, URL, the role and keys the collector tagged it with, request body hash, status, content type, size, and duration. Failed fetches are logged too, with no payload. The same entries go into the `Captures` and `CaptureFetches` tables. **Normalize** then builds the roster from the saved capture alone and stores it as a pass with one run per election. Each entry in the pass's `SourcesJson` lists the hashes of the payloads it came from.
+
+`--capture-only` stops after the first stage. `--normalize <capture id>` re-runs the second stage on an existing capture and stores a new pass, which is the fast way to test a parser change. The year and the "today" used for upcoming elections come from the capture, so normalizing later gives the same result. `data/raw/` is gitignored. `--keep-raw <n>` keeps the newest n captures per state (default 3, `0` keeps all). The `CaptureFetches` rows are kept after the files are pruned.
+
+```bash
+dotnet run --project src/StateBallot.Cli -- --state WV                  # capture 1 to data/raw/wv/1/, then normalize it
+dotnet run --project src/StateBallot.Cli -- --state WV --capture-only   # capture only
+dotnet run --project src/StateBallot.Cli -- --state WV --normalize 1    # normalize capture 1 again, offline
+```
+
 ### Backtesting against the Wayback Machine
 
 `--wayback <timestamp>` replays a run against web.archive.org captures instead of
@@ -93,7 +105,7 @@ to the service.
 
 ## Tests
 
-xUnit projects are located beside the code they cover: `StateBallot.Staging.Tests`,
+xUnit projects are located beside the code they cover: `StateBallot.Core.Tests`, `StateBallot.Staging.Tests`,
 `StateBallot.States.Tx.Tests`, `StateBallot.States.Wv.Tests`. They run offline
 against fixtures and never hit the source sites or the database.
 

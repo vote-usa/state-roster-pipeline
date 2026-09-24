@@ -6,6 +6,9 @@ public sealed class SourceEntry
     public string Url { get; set; } = "";
     public string Format { get; set; } = "";
 
+    /// <summary>SHA-256 of each payload fetched from this URL, in fetch order.</summary>
+    public List<string> PayloadSha256 { get; set; } = new();
+
     public SourceEntry() { }
 
     public SourceEntry(string url, string format)
@@ -43,6 +46,24 @@ public sealed class SourcesManifest
     public List<SourceEntry> VerificationOnly { get; set; } = new();
     public NextRunInfo? NextRun { get; set; }
 
+    /// <summary>
+    /// Fills each entry's payload hashes from the fetches whose URL matches it exactly.
+    /// An entry that names a page the pass never fetched keeps an empty list.
+    /// </summary>
+    public void AttachPayloadHashes(IEnumerable<Raw.FetchLogEntry> fetches)
+    {
+        var byUrl = fetches
+            .Where(f => f.PayloadSha256 is not null)
+            .OrderBy(f => f.Seq)
+            .GroupBy(f => f.Url, StringComparer.Ordinal)
+            .ToDictionary(g => g.Key, g => g.Select(f => f.PayloadSha256!).Distinct().ToList(), StringComparer.Ordinal);
+
+        var entries = Elections.Concat(StatewideCandidates).Concat(StatewideMeasures).Concat(LocalMeasures)
+            .Concat(CountyDirectory).Concat(VerificationOnly).Concat(CountyBallots.Values.SelectMany(v => v));
+        foreach (var entry in entries)
+            entry.PayloadSha256 = byUrl.TryGetValue(entry.Url, out var hashes) ? [.. hashes] : [];
+    }
+
     /// <summary>Builds the dictionary shape written to sources.json (plus gaps).</summary>
     public Dictionary<string, object?> ToJsonObject(IReadOnlyList<string> gaps)
     {
@@ -78,5 +99,5 @@ public sealed class SourcesManifest
     }
 
     private static object[] ToAnon(IEnumerable<SourceEntry> entries) =>
-        entries.Select(e => (object)new { url = e.Url, format = e.Format }).ToArray();
+        entries.Select(e => (object)new { url = e.Url, format = e.Format, payload_sha256 = e.PayloadSha256 }).ToArray();
 }

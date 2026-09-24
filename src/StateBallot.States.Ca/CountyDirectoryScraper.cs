@@ -2,6 +2,7 @@ using System.Text.Json;
 using AngleSharp.Dom;
 using AngleSharp.Html.Parser;
 using StateBallot.Core;
+using StateBallot.Core.Raw;
 
 namespace StateBallot.States.Ca;
 
@@ -14,17 +15,17 @@ namespace StateBallot.States.Ca;
 /// </summary>
 public sealed class CountyDirectoryScraper
 {
-    private readonly HttpFetcher _fetcher;
+    public const string Role = "county-directory";
+
     private readonly CaSourceConfig _config;
 
-    public CountyDirectoryScraper(HttpFetcher fetcher, CaSourceConfig config)
-    {
-        _fetcher = fetcher;
-        _config = config;
-    }
+    public CountyDirectoryScraper(CaSourceConfig config) => _config = config;
+
+    public async Task CaptureAsync(HttpFetcher fetcher) =>
+        await fetcher.GetStringAsync(_config.CountyElectionsOfficesUrl, FetchTag.Of(Role));
 
     /// <param name="fipsFilePath">JSON file mapping county name to FIPS code; also defines the expected county set.</param>
-    public async Task<List<CountyDirectoryRow>> FetchAsync(string fipsFilePath)
+    public List<CountyDirectoryRow> Parse(string html, string fipsFilePath)
     {
         if (!File.Exists(fipsFilePath))
             throw new InvalidOperationException(
@@ -32,8 +33,7 @@ public sealed class CountyDirectoryScraper
         var fips = JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText(fipsFilePath))
                    ?? throw new InvalidOperationException($"County FIPS data file {fipsFilePath} is empty.");
 
-        var html = await _fetcher.GetStringAsync(_config.CountyElectionsOfficesUrl);
-        var doc = await new HtmlParser().ParseDocumentAsync(html);
+        var doc = new HtmlParser().ParseDocument(html);
 
         var byCounty = new SortedDictionary<string, CountyDirectoryRow>(StringComparer.OrdinalIgnoreCase);
         foreach (var heading in doc.QuerySelectorAll(CaSelectors.CountySectionHeading))

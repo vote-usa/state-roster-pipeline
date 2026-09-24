@@ -21,7 +21,7 @@ Two schemas live in the one local MySQL:
 | Schema | Created by | Contents |
 | --- | --- | --- |
 | `vote` | `schema.sql` + `smoke.sql` at container init | VoteUSA-shaped roster tables, `Security` (console sign-in), `LocalDistricts`, `RosterProvenance` |
-| `roster_staging` | `dotnet run --project src/StateBallot.Cli -- --migrate` | Collection passes, per-election runs, and their rows (FluentMigrator, `src/StateBallot.Staging/Migrations/`) |
+| `roster_staging` | `dotnet run --project src/StateBallot.Cli -- --migrate` | Captures and their fetch logs, collection passes, per-election runs, and their rows (FluentMigrator, `src/StateBallot.Staging/Migrations/`) |
 
 ## Run
 
@@ -34,7 +34,7 @@ docker compose up -d mysql
 dotnet run --project src/StateBallot.Cli -- --migrate
 docker exec roster-vote-test mysql -uroot -proster vote -e \
   "SELECT ElectionKey, ElectionDesc FROM Elections; SELECT UserName, UserSecurity FROM Security;"
-docker exec roster-vote-test mysql -uroot -proster roster_staging -e "SHOW TABLES; SELECT * FROM SchemaMigrations;"
+docker exec roster-vote-test mysql -uroot -proster roster_staging -e "SHOW TABLES; SELECT * FROM VersionInfo;"
 ```
 
 The collector can also run in its container, reaching the database by service
@@ -51,19 +51,21 @@ Smoke sign-in users: `master` / `master` (MASTER) and `wvadmin` / `wvadmin`
 
 ## Staging shape
 
-The unit of record is one election. A CLI run collects a whole state and
-year in one fetch, because that is how the sources publish, and that fetch is a
-**collection pass**. The pass fans out into one **run** per election.
+A run has two stages. The **capture** fetches every source page for a state and year and saves each one as fetched, because that is how the sources publish. A **collection pass** then normalizes that saved capture, never the network, and fans out into one **run** per election. The run is the unit of record. One capture can be normalized many times, for example after a parser fix, and each time is a new pass.
 
 | Table | Grain | Holds |
 | --- | --- | --- |
-| `CollectionPasses` | one run | who ran it, args, git sha, log, gaps, source manifest, counts |
+| `Captures` | one fetch of a state and year | who ran it, args, git sha, Wayback stamp, status, raw directory, fetch count, bytes, fetch log hash, log |
+| `CaptureFetches` | one HTTP request | role and keys the collector tagged it with (e.g. `county-guide` {election, county}), method, URL, request body hash, status, content type, size, payload hash, file name, duration, error |
+| `CollectionPasses` | one normalization of a capture | `CaptureId`, who ran it, args, git sha, log, gaps, source manifest with payload hashes, counts |
 | `Runs` | one election | the election's own fields, pending flag, counts, resolution columns |
 | `RunCandidates`, `RunMeasures` | one row per candidate or measure | the collector output, plus resolution columns |
 | `RunCountyBallots` + `...Candidates` / `...Measures` | one county's ballot for that election | what that county's voters see, verbatim |
 | `PassCountyDirectory` | state level | county elections offices, belongs to no election |
 | `PassProposedMeasures` | state level | statewide measures with no ballot date yet |
 | `PassUnassignedRows` | exception log | rows whose election could not be identified, with the reason |
+
+The payloads themselves are not in the database. They are files under `data/raw/<xx>/<capture id>/` beside a `fetch_log.json` that mirrors `CaptureFetches`, gitignored and pruned to the newest few per state by `--keep-raw` (default 3). `CaptureFetches` rows are kept after the files are pruned, so a stored row can always be tied to the hash of the payload it came from. Passes stored before captures existed have a null `CaptureId`.
 
 Each row records the source system's own election id, so placing it on a run is
 exact. Where an id is missing the matcher falls back to a unique election-type
@@ -72,19 +74,24 @@ cannot place lands in `PassUnassignedRows` rather than being dropped. The
 fallback is not always enough on its own: TX ran two special elections on
 2026-11-03, both typed Special.
 
+`County` on candidate and measure rows is null for statewide, federal, legislative and judicial rows, one name for a local row, and a `"; "`-joined list for a race or measure that spans counties. Those columns are TEXT so a long list can never fail a pass. `RunCountyBallots.County` is always one county name.
+
 ```bash
-# every election for a state and year
+# every election for a state and year: capture, then normalize into a pass
 dotnet run --project src/StateBallot.Cli -- --state WV --year 2026
 
 # one election only
 dotnet run --project src/StateBallot.Cli -- --state WV --year 2026 --election 2026-11-03
 
+# capture only, then normalize it later (offline, a new pass each time)
+dotnet run --project src/StateBallot.Cli -- --state WV --capture-only
+dotnet run --project src/StateBallot.Cli -- --state WV --normalize 1
+
 # also export files (the data-repo path)
 dotnet run --project src/StateBallot.Cli -- --state WV --output-root ../state-roster-data
 ```
 
-Without an output root nothing is written to disk: the database is the store of
-record. `--dry-run` collects and reports without storing.
+Without an output root no roster files are written, only the raw capture: the database is the store of record. `--dry-run` captures under `data/raw/<xx>/dry-<utc stamp>/` and normalizes it, but stores nothing in the database.
 
 ## Migrations
 
@@ -93,8 +100,13 @@ record. `--dry-run` collects and reports without storing.
 runner (run via `--migrate`, and by the console API at startup) and creates the
 schema itself when missing. Applied versions are recorded in `roster_staging.VersionInfo`.
 
-Adding one: a new class `M00n_<Name>` with `[Migration(n, "<description>")]`,
-implementing `Up` and `Down`.
+Adding one: a new class `M00n_<Name>` with `[Migration(n, "<description>")]`, implementing `Up` and `Down`. Use `AsAnsiString`, never `AsString` (NVARCHAR becomes utf8mb3), and `AsCustom` for TEXT, MEDIUMTEXT and JSON. Never edit a migration once anyone else's database has applied it. Update this README in the same change.
+
+| Version | Class | Change |
+| --- | --- | --- |
+| 1 | `M001_StagingRuns` | collection passes, per-election runs and their rows |
+| 2 | `M002_RawCapture` | `Captures`, `CaptureFetches`, `CollectionPasses.CaptureId` |
+| 3 | `M003_CountyListText` | `County` on `RunCandidates`, `RunMeasures`, `PassProposedMeasures` becomes TEXT |
 
 Connection strings come from `ROSTER_STAGING_CONNECTION` and `VOTE_CONNECTION`
 (defaults point at this Docker setup).
