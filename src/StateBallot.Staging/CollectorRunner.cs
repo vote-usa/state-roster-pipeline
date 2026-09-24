@@ -224,11 +224,12 @@ public sealed class CollectorRunner
 
             return new RunOutcome(result, capture.CaptureId, passId, runs, unassigned, filesWritten, stateOutputDir);
         }
-        catch (Exception ex) when (writer is not null)
+        catch (Exception ex)
         {
-            Console.WriteLine(
-                $"\nNormalize failed. Capture {capture.CaptureId} is kept: fix the parser and re-run " +
-                $"--normalize {capture.CaptureId} --state {state}{(captureId is null ? " --dry-run" : "")}.");
+            if (ex is not RunSetupException)
+                Console.WriteLine(
+                    $"\nNormalize failed. Capture {capture.CaptureId} is kept: fix the parser and re-run " +
+                    $"--normalize {capture.CaptureId} --state {state}{(request.DryRun ? " --dry-run" : "")}.");
             Console.Out.Flush();
             if (writer is not null)
                 await writer.FailPassAsync(passId!.Value, ex.ToString(), captured.ToString(), CancellationToken.None);
