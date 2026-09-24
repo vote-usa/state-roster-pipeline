@@ -17,14 +17,15 @@ public sealed class WvCollector : IStateCollector
 
     /// <param name="stateDataDir">Per-state output directory (data/output/&lt;xx&gt;/). Inputs are under data/input/&lt;xx&gt;/,
     /// including date_formats.json.</param>
-    public WvCollector(HttpFetcher fetcher, int year, string stateDataDir, WvSourceConfig? config = null)
+    public WvCollector(
+        HttpFetcher fetcher, int year, string stateDataDir, string? inputDataRoot = null, WvSourceConfig? config = null)
     {
         _fetcher = fetcher;
         _year = year;
         _config = config ?? new WvSourceConfig();
         _schedule = new WvPublishSchedule();
 
-        var (dataRoot, _) = DataPaths.FromStateOutputDir(stateDataDir);
+        var dataRoot = ResolveInputDataRoot(stateDataDir, inputDataRoot);
         _dateFormats = DateFormatConfig.Load(DataPaths.DateFormatsPath(dataRoot, StateCode));
     }
 
@@ -77,5 +78,15 @@ public sealed class WvCollector : IStateCollector
         sources.StatewideCandidates = [new SourceEntry(_config.CandidatesUrl, "json (POST, paginated)")];
         sources.VerificationOnly = [new SourceEntry("https://ballotpedia.org/West_Virginia_elections," + _year, "html")];
         sources.NextRun = _schedule.Recommend(result, _year);
+    }
+
+    private static string ResolveInputDataRoot(string stateDataDir, string? inputDataRoot)
+    {
+        if (!string.IsNullOrWhiteSpace(inputDataRoot))
+            return Path.GetFullPath(inputDataRoot);
+        return DataPaths.TryInferPipelineDataRoot(stateDataDir)
+            ?? throw new InvalidOperationException(
+                $"Cannot infer input data root from output dir '{stateDataDir}'. " +
+                "Pass inputDataRoot (CLI --input-root) when writing outside data/output/<xx>.");
     }
 }

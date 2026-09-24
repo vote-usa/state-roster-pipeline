@@ -27,15 +27,18 @@ public sealed class ScCollector : IStateCollector
     private readonly IPublishSchedule _schedule;
     private readonly int _year;
     private readonly string _stateDataDir;
+    private readonly string _inputDataRoot;
 
     public string StateCode => "SC";
 
     /// <param name="stateDataDir">Per-state output directory (data/output/&lt;xx&gt;/). Inputs are under data/input/&lt;xx&gt;/.</param>
-    public ScCollector(HttpFetcher fetcher, int year, string stateDataDir, ScSourceConfig? config = null)
+    public ScCollector(
+        HttpFetcher fetcher, int year, string stateDataDir, string? inputDataRoot = null, ScSourceConfig? config = null)
     {
         _fetcher = fetcher;
         _year = year;
         _stateDataDir = stateDataDir;
+        _inputDataRoot = ResolveInputDataRoot(stateDataDir, inputDataRoot);
         _config = config ?? new ScSourceConfig();
         _schedule = new ScPublishSchedule();
     }
@@ -44,7 +47,7 @@ public sealed class ScCollector : IStateCollector
     {
         Console.WriteLine($"Collecting South Carolina ballot roster for {_year}...");
 
-        var (dataRoot, _) = DataPaths.FromStateOutputDir(_stateDataDir);
+        var dataRoot = _inputDataRoot;
         var fieldMap = LookupTableLoader.Load(DataPaths.CandidateFieldMapPath(dataRoot, StateCode));
 
         var electionsUrl = _config.ElectionsByYearUrl(_year);
@@ -109,5 +112,15 @@ public sealed class ScCollector : IStateCollector
         sources.StatewideCandidates = candidateListUrls;
         sources.VerificationOnly = [new SourceEntry($"https://ballotpedia.org/South_Carolina_elections,_{_year}", "html")];
         sources.NextRun = _schedule.Recommend(result, _year);
+    }
+
+    private static string ResolveInputDataRoot(string stateDataDir, string? inputDataRoot)
+    {
+        if (!string.IsNullOrWhiteSpace(inputDataRoot))
+            return Path.GetFullPath(inputDataRoot);
+        return DataPaths.TryInferPipelineDataRoot(stateDataDir)
+            ?? throw new InvalidOperationException(
+                $"Cannot infer input data root from output dir '{stateDataDir}'. " +
+                "Pass inputDataRoot (CLI --input-root) when writing outside data/output/<xx>.");
     }
 }

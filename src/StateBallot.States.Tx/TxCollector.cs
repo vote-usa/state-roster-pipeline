@@ -17,14 +17,15 @@ public sealed class TxCollector : IStateCollector
 
     /// <param name="stateDataDir">Per-state output directory (data/output/&lt;xx&gt;/). Inputs are under data/input/&lt;xx&gt;/,
     /// including date_formats.json and election_type_names.json.</param>
-    public TxCollector(HttpFetcher fetcher, int year, string stateDataDir, TxSourceConfig? config = null)
+    public TxCollector(
+        HttpFetcher fetcher, int year, string stateDataDir, string? inputDataRoot = null, TxSourceConfig? config = null)
     {
         _fetcher = fetcher;
         _year = year;
         _config = config ?? new TxSourceConfig();
         _schedule = new TxPublishSchedule();
 
-        var (dataRoot, _) = DataPaths.FromStateOutputDir(stateDataDir);
+        var dataRoot = ResolveInputDataRoot(stateDataDir, inputDataRoot);
         _dateFormats = DateFormatConfig.Load(DataPaths.DateFormatsPath(dataRoot, StateCode));
         _electionTypeNames = new Dictionary<string, string>(
             LookupTableLoader.Load(DataPaths.ElectionTypeNamesPath(dataRoot, StateCode)), StringComparer.OrdinalIgnoreCase);
@@ -109,5 +110,15 @@ public sealed class TxCollector : IStateCollector
         sources.StatewideCandidates = [new SourceEntry(_config.CandidatesUrl, "json (POST)")];
         sources.VerificationOnly = [new SourceEntry("https://ballotpedia.org/Texas_elections," + _year, "html")];
         sources.NextRun = _schedule.Recommend(result, _year);
+    }
+
+    private static string ResolveInputDataRoot(string stateDataDir, string? inputDataRoot)
+    {
+        if (!string.IsNullOrWhiteSpace(inputDataRoot))
+            return Path.GetFullPath(inputDataRoot);
+        return DataPaths.TryInferPipelineDataRoot(stateDataDir)
+            ?? throw new InvalidOperationException(
+                $"Cannot infer input data root from output dir '{stateDataDir}'. " +
+                "Pass inputDataRoot (CLI --input-root) when writing outside data/output/<xx>.");
     }
 }

@@ -19,16 +19,19 @@ public sealed class WyCollector : IStateCollector
     private readonly IPublishSchedule _schedule;
     private readonly int _year;
     private readonly string _stateDataDir;
+    private readonly string _inputDataRoot;
 
     public string StateCode => "WY";
 
     /// <param name="stateDataDir">Per-state output directory (data/output/&lt;xx&gt;/). Inputs are under data/input/&lt;xx&gt;/,
     /// including date_formats.json.</param>
-    public WyCollector(HttpFetcher fetcher, int year, string stateDataDir, WySourceConfig? config = null)
+    public WyCollector(
+        HttpFetcher fetcher, int year, string stateDataDir, string? inputDataRoot = null, WySourceConfig? config = null)
     {
         _fetcher = fetcher;
         _year = year;
         _stateDataDir = stateDataDir;
+        _inputDataRoot = ResolveInputDataRoot(stateDataDir, inputDataRoot);
         _config = config ?? new WySourceConfig();
         _schedule = new WyPublishSchedule();
     }
@@ -37,7 +40,7 @@ public sealed class WyCollector : IStateCollector
     {
         Console.WriteLine($"Collecting Wyoming ballot roster for {_year}...");
 
-        var (dataRoot, _) = DataPaths.FromStateOutputDir(_stateDataDir);
+        var dataRoot = _inputDataRoot;
         var dateFormats = DateFormatConfig.Load(DataPaths.DateFormatsPath(dataRoot, StateCode));
         var fieldMap = LookupTableLoader.Load(DataPaths.CandidateFieldMapPath(dataRoot, StateCode));
 
@@ -92,5 +95,15 @@ public sealed class WyCollector : IStateCollector
             .ToList();
         sources.VerificationOnly = [new SourceEntry($"https://ballotpedia.org/Wyoming_elections,_{_year}", "html")];
         sources.NextRun = _schedule.Recommend(result, _year);
+    }
+
+    private static string ResolveInputDataRoot(string stateDataDir, string? inputDataRoot)
+    {
+        if (!string.IsNullOrWhiteSpace(inputDataRoot))
+            return Path.GetFullPath(inputDataRoot);
+        return DataPaths.TryInferPipelineDataRoot(stateDataDir)
+            ?? throw new InvalidOperationException(
+                $"Cannot infer input data root from output dir '{stateDataDir}'. " +
+                "Pass inputDataRoot (CLI --input-root) when writing outside data/output/<xx>.");
     }
 }
