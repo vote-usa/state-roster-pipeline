@@ -141,6 +141,7 @@ public sealed class CaCollector : IStateCollector
             RowHelpers.StampState(candidate, StateCode);
             candidate.ElectionDate = election.ElectionDate.ToString("yyyy-MM-dd");
             candidate.ElectionType = election.ElectionType;
+            candidate.SourceElectionId = election.ElectionId;
         }
 
         _certifiedListUrls[election.ElectionId] = url;

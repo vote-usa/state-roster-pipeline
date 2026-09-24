@@ -1,42 +1,23 @@
 using StateBallot.Core;
-using StateBallot.States.Ca;
-using StateBallot.States.Co;
-using StateBallot.States.Hi;
-using StateBallot.States.Md;
-using StateBallot.States.Ms;
-using StateBallot.States.Nc;
-using StateBallot.States.Ne;
-using StateBallot.States.Mt;
-using StateBallot.States.Nm;
-using StateBallot.States.Sc;
-using StateBallot.States.Sd;
-using StateBallot.States.Tx;
-using StateBallot.States.Va;
-using StateBallot.States.Vt;
-using StateBallot.States.Wa;
-using StateBallot.States.Wv;
-using StateBallot.States.Wy;
+using StateBallot.Staging;
 
 namespace StateBallot.Cli;
 
 public static class Runner
 {
-    // Keep project references rooted so state assemblies copy to the output directory.
-    private static readonly Type[] RootedCollectors =
-        [typeof(CaCollector), typeof(WaCollector), typeof(TxCollector), typeof(WvCollector), typeof(MdCollector), typeof(NcCollector), typeof(WyCollector), typeof(HiCollector), typeof(MsCollector), typeof(NeCollector), typeof(CoCollector), typeof(VtCollector), typeof(VaCollector), typeof(NmCollector), typeof(ScCollector), typeof(SdCollector), typeof(MtCollector)];
-
     public static async Task<int> RunAsync(string[] args)
     {
-        _ = RootedCollectors;
-
         var state = "WA";
         int year = DateTime.UtcNow.Year;
         string? inputRootArg = null;
         string? outputRootArg = null;
         // Legacy: --out sets both roots (pipeline-style data/ with input/ + output/).
         string? outRoot = null;
+        string? electionDate = null;
         var dryRun = false;
         string? wayback = null;
+        var migrate = false;
+        string? triggeredBy = null;
 
         for (var i = 0; i < args.Length; i++)
         {
@@ -47,6 +28,9 @@ public static class Runner
                     break;
                 case "--year" when i + 1 < args.Length:
                     year = int.Parse(args[++i]);
+                    break;
+                case "--election" when i + 1 < args.Length:
+                    electionDate = args[++i];
                     break;
                 case "--out" when i + 1 < args.Length:
                     outRoot = args[++i];
@@ -63,22 +47,34 @@ public static class Runner
                 case "--wayback" when i + 1 < args.Length:
                     wayback = args[++i];
                     break;
+                case "--migrate":
+                    migrate = true;
+                    break;
+                case "--triggered-by" when i + 1 < args.Length:
+                    triggeredBy = args[++i];
+                    break;
                 case "--help" or "-h":
                     Console.WriteLine($"""
                         StateBallot.Cli - state ballot roster collector
 
+                        Collects a state and year in one pass, then stores one run per election
+                        in the staging database. Files are only written when an output root is given.
+
                         Options:
                           --state <XX>         Two-letter state code (default: WA; implemented: {ImplementedStates()})
                           --year <yyyy>        Target election year (default: current UTC year)
-                          --out <dir>          Pipeline data root with input/ + output/ (default: data/)
-                          --input-root <dir>   Pipeline data root for inputs (overrides --out for reads)
-                          --output-root <dir>  Roster output root; writes <dir>/<state>/ (default: <data>/output)
-                          --dry-run            Fetch sources and report counts without writing files
+                          --election <date>    Store only this election (yyyy-MM-dd); default is every one found
+                          --dry-run            Fetch and report counts, store nothing
                           --wayback <ts>       Replay sources via web.archive.org at this timestamp
                                                (yyyyMMdd or yyyyMMddHHmmss; nearest capture is served)
+                          --triggered-by <who> Name recorded on the pass (default: current OS user)
+                          --input-root <dir>   Pipeline data root for inputs (default: repo data/)
+                          --output-root <dir>  Also export files to <dir>/<state>/ (e.g. a state-roster-data checkout)
+                          --out <dir>          Legacy: a data root with input/ + output/, exports files too
+                          --migrate            Apply pending migrations to the staging schema and exit
 
-                        Snapshot publishes use --input-root pointing at this repo's data/ and
-                        --output-root pointing at a checkout of vote-usa/state-roster-data.
+                        The staging connection comes from ROSTER_STAGING_CONNECTION and defaults to
+                        the local Docker MySQL in db/. Run --migrate once before the first collection.
                         """);
                     return 0;
                 default:
@@ -87,93 +83,52 @@ public static class Runner
             }
         }
 
-        var pipelineDataRoot = inputRootArg ?? outRoot ?? FindDataRoot();
-        var outputRoot = outputRootArg
-            ?? (outRoot is not null ? DataPaths.OutputRoot(outRoot) : DataPaths.OutputRoot(pipelineDataRoot));
+        var db = StagingDb.FromEnvironment();
 
-        StateCatalog catalog;
+        if (migrate)
+            return await MigrateAsync(db);
+
+        var request = new RunRequest(state, year)
+        {
+            InputRoot = inputRootArg,
+            OutputRoot = outputRootArg,
+            LegacyOutRoot = outRoot,
+            ElectionDate = electionDate,
+            DryRun = dryRun,
+            Wayback = wayback,
+            RequestedBy = triggeredBy ?? Environment.UserName,
+            Source = "cli",
+            CliArgs = string.Join(' ', args),
+        };
+
         try
         {
-            catalog = StateCatalog.LoadFromDataRoot(pipelineDataRoot);
-        }
-        catch (InvalidOperationException ex)
-        {
-            var repoData = FindDataRoot();
-            if (repoData == pipelineDataRoot)
-            {
-                Console.Error.WriteLine(ex.Message);
-                return 2;
-            }
-            catalog = StateCatalog.LoadFromDataRoot(repoData);
-            pipelineDataRoot = repoData;
-        }
-
-        if (!catalog.TryGet(state, out var entry))
-        {
-            Console.Error.WriteLine(
-                $"State '{state}' is not in data/input/state_catalog.json. Known codes: {string.Join(", ", catalog.Codes.Order())}.");
-            return 2;
-        }
-
-        if (!StateCatalog.IsImplemented(entry.Status))
-        {
-            Console.Error.WriteLine(
-                $"State '{state}' ({entry.Name}) is in the catalog but not implemented yet. " +
-                $"Implemented: {string.Join(", ", catalog.ImplementedCodes.Order())}. " +
-                "See logs/adding-a-state.md.");
-            return 2;
-        }
-
-        var collectors = CollectorDiscovery.Discover();
-        if (!collectors.TryGetValue(state, out var factory))
-        {
-            Console.Error.WriteLine(
-                $"State '{state}' is marked implemented in the catalog but no [StateCode(\"{state}\")] " +
-                "collector was discovered. Ensure the state project is referenced by the Cli and its DLL " +
-                "is copied to the output directory.");
-            return 2;
-        }
-
-        var stateOutputDir = DataPaths.StateOutputDir(outputRoot, state);
-        var inputDataRoot = Path.GetFullPath(pipelineDataRoot);
-
-        using var fetcher = new HttpFetcher();
-        if (wayback is not null)
-        {
-            Console.WriteLine($"Wayback replay: rewriting fetches to web.archive.org captures near {wayback}.");
-            fetcher.RewriteUrl = url =>
-                url.Contains("web.archive.org", StringComparison.OrdinalIgnoreCase)
-                    ? url
-                    : $"https://web.archive.org/web/{wayback}id_/{url}";
-        }
-        var collector = factory(fetcher, year, stateOutputDir, inputDataRoot);
-        var result = await collector.CollectAsync();
-
-        result.PrintSummary(Console.Out);
-
-        if (dryRun)
-        {
-            Console.WriteLine("\nDry run - no files written.");
+            await new CollectorRunner(db).RunAsync(request, Console.Out);
             return 0;
         }
+        catch (RunSetupException ex)
+        {
+            Console.Error.WriteLine(ex.Message);
+            return 2;
+        }
+        catch (Exception ex)
+        {
+            // Critical failure (source unreachable, empty page that should have data, IO).
+            // The pass, if begun, has already been marked failed with the full error.
+            Console.Error.WriteLine($"Run failed: {ex.Message}");
+            return 1;
+        }
+    }
 
-        new ResultWriter(stateOutputDir, DataPaths.SourcesPath(inputDataRoot, state)).WriteAll(result);
-        Console.WriteLine($"\nOutputs written to {Path.GetFullPath(stateOutputDir)}");
-        Console.WriteLine($"Sources written to {Path.GetFullPath(DataPaths.SourcesPath(inputDataRoot, state))}");
+    private static async Task<int> MigrateAsync(StagingDb db)
+    {
+        Console.WriteLine($"Migrating {StagingDb.Describe(db.StagingConnectionString)}");
+        var report = await new Migrator(db.StagingConnectionString).ApplyAsync();
+        Console.WriteLine(
+            $"Applied: {report.Applied}; already applied: {report.AlreadyApplied}; at version {report.CurrentVersion}.");
         return 0;
     }
 
     private static string ImplementedStates() =>
         string.Join(", ", CollectorDiscovery.Discover().Keys.Order());
-
-    /// <summary>Walks up from the executable to the repo root (has src/ and data/ side by side).</summary>
-    private static string FindDataRoot()
-    {
-        for (var d = new DirectoryInfo(AppContext.BaseDirectory); d is not null; d = d.Parent)
-        {
-            if (Directory.Exists(Path.Combine(d.FullName, "src")) && Directory.Exists(Path.Combine(d.FullName, "data")))
-                return Path.Combine(d.FullName, "data");
-        }
-        return Path.Combine(Environment.CurrentDirectory, "data");
-    }
 }

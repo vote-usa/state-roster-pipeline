@@ -87,6 +87,7 @@ public sealed class ResultWriter
         Incumbent = c.Incumbent,
         SourceUrl = c.SourceUrl,
         SourceCandidateId = c.SourceCandidateId,
+        SourceElectionId = c.SourceElectionId,
         FilingDate = c.FilingDate,
         Email = c.Email,
         Phone = c.Phone,
@@ -100,12 +101,20 @@ public sealed class ResultWriter
         ResidentialCity = c.ResidentialCity,
         ResidentialCounty = c.ResidentialCounty,
         Status = c.Status,
+        SourceOfficeId = c.SourceOfficeId,
+        SourceOfficeType = c.SourceOfficeType,
+        LocalJurisdiction = c.LocalJurisdiction,
+        FirstName = c.FirstName,
+        MiddleName = c.MiddleName,
+        LastName = c.LastName,
+        Suffix = c.Suffix,
     };
 
     public static MeasureOut ToMeasureOut(MeasureRow m) => new()
     {
         State = m.State,
         ElectionDate = m.ElectionDate,
+        SourceElectionId = m.SourceElectionId,
         MeasureId = m.MeasureId,
         Title = m.Title,
         Summary = m.Summary,
@@ -141,6 +150,9 @@ public sealed class ResultWriter
             OcdDivisionId = OcdDivisionId.ForCandidate(c.State, c.Office, c.District, c.County),
             CandidateName = c.CandidateName,
             Party = c.Party,
+            SourceOfficeId = c.SourceOfficeId,
+            SourceOfficeType = c.SourceOfficeType,
+            LocalJurisdiction = c.LocalJurisdiction,
         }).ToList(),
         Measures = b.Measures.Select(m => new CountyBallotMeasureOut
         {

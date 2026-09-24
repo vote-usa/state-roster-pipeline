@@ -30,6 +30,9 @@ public sealed class CandidateOut
 
     /// <summary>The source system's identifier for the candidate, e.g. TX idCandidate.</summary>
     public string? SourceCandidateId { get; set; }
+
+    /// <summary>The source system's election id this row was collected for.</summary>
+    public string? SourceElectionId { get; set; }
     public string? FilingDate { get; set; }
     public string? Email { get; set; }
     public string? Phone { get; set; }
@@ -43,6 +46,15 @@ public sealed class CandidateOut
     public string? ResidentialCity { get; set; }
     public string? ResidentialCounty { get; set; }
     public string? Status { get; set; }
+
+    /// <summary>The source system's identifier for the office/race, e.g. TX idOffice.</summary>
+    public string? SourceOfficeId { get; set; }
+    public string? SourceOfficeType { get; set; }
+    public string? LocalJurisdiction { get; set; }
+    public string? FirstName { get; set; }
+    public string? MiddleName { get; set; }
+    public string? LastName { get; set; }
+    public string? Suffix { get; set; }
 }
 
 /// <summary>Stable cross-state output row for measures.json|csv.</summary>
@@ -50,6 +62,7 @@ public sealed class MeasureOut
 {
     public string State { get; set; } = "";
     public string? ElectionDate { get; set; }
+    public string? SourceElectionId { get; set; }
     public string MeasureId { get; set; } = "";
     public string Title { get; set; } = "";
     public string? Summary { get; set; }
@@ -80,6 +93,9 @@ public sealed class CountyBallotCandidateOut
     public string? OcdDivisionId { get; set; }
     public string CandidateName { get; set; } = "";
     public string? Party { get; set; }
+    public string? SourceOfficeId { get; set; }
+    public string? SourceOfficeType { get; set; }
+    public string? LocalJurisdiction { get; set; }
 }
 
 /// <summary>One measure entry embedded in a county ballot JSON object.</summary>

@@ -1,13 +1,50 @@
-# Collector CLI in a container. Outputs land in ./data/output/<xx>/ and
-# ./data/input/<xx>/sources.json on the host through the bind mount.
+# Collector CLI plus the MySQL it stores runs in.
 #
-#   docker compose build
-#   docker compose run --rm collector --state TX --dry-run
-#   docker compose run --rm collector --state WA
+#   docker compose up -d mysql                          start the database
+#   docker compose run --rm collector --migrate         create the staging schema
+#   docker compose run --rm collector --state WV        collect, storing per-election runs
+#   docker compose run --rm --no-deps collector --state TX --dry-run
+#
+# The database also listens on localhost:3307 so a host-side `dotnet run` works
+# against the same data. Pass an --output-root under /app/data to export files.
 
 services:
+  mysql:
+    image: mysql:8.4
+    container_name: roster-vote-test
+    environment:
+      MYSQL_ROOT_PASSWORD: roster
+      MYSQL_DATABASE: vote
+      MYSQL_USER: roster
+      MYSQL_PASSWORD: roster
+    ports:
+      - "3307:3306"
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    volumes:
+      - roster-vote-data:/var/lib/mysql
+      - ./db/00-grants.sql:/docker-entrypoint-initdb.d/00-grants.sql:ro
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./db/smoke.sql:/docker-entrypoint-initdb.d/02-smoke.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-proster"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+
   collector:
     build: .
     image: state-roster-pipeline:local
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      ROSTER_STAGING_CONNECTION: "Server=mysql;Port=3306;Database=roster_staging;User ID=roster;Password=roster;"
+      VOTE_CONNECTION: "Server=mysql;Port=3306;Database=vote;User ID=roster;Password=roster;"
     volumes:
       - ./data:/app/data
+
+volumes:
+  roster-vote-data:

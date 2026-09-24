@@ -21,7 +21,6 @@
 bld/
 [Bb]in/
 [Oo]bj/
-logs/
 
 # Ignore bin and obj folders at any depth
 **/[Bb]in/
@@ -251,3 +250,6 @@ ModelManifest.xml
 
 # Generated roster outputs
 data/output/
+# Dot-folders except GitHub workflows
+.*/
+!.github/

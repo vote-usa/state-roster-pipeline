@@ -120,7 +120,8 @@ public sealed class WaCollector : IStateCollector
                     {
                         foreach (var candidate in race.Candidates.Where(c => !string.IsNullOrWhiteSpace(c.BallotName)))
                             result.Candidates.Add(WaMapper.ToCandidateRow(
-                                StateCode, election, race, candidate, county, _config.VoterGuideUrl(election.ElectionId), selectors));
+                                StateCode, election, category, race, candidate, county,
+                                _config.VoterGuideUrl(election.ElectionId), selectors, isStatewideCategory));
                     }
                 }
             }
@@ -178,6 +179,7 @@ public sealed class WaCollector : IStateCollector
         foreach (var category in guide.Categories)
         {
             var isMeasureCategory = string.Equals(category.Name?.Trim(), "Measures", StringComparison.OrdinalIgnoreCase);
+            var isStatewideCategory = StatewideCategoryNames.Contains(category.Name?.Trim(), StringComparer.OrdinalIgnoreCase);
             foreach (var race in category.Races)
             {
                 if (isMeasureCategory)
@@ -186,7 +188,8 @@ public sealed class WaCollector : IStateCollector
                 else
                     foreach (var candidate in race.Candidates.Where(c => !string.IsNullOrWhiteSpace(c.BallotName)))
                         ballot.Candidates.Add(WaMapper.ToCandidateRow(
-                            StateCode, election, race, candidate, countyName, _config.VoterGuideUrl(election.ElectionId), selectors));
+                            StateCode, election, category, race, candidate, countyName,
+                            _config.VoterGuideUrl(election.ElectionId), selectors, isStatewideCategory));
             }
         }
 

@@ -43,6 +43,7 @@ public static class TxCandidateMapper
         Incumbent = null, // not published
         SourceUrl = sourceUrl,
         SourceCandidateId = c.IdCandidate.ToString(CultureInfo.InvariantCulture),
+        SourceElectionId = election.ElectionId,
         FilingDate = c.DtFiled,
         Email = c.TxEmail,
         Occupation = c.TxOccupation,
@@ -50,7 +51,14 @@ public static class TxCandidateMapper
         MailingCity = c.MailingAddress?.TxCity,
         MailingState = c.MailingAddress?.CdState,
         MailingZip = c.MailingAddress?.TxZip5,
+        SourceOfficeId = c.IdOffice == 0 ? null : c.IdOffice.ToString(CultureInfo.InvariantCulture),
+        SourceOfficeType = NullIfBlank(c.CdOfficeType),
+        FirstName = NullIfBlank(c.TxFirstNameBallot),
+        LastName = NullIfBlank(c.TxLastNameBallot),
     };
+
+    private static string? NullIfBlank(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
     /// <summary>Composite key TX candidates are considered duplicates by: name, occupation, filed date.</summary>
     public static object DeduplicationKey(TexasCandidate c) =>

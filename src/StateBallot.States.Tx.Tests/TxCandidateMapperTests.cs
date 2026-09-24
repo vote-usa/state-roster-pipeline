@@ -54,7 +54,11 @@ public class TxCandidateMapperTests
         var candidate = new TexasCandidate
         {
             IdCandidate = 36388,
+            IdOffice = 2101,
+            CdOfficeType = "SS",
             CdParty = "R",
+            TxFirstNameBallot = "BRETT W.",
+            TxLastNameBallot = "LIGON",
             TxFullNameBallot = "BRETT W. LIGON",
             TxOfficeName = "STATE SENATOR, DISTRICT 4",
             TxOccupation = "ATTORNEY",
@@ -90,6 +94,27 @@ public class TxCandidateMapperTests
         Assert.Null(data.Incumbent);
         Assert.Null(data.District);
         Assert.Null(data.County);
+        Assert.Equal("2101", data.SourceOfficeId);
+        Assert.Equal("SS", data.SourceOfficeType);
+        Assert.Equal("BRETT W.", data.FirstName);
+        Assert.Equal("LIGON", data.LastName);
+        Assert.Null(data.MiddleName);
+        Assert.Null(data.LocalJurisdiction);
+    }
+
+    [Fact]
+    public void ToCandidateRow_NoOfficeIdOrType_LeavesSourceOfficeFieldsNull()
+    {
+        var election = TxCandidateMapper.ToElection(
+            new TexasElection { IdElection = 1, DtElectionDate = "2026-11-03" }, DateFormats, ElectionTypeNames);
+        var candidate = new TexasCandidate { IdCandidate = 1, TxFullNameBallot = "JANE DOE", CdOfficeType = " " };
+
+        var data = TxCandidateMapper.ToCandidateRow(candidate, election, "https://example.com");
+
+        Assert.Null(data.SourceOfficeId);
+        Assert.Null(data.SourceOfficeType);
+        Assert.Null(data.FirstName);
+        Assert.Null(data.LastName);
     }
 
     [Fact]

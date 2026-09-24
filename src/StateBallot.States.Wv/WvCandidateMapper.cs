@@ -35,6 +35,7 @@ public static class WvCandidateMapper
         Incumbent = null, // not published
         SourceUrl = sourceUrl,
         SourceCandidateId = c.CandidateId.ToString(CultureInfo.InvariantCulture),
+        SourceElectionId = election.ElectionId,
         FilingDate = c.FilingDate,
         Email = c.CandidateEmail,
         Phone = c.CandidatePhoneNumber,
@@ -46,7 +47,32 @@ public static class WvCandidateMapper
         MailingZip = c.MailingAddress?.Zip5,
         ResidentialCity = c.ResidentialAddress?.City,
         ResidentialCounty = c.ResidentialAddress?.CountyDescription,
+        SourceOfficeId = c.OfficeId == 0 ? null : c.OfficeId.ToString(CultureInfo.InvariantCulture),
+        SourceOfficeType = SourceOfficeType(c),
+        // WV's townName is the county name for county-level races, not a municipality.
+        LocalJurisdiction = null,
+        FirstName = NullIfBlank(c.CandidateFirstName),
+        MiddleName = NullIfBlank(c.CandidateMiddleName),
+        LastName = NullIfBlank(c.CandidateLastName),
+        Suffix = NullIfBlank(c.CandidateSuffixName),
     };
+
+    /// <summary>
+    /// officeDescription is the office classification (FEDERAL, STATE RACE, STATEWIDE, COUNTY,
+    /// COUNTY RACE). electionCategory is election-level and is STATEWIDE for everything except
+    /// municipal elections, so it is appended only when it adds information.
+    /// </summary>
+    public static string? SourceOfficeType(WestVirginiaCandidate c)
+    {
+        var description = NullIfBlank(c.OfficeDescription);
+        var category = NullIfBlank(c.ElectionCategory);
+        if (category is not null && !string.Equals(category, "STATEWIDE", StringComparison.OrdinalIgnoreCase))
+            return description is null ? category : $"{description}/{category}";
+        return description ?? category;
+    }
+
+    private static string? NullIfBlank(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
     /// <summary>Composite key WV candidates are considered duplicates by: id, name, election, office, filing date.</summary>
     public static object DeduplicationKey(WestVirginiaCandidate c) =>
