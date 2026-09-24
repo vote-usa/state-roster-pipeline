@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using StateBallot.Core;
+using StateBallot.Core.Raw;
 
 namespace StateBallot.States.Wa;
 
@@ -55,37 +56,26 @@ public sealed class VoterGuideClient
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
     private static readonly Regex HtmlTags = new("<[^>]+>", RegexOptions.Compiled);
 
-    private readonly HttpFetcher _fetcher;
+    public const string StatewideGuideRole = "statewide-guide";
+    public const string CountyGuideRole = "county-guide";
+
     private readonly WaSourceConfig _config;
 
-    public VoterGuideClient(HttpFetcher fetcher, WaSourceConfig config)
-    {
-        _fetcher = fetcher;
-        _config = config;
-    }
+    public VoterGuideClient(WaSourceConfig config) => _config = config;
 
-    /// <summary>Fetches the guide for an election; countyCode "" returns the statewide roll-up.</summary>
-    public async Task<GuideResponse> FetchGuideAsync(string electionId, string countyCode = "")
+    /// <summary>Captures the guide for an election. countyCode "" is the statewide roll-up.</summary>
+    public async Task<GuideResponse> CaptureGuideAsync(HttpFetcher fetcher, string electionId, string countyCode = "")
     {
         var url = _config.VoterGuideUrl(electionId, countyCode);
-        var json = await _fetcher.GetStringAsync(url);
-        return JsonSerializer.Deserialize<GuideResponse>(json, JsonOptions)
-               ?? throw new InvalidOperationException($"Empty voter guide response from {url}");
+        var tag = countyCode.Length == 0
+            ? FetchTag.Of(StatewideGuideRole, ("election", electionId))
+            : FetchTag.Of(CountyGuideRole, ("election", electionId), ("county", countyCode));
+        return ParseGuide(await fetcher.GetStringAsync(url, tag), url);
     }
 
-    public async Task<MeasureDetail?> FetchMeasureDetailAsync(string raceId, string electionId)
-    {
-        var url = _config.MeasureDetailUrl(raceId, electionId);
-        try
-        {
-            var json = await _fetcher.GetStringAsync(url);
-            return JsonSerializer.Deserialize<MeasureDetail>(json, JsonOptions);
-        }
-        catch (InvalidOperationException)
-        {
-            return null; // measure detail is optional enrichment
-        }
-    }
+    public static GuideResponse ParseGuide(string json, string url) =>
+        JsonSerializer.Deserialize<GuideResponse>(json, JsonOptions)
+        ?? throw new InvalidOperationException($"Empty voter guide response from {url}");
 
     /// <summary>"(Prefers Democratic Party)" => "Democratic Party"; nonpartisan/empty => null.</summary>
     public static string? NormalizeParty(string? partyName)

@@ -1,4 +1,5 @@
 using StateBallot.Core;
+using StateBallot.Core.Raw;
 
 namespace StateBallot.States.Wa;
 
@@ -9,7 +10,6 @@ public sealed class WaCollector : IStateCollector
     private static readonly string[] StatewideCategoryNames =
         { "Federal Candidates", "Legislative Candidates", "Judicial Candidates", "State Candidates", "Statewide Candidates" };
 
-    private readonly HttpFetcher _fetcher;
     private readonly WaSourceConfig _config;
     private readonly IPublishSchedule _schedule;
     private readonly int _year;
@@ -21,13 +21,11 @@ public sealed class WaCollector : IStateCollector
     /// <param name="stateDataDir">Per-state output directory (e.g. data/output/wa or state-roster-data/wa).</param>
     /// <param name="inputDataRoot">Pipeline data root containing input/. Inferred from data/output/&lt;xx&gt; when null.</param>
     public WaCollector(
-        HttpFetcher fetcher,
         int year,
         string stateDataDir,
         string? inputDataRoot = null,
         WaSourceConfig? config = null)
     {
-        _fetcher = fetcher;
         _year = year;
         _stateDataDir = stateDataDir;
         _inputDataRoot = ResolveInputDataRoot(stateDataDir, inputDataRoot);
@@ -35,12 +33,39 @@ public sealed class WaCollector : IStateCollector
         _schedule = new WaPublishSchedule();
     }
 
-    public async Task<CollectResult> CollectAsync()
+    public async Task CaptureAsync(HttpFetcher fetcher, DateOnly asOf)
     {
-        Console.WriteLine($"Collecting Washington ballot roster for {_year}...");
+        Console.WriteLine($"Capturing Washington sources for {_year}...");
 
-        var electionScraper = new ElectionListScraper(_fetcher, _config);
-        var (allElections, countyCodes) = await electionScraper.FetchAsync();
+        var (allElections, countyCodes) = await new ElectionListScraper(_config).CaptureAsync(fetcher);
+        var guideClient = new VoterGuideClient(_config);
+        foreach (var election in ElectionFilters.ForTargetYear(allElections, _year, asOf))
+        {
+            Console.WriteLine($"  {election.Name} ({election.ElectionDate:MM/dd/yyyy})...");
+            var statewideGuide = await guideClient.CaptureGuideAsync(fetcher, election.ElectionId);
+            if (statewideGuide.Categories.Count == 0)
+                continue;
+            foreach (var code in countyCodes.Keys)
+                await guideClient.CaptureGuideAsync(fetcher, election.ElectionId, code);
+        }
+
+        try
+        {
+            await new StatewideMeasuresScraper(_config).CaptureAsync(fetcher);
+        }
+        catch (InvalidOperationException)
+        {
+            // The failed fetch is in the capture log, and normalize records it as a gap.
+        }
+
+        await new CountyDirectoryScraper(_config).CaptureAsync(fetcher);
+    }
+
+    public CollectResult Normalize(CaptureReader capture)
+    {
+        Console.WriteLine($"Normalizing Washington capture {capture.CaptureId} for {_year}...");
+
+        var (allElections, countyCodes) = new ElectionListScraper(_config).Parse(capture.Require(ElectionListScraper.Role).Text());
         Console.WriteLine($"  Elections listed on VoteWA: {allElections.Count}; counties: {countyCodes.Count}");
 
         var electionsInYear = allElections.Where(e => e.ElectionDate.Year == _year).ToList();
@@ -49,7 +74,7 @@ public sealed class WaCollector : IStateCollector
                 $"No elections found for {_year} in the VoteWA election dropdown. " +
                 "If this is early in the year the dropdown may not list the year's elections yet.");
 
-        var targetElections = ElectionFilters.ForTargetYear(allElections, _year);
+        var targetElections = ElectionFilters.ForTargetYear(allElections, _year, capture.AsOf);
 
         var result = new CollectResult { CountyCodes = countyCodes };
 
@@ -59,18 +84,18 @@ public sealed class WaCollector : IStateCollector
             // today - not a broken source, nothing to fail loudly about.
             result.Gaps.Add(
                 $"All {electionsInYear.Count} election(s) listed for {_year} have already passed as of " +
-                $"{DateOnly.FromDateTime(DateTime.UtcNow.Date):yyyy-MM-dd}; nothing upcoming to collect this run.");
+                $"{capture.AsOf:yyyy-MM-dd}; nothing upcoming to collect this run.");
         }
 
         RowHelpers.StampState(targetElections, StateCode);
         result.Elections.AddRange(targetElections);
 
-        var guideClient = new VoterGuideClient(_fetcher, _config);
-
         foreach (var election in targetElections)
         {
             Console.WriteLine($"  {election.Name} ({election.ElectionDate:MM/dd/yyyy})...");
-            var statewideGuide = await guideClient.FetchGuideAsync(election.ElectionId);
+            var statewideGuide = VoterGuideClient.ParseGuide(
+                capture.Require(VoterGuideClient.StatewideGuideRole, ("election", election.ElectionId)).Text(),
+                _config.VoterGuideUrl(election.ElectionId));
 
             if (statewideGuide.Categories.Count == 0)
             {
@@ -86,7 +111,9 @@ public sealed class WaCollector : IStateCollector
             var raceCounties = new Dictionary<string, SortedSet<string>>();
             foreach (var (code, countyName) in countyCodes)
             {
-                var countyGuide = await guideClient.FetchGuideAsync(election.ElectionId, code);
+                var countyGuide = VoterGuideClient.ParseGuide(
+                    capture.Require(VoterGuideClient.CountyGuideRole, ("election", election.ElectionId), ("county", code)).Text(),
+                    _config.VoterGuideUrl(election.ElectionId, code));
                 var ballot = BuildCountyBallot(election, countyName, code, countyGuide);
                 if (ballot.Candidates.Count > 0 || ballot.Measures.Count > 0)
                     result.CountyBallots.Add(ballot);
@@ -128,10 +155,10 @@ public sealed class WaCollector : IStateCollector
             Console.WriteLine("  Note: no target election's voters' guide is published yet; see gaps.");
 
         // Statewide proposed measures from the SoS page (not yet certified to a ballot).
-        var measuresScraper = new StatewideMeasuresScraper(_fetcher, _config);
+        var measuresPage = capture.Require(StatewideMeasuresScraper.Role);
         try
         {
-            var statewideMeasures = await measuresScraper.FetchAsync(_year);
+            var statewideMeasures = new StatewideMeasuresScraper(_config).Parse(measuresPage.Text(), _year);
             if (statewideMeasures.Count == 0)
                 result.Gaps.Add(
                     $"Statewide measures: the SoS proposed-measures page lists no measures for {_year} " +
@@ -147,9 +174,9 @@ public sealed class WaCollector : IStateCollector
             result.Gaps.Add($"Statewide measures: {ex.Message}");
         }
 
-        var directoryScraper = new CountyDirectoryScraper(_fetcher, _config);
         var fipsPath = DataPaths.CountyFipsPath(_inputDataRoot, StateCode);
-        var directory = await directoryScraper.FetchAsync(countyCodes.Values.ToList(), fipsPath);
+        var directory = new CountyDirectoryScraper(_config).Parse(
+            capture.Require(CountyDirectoryScraper.Role).Text(), countyCodes.Values.ToList(), fipsPath);
         RowHelpers.StampState(directory, StateCode);
         result.CountyDirectory.AddRange(directory);
 

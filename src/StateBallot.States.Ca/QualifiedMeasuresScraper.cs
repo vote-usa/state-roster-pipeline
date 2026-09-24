@@ -2,6 +2,7 @@ using System.Globalization;
 using AngleSharp.Dom;
 using AngleSharp.Html.Parser;
 using StateBallot.Core;
+using StateBallot.Core.Raw;
 
 namespace StateBallot.States.Ca;
 
@@ -14,19 +15,18 @@ namespace StateBallot.States.Ca;
 /// </summary>
 public sealed class QualifiedMeasuresScraper
 {
-    private readonly HttpFetcher _fetcher;
+    public const string Role = "qualified-measures";
+
     private readonly CaSourceConfig _config;
 
-    public QualifiedMeasuresScraper(HttpFetcher fetcher, CaSourceConfig config)
-    {
-        _fetcher = fetcher;
-        _config = config;
-    }
+    public QualifiedMeasuresScraper(CaSourceConfig config) => _config = config;
 
-    public async Task<List<MeasureRow>> FetchAsync()
+    public async Task CaptureAsync(HttpFetcher fetcher) =>
+        await fetcher.GetStringAsync(_config.QualifiedMeasuresUrl, FetchTag.Of(Role));
+
+    public List<MeasureRow> Parse(string html)
     {
-        var html = await _fetcher.GetStringAsync(_config.QualifiedMeasuresUrl);
-        var doc = await new HtmlParser().ParseDocumentAsync(html);
+        var doc = new HtmlParser().ParseDocument(html);
 
         var measures = new List<MeasureRow>();
         DateOnly? currentElectionDate = null;

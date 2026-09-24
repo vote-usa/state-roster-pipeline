@@ -11,6 +11,12 @@ public sealed class FetchLogEntry
     public DateTime FetchedAt { get; set; }
     public string Method { get; set; } = "";
 
+    /// <summary>What the payload is to the collector, e.g. "county-guide". Normalize finds payloads by it.</summary>
+    public string? Role { get; set; }
+
+    /// <summary>Which one of the role it is, e.g. { "election": "123", "county": "01" }.</summary>
+    public SortedDictionary<string, string>? Keys { get; set; }
+
     /// <summary>The source URL the collector asked for, before any Wayback rewrite.</summary>
     public string Url { get; set; } = "";
 
@@ -68,19 +74,23 @@ public sealed class RawSink
     }
 
     public string Directory { get; }
+    public string CaptureId => _log.CaptureId;
+    public DateTime StartedAt => _log.StartedAt;
     public string LogPath => Path.Combine(Directory, LogFileName);
     public IReadOnlyList<FetchLogEntry> Entries => _log.Fetches;
     public long TotalBytes => _log.Fetches.Sum(f => f.Bytes ?? 0);
 
     public FetchLogEntry Record(
         string method, string url, string? requestSha256, int? status, string? contentType,
-        byte[]? payload, long durationMs, string? error)
+        byte[]? payload, long durationMs, string? error, FetchTag? tag = null)
     {
         var entry = new FetchLogEntry
         {
             Seq = _log.Fetches.Count + 1,
             FetchedAt = DateTime.UtcNow,
             Method = method,
+            Role = tag?.Role,
+            Keys = tag is null || tag.Keys.Count == 0 ? null : new SortedDictionary<string, string>(tag.Keys.ToDictionary(), StringComparer.Ordinal),
             Url = url,
             RequestSha256 = requestSha256,
             Status = status,

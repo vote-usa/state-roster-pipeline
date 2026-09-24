@@ -10,7 +10,8 @@ public static class Runner
         var state = "WA";
         int year = DateTime.UtcNow.Year;
         var yearGiven = false;
-        string? replay = null;
+        string? normalize = null;
+        var captureOnly = false;
         var keepRaw = 3;
         string? inputRootArg = null;
         string? outputRootArg = null;
@@ -33,8 +34,11 @@ public static class Runner
                     year = int.Parse(args[++i]);
                     yearGiven = true;
                     break;
-                case "--replay" when i + 1 < args.Length:
-                    replay = args[++i];
+                case "--normalize" when i + 1 < args.Length:
+                    normalize = args[++i];
+                    break;
+                case "--capture-only":
+                    captureOnly = true;
                     break;
                 case "--keep-raw" when i + 1 < args.Length:
                     keepRaw = int.Parse(args[++i]);
@@ -67,20 +71,21 @@ public static class Runner
                     Console.WriteLine($"""
                         StateBallot.Cli - state ballot roster collector
 
-                        Collects a state and year in one pass, then stores one run per election
-                        in the staging database. Files are only written when an output root is given.
-                        Every fetch is saved as fetched under data/raw/<state>/<pass id>/ with fetch_log.json.
+                        Runs in two stages. Capture fetches every source page for a state and year and saves
+                        it as fetched under data/raw/<state>/<capture id>/ with fetch_log.json. Normalize then
+                        builds the roster from that saved capture alone and stores one run per election in the
+                        staging database. Files are only written when an output root is given.
 
                         Options:
                           --state <XX>         Two-letter state code (default: WA; implemented: {ImplementedStates()})
                           --year <yyyy>        Target election year (default: current UTC year)
                           --election <date>    Store only this election (yyyy-MM-dd); default is every one found
                           --dry-run            Fetch and report counts, store nothing
-                          --wayback <ts>       Replay sources via web.archive.org at this timestamp
+                          --wayback <ts>       Capture sources via web.archive.org at this timestamp
                                                (yyyyMMdd or yyyyMMddHHmmss; nearest capture is served)
-                          --replay <capture>   Re-run against a saved capture in data/raw/<state>/<capture>/
-                                               (a pass id, or dry-... from a dry run). No network is used,
-                                               and the year comes from the capture.
+                          --capture-only       Stop after the capture stage
+                          --normalize <id>     Skip capture and normalize an existing capture (a capture id, or
+                                               dry-... from a dry run). The year comes from the capture.
                           --keep-raw <n>       Raw capture directories to keep per state (default: 3, 0 keeps all)
                           --triggered-by <who> Name recorded on the pass (default: current OS user)
                           --input-root <dir>   Pipeline data root for inputs (default: repo data/)
@@ -98,9 +103,9 @@ public static class Runner
             }
         }
 
-        if (replay is not null && yearGiven)
+        if (normalize is not null && yearGiven)
         {
-            Console.Error.WriteLine("--replay takes the year from the capture. Drop --year.");
+            Console.Error.WriteLine("--normalize takes the year from the capture. Drop --year.");
             return 2;
         }
 
@@ -117,7 +122,8 @@ public static class Runner
             ElectionDate = electionDate,
             DryRun = dryRun,
             Wayback = wayback,
-            Replay = replay,
+            Normalize = normalize,
+            CaptureOnly = captureOnly,
             KeepRaw = keepRaw,
             RequestedBy = triggeredBy ?? Environment.UserName,
             Source = "cli",

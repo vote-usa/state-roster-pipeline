@@ -19,7 +19,8 @@ public sealed class RunWriter
     public RunWriter(StagingDb db) => _db = db;
 
     /// <summary>Inserts a running pass, or marks the console-queued pass as running.</summary>
-    public async Task<int> BeginPassAsync(RunRequest request, string? gitSha, CancellationToken ct = default)
+    /// <param name="captureId">The capture this pass normalizes.</param>
+    public async Task<int> BeginPassAsync(RunRequest request, int captureId, string? gitSha, CancellationToken ct = default)
     {
         await using var cn = await _db.OpenStagingAsync(ct);
         var args = new
@@ -32,6 +33,7 @@ public sealed class RunWriter
             GitSha = gitSha,
             request.Wayback,
             ElectionFilter = request.ElectionDate,
+            CaptureId = captureId,
         };
 
         if (request.ExistingPassId is { } existing)
@@ -39,10 +41,10 @@ public sealed class RunWriter
             var updated = await cn.ExecuteAsync(new CommandDefinition(
                 """
                 UPDATE CollectionPasses SET Status = 'running', StartedAt = UTC_TIMESTAMP(), CliArgs = @CliArgs,
-                    GitSha = @GitSha, Wayback = @Wayback, ElectionFilter = @ElectionFilter
+                    GitSha = @GitSha, Wayback = @Wayback, ElectionFilter = @ElectionFilter, CaptureId = @CaptureId
                 WHERE PassId = @PassId
                 """,
-                new { PassId = existing, args.CliArgs, args.GitSha, args.Wayback, args.ElectionFilter },
+                new { PassId = existing, args.CliArgs, args.GitSha, args.Wayback, args.ElectionFilter, args.CaptureId },
                 cancellationToken: ct));
             if (updated == 0)
                 throw new InvalidOperationException($"Pass {existing} does not exist in staging.");
@@ -52,9 +54,9 @@ public sealed class RunWriter
         return await cn.ExecuteScalarAsync<int>(new CommandDefinition(
             """
             INSERT INTO CollectionPasses
-                (StateCode, Year, Status, Source, RequestedBy, RequestedAt, StartedAt, CliArgs, GitSha, Wayback, ElectionFilter)
+                (StateCode, Year, Status, Source, RequestedBy, RequestedAt, StartedAt, CliArgs, GitSha, Wayback, ElectionFilter, CaptureId)
             VALUES
-                (@StateCode, @Year, 'running', @Source, @RequestedBy, UTC_TIMESTAMP(), UTC_TIMESTAMP(), @CliArgs, @GitSha, @Wayback, @ElectionFilter);
+                (@StateCode, @Year, 'running', @Source, @RequestedBy, UTC_TIMESTAMP(), UTC_TIMESTAMP(), @CliArgs, @GitSha, @Wayback, @ElectionFilter, @CaptureId);
             SELECT LAST_INSERT_ID();
             """,
             args,
@@ -240,48 +242,6 @@ public sealed class RunWriter
             """,
             new { PassId = passId, Error = error, LogText = logText },
             cancellationToken: ct));
-    }
-
-    /// <summary>
-    /// Records where the pass's raw capture lives and one PassFetches row per fetch. Called on
-    /// success and on failure, because a failed pass's fetches are the evidence for the gap.
-    /// </summary>
-    public async Task RecordRawAsync(int passId, RawCapture raw, CancellationToken ct = default)
-    {
-        await using var cn = await _db.OpenStagingAsync(ct);
-        await using var tx = await cn.BeginTransactionAsync(ct);
-
-        await cn.ExecuteAsync(new CommandDefinition(
-            """
-            UPDATE CollectionPasses SET RawDir = @RawDir, FetchCount = @FetchCount, RawBytes = @RawBytes,
-                FetchLogSha256 = @FetchLogSha256, ReplayOfPassId = @ReplayOfPassId
-            WHERE PassId = @PassId
-            """,
-            new
-            {
-                PassId = passId, raw.RawDir, FetchCount = raw.Fetches.Count, RawBytes = raw.Fetches.Sum(f => f.Bytes ?? 0),
-                raw.FetchLogSha256, raw.ReplayOfPassId,
-            },
-            transaction: tx, cancellationToken: ct));
-
-        if (raw.Fetches.Count > 0)
-        {
-            await cn.ExecuteAsync(new CommandDefinition(
-                """
-                INSERT INTO PassFetches (PassId, Seq, FetchedAt, Method, Url, RequestSha256, Status, ContentType,
-                    Bytes, PayloadSha256, FileName, DurationMs, Error)
-                VALUES (@PassId, @Seq, @FetchedAt, @Method, @Url, @RequestSha256, @Status, @ContentType,
-                    @Bytes, @PayloadSha256, @FileName, @DurationMs, @Error)
-                """,
-                raw.Fetches.Select(f => new
-                {
-                    PassId = passId, f.Seq, f.FetchedAt, f.Method, f.Url, f.RequestSha256, f.Status, f.ContentType,
-                    f.Bytes, f.PayloadSha256, f.FileName, f.DurationMs, f.Error,
-                }).ToList(),
-                transaction: tx, cancellationToken: ct));
-        }
-
-        await tx.CommitAsync(ct);
     }
 
     private static async Task InsertCandidatesAsync(

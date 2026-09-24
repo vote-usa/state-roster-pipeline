@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using StateBallot.Core.Raw;
@@ -49,31 +48,31 @@ public sealed class HttpFetcher : IDisposable
 
     private string Rewrite(string url) => RewriteUrl?.Invoke(url) ?? url;
 
-    /// <summary>When set, every fetch is written to disk before it is parsed, failures included.</summary>
+    /// <summary>
+    /// When set, every fetch is written to disk before it is parsed, failures included. The
+    /// optional tag on each call names the payload for the normalize stage.
+    /// </summary>
     public RawSink? RawSink { get; set; }
 
-    /// <summary>When set, fetches are served from a capture directory and the network is never touched.</summary>
-    public RawReplay? Replay { get; set; }
-
-    public async Task<string> GetStringAsync(string url)
+    public async Task<string> GetStringAsync(string url, FetchTag? tag = null)
     {
-        var fetched = await FetchAsync("GET", url, null, () => _http.GetAsync(Rewrite(url)), nullOn4xx: false);
-        return await DecodeAsync(fetched!);
+        var fetched = await FetchAsync("GET", url, null, tag, () => _http.GetAsync(Rewrite(url)), nullOn4xx: false);
+        return PayloadText.Decode(fetched!.Payload, fetched.ContentType);
     }
 
     /// <summary>POSTs a JSON-serialized body; returns the raw response string (caller deserializes).</summary>
-    public async Task<string> PostJsonAsync<TRequest>(string url, TRequest body)
+    public async Task<string> PostJsonAsync<TRequest>(string url, TRequest body, FetchTag? tag = null)
     {
-        // Same bytes PostAsJsonAsync sends, so replay can match the request by its body.
+        // Same bytes PostAsJsonAsync sends, so the log identifies the request by its body.
         var requestSha = RawSink.Sha256(JsonSerializer.SerializeToUtf8Bytes(body, WebJson));
-        var fetched = await FetchAsync("POST", url, requestSha, () => _http.PostAsJsonAsync(Rewrite(url), body), nullOn4xx: false);
-        return await DecodeAsync(fetched!);
+        var fetched = await FetchAsync("POST", url, requestSha, tag, () => _http.PostAsJsonAsync(Rewrite(url), body), nullOn4xx: false);
+        return PayloadText.Decode(fetched!.Payload, fetched.ContentType);
     }
 
     /// <summary>Fetches binary content (e.g. a PDF), with the same retry/throttle behavior.</summary>
-    public async Task<byte[]> GetBytesAsync(string url)
+    public async Task<byte[]> GetBytesAsync(string url, FetchTag? tag = null)
     {
-        var bytes = await TryGetBytesAsync(url);
+        var bytes = await TryGetBytesAsync(url, tag);
         if (bytes is null)
             throw new InvalidOperationException($"Fetch of {url} was rejected by the server (4xx).");
         return bytes;
@@ -84,9 +83,9 @@ public sealed class HttpFetcher : IDisposable
     /// with a 4xx status (e.g. a document that is not published yet). Transient
     /// network errors and 5xx responses are still retried and then thrown.
     /// </summary>
-    public async Task<byte[]?> TryGetBytesAsync(string url)
+    public async Task<byte[]?> TryGetBytesAsync(string url, FetchTag? tag = null)
     {
-        var fetched = await FetchAsync("GET", url, null, () => _http.GetAsync(Rewrite(url)), nullOn4xx: true);
+        var fetched = await FetchAsync("GET", url, null, tag, () => _http.GetAsync(Rewrite(url)), nullOn4xx: true);
         return fetched?.Payload;
     }
 
@@ -99,11 +98,8 @@ public sealed class HttpFetcher : IDisposable
     /// <see cref="RawSink"/>. Returns null for a 4xx only when the caller tolerates one.
     /// </summary>
     private async Task<Fetched?> FetchAsync(
-        string method, string url, string? requestSha, Func<Task<HttpResponseMessage>> send, bool nullOn4xx)
+        string method, string url, string? requestSha, FetchTag? tag, Func<Task<HttpResponseMessage>> send, bool nullOn4xx)
     {
-        if (Replay is not null)
-            return FromReplay(method, url, requestSha, nullOn4xx);
-
         var sinceLast = DateTime.UtcNow - _lastRequestUtc;
         if (sinceLast < _delayBetweenRequests)
             await Task.Delay(_delayBetweenRequests - sinceLast);
@@ -121,13 +117,13 @@ public sealed class HttpFetcher : IDisposable
                 status = (int)response.StatusCode;
                 if (nullOn4xx && status is >= 400 and < 500)
                 {
-                    RawSink?.Record(method, url, requestSha, status, null, null, clock.ElapsedMilliseconds, null);
+                    RawSink?.Record(method, url, requestSha, status, null, null, clock.ElapsedMilliseconds, null, tag);
                     return null;
                 }
                 response.EnsureSuccessStatusCode();
                 var payload = await response.Content.ReadAsByteArrayAsync();
                 var contentType = response.Content.Headers.ContentType?.ToString();
-                RawSink?.Record(method, url, requestSha, status, contentType, payload, clock.ElapsedMilliseconds, null);
+                RawSink?.Record(method, url, requestSha, status, contentType, payload, clock.ElapsedMilliseconds, null, tag);
                 return new Fetched(payload, contentType);
             }
             catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
@@ -138,29 +134,8 @@ public sealed class HttpFetcher : IDisposable
             }
         }
 
-        RawSink?.Record(method, url, requestSha, status, null, null, clock.ElapsedMilliseconds, last?.Message);
+        RawSink?.Record(method, url, requestSha, status, null, null, clock.ElapsedMilliseconds, last?.Message, tag);
         throw new InvalidOperationException($"Failed to fetch {url} after 3 attempts.", last);
-    }
-
-    private Fetched? FromReplay(string method, string url, string? requestSha, bool nullOn4xx)
-    {
-        var (entry, payload) = Replay!.Next(method, url, requestSha);
-        if (payload is not null)
-            return new Fetched(payload, entry.ContentType);
-        if (nullOn4xx && entry.Status is >= 400 and < 500)
-            return null;
-        throw new InvalidOperationException(
-            $"Failed to fetch {url} after 3 attempts (replayed from capture {Replay.Log.CaptureId}: " +
-            $"{(entry.Status is { } s ? $"HTTP {s}" : entry.Error ?? "no response")}).");
-    }
-
-    /// <summary>Decodes with the response's charset, the same way ReadAsStringAsync does.</summary>
-    private static async Task<string> DecodeAsync(Fetched fetched)
-    {
-        using var content = new ByteArrayContent(fetched.Payload);
-        if (fetched.ContentType is not null && MediaTypeHeaderValue.TryParse(fetched.ContentType, out var mediaType))
-            content.Headers.ContentType = mediaType;
-        return await content.ReadAsStringAsync();
     }
 
     public void Dispose() => _http.Dispose();

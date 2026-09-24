@@ -2,6 +2,7 @@ using System.Globalization;
 using AngleSharp.Dom;
 using AngleSharp.Html.Parser;
 using StateBallot.Core;
+using StateBallot.Core.Raw;
 
 namespace StateBallot.States.Ca;
 
@@ -12,19 +13,18 @@ namespace StateBallot.States.Ca;
 /// </summary>
 public sealed class UpcomingElectionsScraper
 {
-    private readonly HttpFetcher _fetcher;
+    public const string Role = "upcoming-elections";
+
     private readonly CaSourceConfig _config;
 
-    public UpcomingElectionsScraper(HttpFetcher fetcher, CaSourceConfig config)
-    {
-        _fetcher = fetcher;
-        _config = config;
-    }
+    public UpcomingElectionsScraper(CaSourceConfig config) => _config = config;
 
-    public async Task<List<Election>> FetchAsync()
+    public async Task<List<Election>> CaptureAsync(HttpFetcher fetcher) =>
+        Parse(await fetcher.GetStringAsync(_config.UpcomingElectionsUrl, FetchTag.Of(Role)));
+
+    public List<Election> Parse(string html)
     {
-        var html = await _fetcher.GetStringAsync(_config.UpcomingElectionsUrl);
-        var doc = await new HtmlParser().ParseDocumentAsync(html);
+        var doc = new HtmlParser().ParseDocument(html);
 
         var elections = new List<Election>();
         string? currentSection = null;

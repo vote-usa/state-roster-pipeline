@@ -22,10 +22,13 @@ public sealed record RunRequest(string State, int Year)
     public string? Wayback { get; init; }
 
     /// <summary>
-    /// Capture directory name under data/raw/&lt;xx&gt;/ (a pass id, or dry-... for a dry run) to
-    /// serve fetches from instead of the network. The year comes from the capture.
+    /// Skip the capture stage and normalize this existing capture: a capture id, or dry-...
+    /// for a dry-run capture. The year comes from the capture.
     /// </summary>
-    public string? Replay { get; init; }
+    public string? Normalize { get; init; }
+
+    /// <summary>Stop after the capture stage.</summary>
+    public bool CaptureOnly { get; init; }
 
     /// <summary>Capture directories to keep per state after a pass. Zero keeps them all.</summary>
     public int KeepRaw { get; init; } = 3;
@@ -60,19 +63,13 @@ public sealed record ElectionRun(
 
 /// <summary>What a collection pass produced.</summary>
 public sealed record RunOutcome(
-    Core.CollectResult Result,
+    Core.CollectResult? Result,
+    string? CaptureId,
     int? PassId,
     IReadOnlyList<ElectionRun> Runs,
     int UnassignedRowCount,
     bool FilesWritten,
     string? StateOutputDir);
-
-/// <summary>A pass's raw capture as recorded on CollectionPasses and PassFetches.</summary>
-public sealed record RawCapture(
-    string RawDir,
-    IReadOnlyList<Core.Raw.FetchLogEntry> Fetches,
-    string? FetchLogSha256,
-    int? ReplayOfPassId);
 
 /// <summary>A pass could not start (unknown state, no collector, bad roots). Exit code 2 territory.</summary>
 public sealed class RunSetupException(string message) : Exception(message);
