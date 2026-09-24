@@ -134,7 +134,7 @@ public sealed class WaCollector : IStateCollector
 
                 foreach (var race in category.Races)
                 {
-                    var county = AttributeCounty(race, raceCounties, isStatewideCategory);
+                    var county = AttributeCounty(race, raceCounties, isStatewideCategory || (isMeasureCategory && IsStatewideMeasure(race)));
                     if (isMeasureCategory)
                     {
                         result.Measures.Add(ToMeasureRow(election, race, county));
@@ -244,10 +244,20 @@ public sealed class WaCollector : IStateCollector
         Title = (race.BallotTitle ?? race.MeasureName ?? race.Name ?? "").Trim(),
         Summary = VoterGuideClient.StripHtml(race.ShortDescription),
         FullTextUrl = null,
-        Jurisdiction = string.IsNullOrWhiteSpace(race.Jurisdiction) ? "local" : race.Jurisdiction.Trim(),
+        Jurisdiction = IsStatewideMeasure(race) ? "state"
+            : string.IsNullOrWhiteSpace(race.Jurisdiction) ? "local" : race.Jurisdiction.Trim(),
         County = county,
         SourceUrl = _config.VoterGuideUrl(election.ElectionId),
     };
+
+    /// <summary>
+    /// VoteWA lists every measure in one "Measures" category. Local measures carry Jurisdiction
+    /// "Local". Statewide ones carry their measure type there instead ("Initiative To The People"),
+    /// so anything other than Local is statewide.
+    /// </summary>
+    private static bool IsStatewideMeasure(GuideRace race) =>
+        !string.IsNullOrWhiteSpace(race.Jurisdiction)
+        && !string.Equals(race.Jurisdiction.Trim(), "Local", StringComparison.OrdinalIgnoreCase);
 
     private static string? AttributeCounty(
         GuideRace race, Dictionary<string, SortedSet<string>> raceCounties, bool isStatewideCategory)
