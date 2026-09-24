@@ -110,7 +110,13 @@ public sealed class WaCollector : IStateCollector
 
                 foreach (var race in category.Races)
                 {
-                    var county = AttributeCounty(race, raceCounties, isStatewideCategory);
+                    // Statewide measures (initiatives) sit in the generic "Measures" category
+                    // alongside local ones, so category name alone can't tell them apart - VoteWA
+                    // marks a local measure's race Jurisdiction "Local"; a statewide initiative's
+                    // holds its initiative type instead (e.g. "Initiative To The People").
+                    var isStatewideRace = isStatewideCategory ||
+                        (isMeasureCategory && !string.Equals(race.Jurisdiction?.Trim(), "Local", StringComparison.OrdinalIgnoreCase));
+                    var county = AttributeCounty(race, raceCounties, isStatewideRace);
                     if (isMeasureCategory)
                     {
                         result.Measures.Add(WaMapper.ToMeasureRow(
@@ -121,7 +127,7 @@ public sealed class WaCollector : IStateCollector
                         foreach (var candidate in race.Candidates.Where(c => !string.IsNullOrWhiteSpace(c.BallotName)))
                             result.Candidates.Add(WaMapper.ToCandidateRow(
                                 StateCode, election, category, race, candidate, county,
-                                _config.VoterGuideUrl(election.ElectionId), selectors, isStatewideCategory));
+                                _config.VoterGuideUrl(election.ElectionId), selectors, isStatewideRace));
                     }
                 }
             }
