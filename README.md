@@ -41,6 +41,17 @@ dotnet run --project StateBallot.Cli -- --year 2028        # back-fill a specifi
 dotnet run --project StateBallot.Cli -- --out /tmp/ballots # alternate data root (input/ + output/)
 ```
 
+### Raw capture and replay
+
+Every fetch is written to disk byte for byte before anything parses it, under `data/raw/<xx>/<pass id>/` (or `dry-<utc stamp>/` for a dry run), with a `fetch_log.json` recording method, URL, request body hash, status, content type, size, payload SHA-256 and duration. Failed fetches are logged too, with no payload. The same entries go into the `PassFetches` table, and each entry in the pass's `SourcesJson` lists the hashes of the payloads it came from. `data/raw/` is gitignored. `--keep-raw <n>` keeps the newest n captures per state (default 3, `0` keeps all). The `PassFetches` rows are kept after the files are pruned.
+
+`--replay <capture>` re-runs a collector against a saved capture instead of the network, which is the fast way to test a parser change and works for the POST APIs Wayback cannot capture. The year comes from the capture. A request the capture never made fails naming the URL.
+
+```bash
+dotnet run --project src/StateBallot.Cli -- --state WV              # pass 6, captured to data/raw/wv/6/
+dotnet run --project src/StateBallot.Cli -- --state WV --replay 6   # offline, stores a new pass with ReplayOfPassId = 6
+```
+
 ### Backtesting against the Wayback Machine
 
 `--wayback <timestamp>` replays a run against web.archive.org captures instead of

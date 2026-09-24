@@ -1,5 +1,7 @@
 using System.Diagnostics;
+using System.Globalization;
 using StateBallot.Core;
+using StateBallot.Core.Raw;
 using StateBallot.States.Ca;
 using StateBallot.States.Tx;
 using StateBallot.States.Wa;
@@ -54,6 +56,23 @@ public sealed class CollectorRunner
             && !DateOnly.TryParseExact(filterDate, "yyyy-MM-dd", out _))
             throw new RunSetupException($"--election must be yyyy-MM-dd, got '{filterDate}'.");
 
+        var stateRawDir = RawRetention.StateDir(pipelineDataRoot, state);
+        RawReplay? replay = null;
+        if (request.Replay is { } captureId)
+        {
+            if (request.Wayback is not null)
+                throw new RunSetupException("--replay serves a saved capture and cannot be combined with --wayback.");
+            var captureDir = Path.Combine(stateRawDir, captureId);
+            if (!File.Exists(Path.Combine(captureDir, RawSink.LogFileName)))
+                throw new RunSetupException(
+                    $"No capture at {captureDir}. It may have been pruned by --keep-raw, " +
+                    "in which case PassFetches still holds its hashes but the payloads are gone.");
+            replay = new RawReplay(captureDir);
+            if (!string.Equals(replay.Log.State, state, StringComparison.OrdinalIgnoreCase))
+                throw new RunSetupException($"Capture {captureId} is for {replay.Log.State}, not {state}.");
+            request = request with { Year = replay.Log.Year };
+        }
+
         var persist = request.Persist && !request.DryRun;
         if (persist && _db is null)
             throw new RunSetupException("No staging database was configured. Pass --dry-run to collect without storing.");
@@ -63,6 +82,7 @@ public sealed class CollectorRunner
 
         RunWriter? writer = null;
         int? passId = null;
+        RawSink? sink = null;
         if (persist)
         {
             writer = new RunWriter(_db!);
@@ -79,6 +99,19 @@ public sealed class CollectorRunner
         try
         {
             using var fetcher = new HttpFetcher();
+            if (replay is not null)
+            {
+                fetcher.Replay = replay;
+                tee.WriteLine(
+                    $"Replaying capture {replay.Log.CaptureId} ({replay.Log.Fetches.Count} fetch(es), {replay.Log.Year}) " +
+                    $"from {replay.Directory}. The network is not used.");
+            }
+            else
+            {
+                sink = StartCapture(stateRawDir, passId, state, request.Year, tee);
+                fetcher.RawSink = sink;
+            }
+
             if (request.Wayback is not null)
             {
                 tee.WriteLine($"Wayback replay: rewriting fetches to web.archive.org captures near {request.Wayback}.");
@@ -93,6 +126,9 @@ public sealed class CollectorRunner
             // state-scoped. The result is then narrowed and fanned out per election.
             var collector = factory(fetcher, request.Year, stateOutputDir ?? inputDataRoot, inputDataRoot);
             var collected = await collector.CollectAsync();
+            collected.Sources.AttachPayloadHashes((IEnumerable<FetchLogEntry>?)replay?.Served ?? sink!.Entries);
+            if (replay is { UnusedCount: > 0 })
+                tee.WriteLine($"Warning: {replay.UnusedCount} captured fetch(es) were never requested during replay.");
 
             var result = collected;
             if (request.ElectionDate is { } wanted)
@@ -109,6 +145,8 @@ public sealed class CollectorRunner
             var summary = new StringWriter();
             result.PrintSummary(summary);
             tee.Write(summary.ToString());
+            if (sink is not null)
+                tee.WriteLine($"Raw capture: {sink.Entries.Count} fetch(es), {sink.TotalBytes:N0} bytes in {sink.Directory}");
 
             var filesWritten = false;
             if (stateOutputDir is not null && !request.DryRun)
@@ -123,6 +161,7 @@ public sealed class CollectorRunner
             var unassigned = 0;
             if (writer is not null)
             {
+                await writer.RecordRawAsync(passId!.Value, DescribeRaw(sink, replay, pipelineDataRoot), ct);
                 tee.Flush();
                 var stored = await writer.CompletePassAsync(
                     passId!.Value, result, summary.ToString(), captured.ToString(), ct);
@@ -151,12 +190,60 @@ public sealed class CollectorRunner
         catch (Exception ex) when (writer is not null && ex is not RunSetupException)
         {
             tee.Flush();
+            if (sink is not null || replay is not null)
+                await writer.RecordRawAsync(passId!.Value, DescribeRaw(sink, replay, pipelineDataRoot), CancellationToken.None);
             await writer.FailPassAsync(passId!.Value, ex.ToString(), captured.ToString(), CancellationToken.None);
             throw;
         }
         finally
         {
             Console.SetOut(originalOut);
+            if (sink is not null)
+                PruneRaw(stateRawDir, request.KeepRaw, log);
+        }
+    }
+
+    /// <summary>
+    /// Opens data/raw/&lt;xx&gt;/&lt;pass-id&gt;/, or dry-&lt;utc stamp&gt; when nothing is stored.
+    /// A directory left over from a database that was since recreated is moved aside, not overwritten.
+    /// </summary>
+    private static RawSink StartCapture(string stateRawDir, int? passId, string state, int year, TextWriter log)
+    {
+        var stamp = DateTime.UtcNow.ToString("yyyyMMdd'T'HHmmss'Z'", CultureInfo.InvariantCulture);
+        var captureId = passId?.ToString(CultureInfo.InvariantCulture) ?? $"dry-{stamp}";
+        var dir = Path.Combine(stateRawDir, captureId);
+        if (Directory.Exists(dir))
+        {
+            var aside = $"{dir}-stale-{stamp}";
+            Directory.Move(dir, aside);
+            log.WriteLine($"Moved an older capture that reused this pass id to {aside}.");
+        }
+        return new RawSink(dir, captureId, state, year);
+    }
+
+    private static RawCapture DescribeRaw(RawSink? sink, RawReplay? replay, string pipelineDataRoot)
+    {
+        if (replay is not null)
+        {
+            int? replayOf = int.TryParse(replay.Log.CaptureId, NumberStyles.None, CultureInfo.InvariantCulture, out var id) ? id : null;
+            return new RawCapture(RelativeRawDir(pipelineDataRoot, replay.Directory), [], null, replayOf);
+        }
+        return new RawCapture(RelativeRawDir(pipelineDataRoot, sink!.Directory), sink.Entries, sink.LogSha256(), null);
+    }
+
+    private static string RelativeRawDir(string pipelineDataRoot, string dir) =>
+        Path.GetRelativePath(pipelineDataRoot, dir).Replace('\\', '/');
+
+    private static void PruneRaw(string stateRawDir, int keep, TextWriter log)
+    {
+        try
+        {
+            foreach (var removed in RawRetention.Prune(stateRawDir, keep))
+                log.WriteLine($"Pruned raw capture {removed} (--keep-raw {keep}).");
+        }
+        catch (IOException ex)
+        {
+            log.WriteLine($"Warning: could not prune raw captures in {stateRawDir}: {ex.Message}");
         }
     }
 

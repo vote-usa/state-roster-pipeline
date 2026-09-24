@@ -250,6 +250,8 @@ ModelManifest.xml
 
 # Generated roster outputs
 data/output/
+# Raw payloads as fetched, evidence only
+data/raw/
 # Dot-folders except GitHub workflows
 .*/
 !.github/

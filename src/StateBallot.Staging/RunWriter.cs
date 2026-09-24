@@ -242,6 +242,48 @@ public sealed class RunWriter
             cancellationToken: ct));
     }
 
+    /// <summary>
+    /// Records where the pass's raw capture lives and one PassFetches row per fetch. Called on
+    /// success and on failure, because a failed pass's fetches are the evidence for the gap.
+    /// </summary>
+    public async Task RecordRawAsync(int passId, RawCapture raw, CancellationToken ct = default)
+    {
+        await using var cn = await _db.OpenStagingAsync(ct);
+        await using var tx = await cn.BeginTransactionAsync(ct);
+
+        await cn.ExecuteAsync(new CommandDefinition(
+            """
+            UPDATE CollectionPasses SET RawDir = @RawDir, FetchCount = @FetchCount, RawBytes = @RawBytes,
+                FetchLogSha256 = @FetchLogSha256, ReplayOfPassId = @ReplayOfPassId
+            WHERE PassId = @PassId
+            """,
+            new
+            {
+                PassId = passId, raw.RawDir, FetchCount = raw.Fetches.Count, RawBytes = raw.Fetches.Sum(f => f.Bytes ?? 0),
+                raw.FetchLogSha256, raw.ReplayOfPassId,
+            },
+            transaction: tx, cancellationToken: ct));
+
+        if (raw.Fetches.Count > 0)
+        {
+            await cn.ExecuteAsync(new CommandDefinition(
+                """
+                INSERT INTO PassFetches (PassId, Seq, FetchedAt, Method, Url, RequestSha256, Status, ContentType,
+                    Bytes, PayloadSha256, FileName, DurationMs, Error)
+                VALUES (@PassId, @Seq, @FetchedAt, @Method, @Url, @RequestSha256, @Status, @ContentType,
+                    @Bytes, @PayloadSha256, @FileName, @DurationMs, @Error)
+                """,
+                raw.Fetches.Select(f => new
+                {
+                    PassId = passId, f.Seq, f.FetchedAt, f.Method, f.Url, f.RequestSha256, f.Status, f.ContentType,
+                    f.Bytes, f.PayloadSha256, f.FileName, f.DurationMs, f.Error,
+                }).ToList(),
+                transaction: tx, cancellationToken: ct));
+        }
+
+        await tx.CommitAsync(ct);
+    }
+
     private static async Task InsertCandidatesAsync(
         System.Data.Common.DbConnection cn, System.Data.Common.DbTransaction tx,
         int runId, List<CandidateOut> rows, CancellationToken ct)

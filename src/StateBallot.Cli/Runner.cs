@@ -9,6 +9,9 @@ public static class Runner
     {
         var state = "WA";
         int year = DateTime.UtcNow.Year;
+        var yearGiven = false;
+        string? replay = null;
+        var keepRaw = 3;
         string? inputRootArg = null;
         string? outputRootArg = null;
         // Legacy: --out sets both roots (pipeline-style data/ with input/ + output/).
@@ -28,6 +31,13 @@ public static class Runner
                     break;
                 case "--year" when i + 1 < args.Length:
                     year = int.Parse(args[++i]);
+                    yearGiven = true;
+                    break;
+                case "--replay" when i + 1 < args.Length:
+                    replay = args[++i];
+                    break;
+                case "--keep-raw" when i + 1 < args.Length:
+                    keepRaw = int.Parse(args[++i]);
                     break;
                 case "--election" when i + 1 < args.Length:
                     electionDate = args[++i];
@@ -59,6 +69,7 @@ public static class Runner
 
                         Collects a state and year in one pass, then stores one run per election
                         in the staging database. Files are only written when an output root is given.
+                        Every fetch is saved as fetched under data/raw/<state>/<pass id>/ with fetch_log.json.
 
                         Options:
                           --state <XX>         Two-letter state code (default: WA; implemented: {ImplementedStates()})
@@ -67,6 +78,10 @@ public static class Runner
                           --dry-run            Fetch and report counts, store nothing
                           --wayback <ts>       Replay sources via web.archive.org at this timestamp
                                                (yyyyMMdd or yyyyMMddHHmmss; nearest capture is served)
+                          --replay <capture>   Re-run against a saved capture in data/raw/<state>/<capture>/
+                                               (a pass id, or dry-... from a dry run). No network is used,
+                                               and the year comes from the capture.
+                          --keep-raw <n>       Raw capture directories to keep per state (default: 3, 0 keeps all)
                           --triggered-by <who> Name recorded on the pass (default: current OS user)
                           --input-root <dir>   Pipeline data root for inputs (default: repo data/)
                           --output-root <dir>  Also export files to <dir>/<state>/ (e.g. a state-roster-data checkout)
@@ -83,6 +98,12 @@ public static class Runner
             }
         }
 
+        if (replay is not null && yearGiven)
+        {
+            Console.Error.WriteLine("--replay takes the year from the capture. Drop --year.");
+            return 2;
+        }
+
         var db = StagingDb.FromEnvironment();
 
         if (migrate)
@@ -96,6 +117,8 @@ public static class Runner
             ElectionDate = electionDate,
             DryRun = dryRun,
             Wayback = wayback,
+            Replay = replay,
+            KeepRaw = keepRaw,
             RequestedBy = triggeredBy ?? Environment.UserName,
             Source = "cli",
             CliArgs = string.Join(' ', args),
