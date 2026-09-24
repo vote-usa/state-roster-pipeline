@@ -224,7 +224,7 @@ public sealed class CollectorRunner
 
             return new RunOutcome(result, capture.CaptureId, passId, runs, unassigned, filesWritten, stateOutputDir);
         }
-        catch (Exception ex) when (ex is not RunSetupException)
+        catch (Exception ex) when (writer is not null)
         {
             Console.WriteLine(
                 $"\nNormalize failed. Capture {capture.CaptureId} is kept: fix the parser and re-run " +
