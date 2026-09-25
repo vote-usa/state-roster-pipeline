@@ -1,0 +1,15 @@
+<Project>
+
+  <!--
+    Excludes live-network/Testcontainers integration tests (see
+    LiveCollectionIntegrationTests) from a bare "dotnet test", so the routine
+    fast run stays fast and doesn't need Docker or network access. Passing an
+    explicit filter option on the command line overrides this default
+    entirely: a bare "dotnet test" runs the fast tests only, while filtering
+    on Category=Integration runs the live suite only.
+  -->
+  <PropertyGroup>
+    <VSTestTestCaseFilter Condition="'$(VSTestTestCaseFilter)' == ''">Category!=Integration</VSTestTestCaseFilter>
+  </PropertyGroup>
+
+</Project>

@@ -1,4 +1,3 @@
-using System.Text.Json;
 using System.Text.RegularExpressions;
 using AngleSharp.Html.Parser;
 using StateBallot.Core;
@@ -14,40 +13,39 @@ public sealed class CountyDirectoryScraper
 {
     private readonly HttpFetcher _fetcher;
     private readonly WaSourceConfig _config;
+    private readonly Selectors _selectors;
 
-    public CountyDirectoryScraper(HttpFetcher fetcher, WaSourceConfig config)
+    public CountyDirectoryScraper(HttpFetcher fetcher, WaSourceConfig config, Selectors selectors)
     {
         _fetcher = fetcher;
         _config = config;
+        _selectors = selectors;
     }
 
     /// <param name="expectedCounties">County names from the VoteWA dropdown; used to validate coverage.</param>
     /// <param name="fipsFilePath">JSON file mapping county name to FIPS code.</param>
     public async Task<List<CountyDirectoryRow>> FetchAsync(ICollection<string> expectedCounties, string fipsFilePath)
     {
-        var fips = File.Exists(fipsFilePath)
-            ? JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText(fipsFilePath)) ?? new()
-            : new Dictionary<string, string>();
+        var fips = CountyFipsLoader.LoadOrEmpty(fipsFilePath);
 
         var html = await _fetcher.GetStringAsync(_config.CountyElectionsOfficesUrl);
         var doc = await new HtmlParser().ParseDocumentAsync(html);
 
-        var rows = doc.QuerySelectorAll(Selectors.CountyOfficeRows);
-        if (rows.Length == 0)
-            throw new InvalidOperationException(
-                $"No county office rows found at {_config.CountyElectionsOfficesUrl} using selector '{Selectors.CountyOfficeRows}'.");
+        var rows = doc.QuerySelectorAll(_selectors.CountyOfficeRows).ToList();
+        ScrapeGuard.RequireAny(rows, () =>
+            $"No county office rows found at {_config.CountyElectionsOfficesUrl} using selector '{_selectors.CountyOfficeRows}'.");
 
         // The table can contain multiple offices per county; keep the first (primary) office.
         var byCounty = new SortedDictionary<string, CountyDirectoryRow>(StringComparer.OrdinalIgnoreCase);
         foreach (var row in rows)
         {
-            var countyName = row.QuerySelector(Selectors.CountyOfficeCountyCell)?.TextContent.Trim();
+            var countyName = row.QuerySelector(_selectors.CountyOfficeCountyCell)?.TextContent.Trim();
             if (string.IsNullOrEmpty(countyName) || !expectedCounties.Contains(countyName))
                 continue; // skips "Statewide" / "State Elections Office" rows
             if (byCounty.ContainsKey(countyName))
                 continue;
 
-            var addressCell = row.QuerySelector(Selectors.CountyOfficeAddressCell);
+            var addressCell = row.QuerySelector(_selectors.CountyOfficeAddressCell);
             string? address = null;
             if (addressCell?.QuerySelector("p.address") is { } p)
             {
@@ -59,14 +57,14 @@ public sealed class CountyDirectoryScraper
             }
             address ??= VoterGuideClient.StripHtml(addressCell?.InnerHtml);
 
-            var contactCell = row.QuerySelector(Selectors.CountyOfficeContactCell);
-            var websiteUrl = contactCell?.QuerySelectorAll(Selectors.CountyOfficeWebsiteLink)
+            var contactCell = row.QuerySelector(_selectors.CountyOfficeContactCell);
+            var websiteUrl = contactCell?.QuerySelectorAll(_selectors.CountyOfficeWebsiteLink)
                 .Select(a => a.GetAttribute("href"))
                 .FirstOrDefault(h => h is not null && !h.Contains("email-protection") && !h.StartsWith("tel:"));
 
             string? phone = null;
             var contactText = contactCell?.TextContent ?? "";
-            var phoneMatch = Selectors.PhoneLine.Match(contactText);
+            var phoneMatch = _selectors.PhoneLine.Match(contactText);
             if (phoneMatch.Success)
                 phone = phoneMatch.Groups["phone"].Value.Trim();
             else

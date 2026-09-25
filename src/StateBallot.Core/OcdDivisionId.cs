@@ -12,6 +12,7 @@ namespace StateBallot.Core;
 public static partial class OcdDivisionId
 {
     private static readonly Regex Digits = DigitsRegex();
+    private static readonly Regex BareNumericDistrict = BareNumericDistrictRegex();
     private static readonly Regex CountySuffix = CountySuffixRegex();
     private static readonly Regex CongressionalDistrictPattern = CongressionalDistrictRegex();
     private static readonly Regex StateSenateDistrictPattern = StateSenateDistrictRegex();
@@ -121,8 +122,19 @@ public static partial class OcdDivisionId
         return null;
     }
 
+    /// <summary>
+    /// True only when the whole (trimmed) value is a plain number - "01",
+    /// "14", not merely a string that *contains* a digit somewhere. Every
+    /// state onboarded so far already normalizes District to a bare number
+    /// before this point, except VT's legislative districts ("ADD 1", "CHI CT
+    /// 1", "BEN RUT") - a compound county-abbreviation + number code where the
+    /// abbreviation is the load-bearing part. Digit-extracting those would
+    /// silently collapse every county's district "1" onto the same wrong
+    /// sldu/sldl id, so a compound code deliberately falls through to the
+    /// caller's own not-a-recognized-plain-district handling instead.
+    /// </summary>
     private static bool HasDistrict(string? district) =>
-        !string.IsNullOrWhiteSpace(district) && Digits.IsMatch(district);
+        !string.IsNullOrWhiteSpace(district) && BareNumericDistrict.IsMatch(district.Trim());
 
     private static string NormalizeState(string stateCode) =>
         stateCode.Trim().ToLowerInvariant();
@@ -155,7 +167,17 @@ public static partial class OcdDivisionId
         officeKey.Contains("u s representative", StringComparison.Ordinal) ||
         officeKey.Contains("us representative", StringComparison.Ordinal) ||
         officeKey.Contains("representative in congress", StringComparison.Ordinal) ||
-        officeKey.Equals("congress", StringComparison.Ordinal);
+        officeKey.Equals("congress", StringComparison.Ordinal) ||
+        // "House of Representatives" is federal by default - CO spells its own
+        // export's "US House of Representatives" with the qualifier, but VA's
+        // "Member, House of Representatives" carries no "US"/"United States"
+        // qualifier at all and still means the federal seat. The one state
+        // seen so far whose *state* lower chamber uses this same base phrase
+        // (CO) always says "State House of Representatives" explicitly, so
+        // excluding that explicit qualifier is enough to keep the two apart
+        // (see IsStateHouse, which requires it).
+        (officeKey.Contains("house of representatives", StringComparison.Ordinal) &&
+         !officeKey.Contains("state house of representatives", StringComparison.Ordinal));
 
     private static bool IsStateSenate(string officeKey) =>
         officeKey.Contains("state senator", StringComparison.Ordinal) ||
@@ -171,7 +193,12 @@ public static partial class OcdDivisionId
         officeKey.Contains("member of the assembly", StringComparison.Ordinal) ||
         officeKey.Contains("assemblymember", StringComparison.Ordinal) ||
         officeKey.Contains("assembly member", StringComparison.Ordinal) ||
-        officeKey.Contains("state representative", StringComparison.Ordinal);
+        officeKey.Contains("state representative", StringComparison.Ordinal) ||
+        // CO's own export names the office "State House of Representatives" (no
+        // "member"/"state representative" wording) - requires the explicit
+        // "state" qualifier so a bare "House of Representatives" (VA's federal
+        // seat, see IsUsHouse) never lands here instead.
+        officeKey.Contains("state house of representatives", StringComparison.Ordinal);
 
     private static bool IsStatewideOffice(string officeKey)
     {
@@ -193,6 +220,9 @@ public static partial class OcdDivisionId
 
     [GeneratedRegex(@"\d+", RegexOptions.Compiled)]
     private static partial Regex DigitsRegex();
+
+    [GeneratedRegex(@"^\d+$", RegexOptions.Compiled)]
+    private static partial Regex BareNumericDistrictRegex();
 
     [GeneratedRegex(@"\s+County\s*$", RegexOptions.IgnoreCase | RegexOptions.Compiled)]
     private static partial Regex CountySuffixRegex();

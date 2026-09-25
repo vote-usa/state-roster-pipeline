@@ -4,6 +4,8 @@ namespace StateBallot.States.Wv.Tests;
 
 public class WvCandidateMapperTests
 {
+    private static readonly string[] DateFormats = { "yyyy-MM-dd", "yyyy-MM-ddTHH:mm:ss", "M/d/yyyy", "MM/dd/yyyy" };
+
     [Fact]
     public void ToElection_ParsesIsoDate()
     {
@@ -15,7 +17,7 @@ public class WvCandidateMapperTests
             ElectionType = "PRIMARY",
         };
 
-        var election = WvCandidateMapper.ToElection(raw);
+        var election = WvCandidateMapper.ToElection(raw, DateFormats);
 
         Assert.Equal("WV", election.State);
         Assert.Equal("42", election.ElectionId);
@@ -27,14 +29,14 @@ public class WvCandidateMapperTests
     {
         var raw = new WestVirginiaCandidate { ElectionId = 99, ElectionDate = "not-a-date" };
 
-        var ex = Assert.Throws<InvalidOperationException>(() => WvCandidateMapper.ToElection(raw));
+        var ex = Assert.Throws<InvalidOperationException>(() => WvCandidateMapper.ToElection(raw, DateFormats));
         Assert.Contains("99", ex.Message);
     }
 
     [Fact]
     public void ToCandidateRow_UsesBallotNameWhenPresent()
     {
-        var election = WvCandidateMapper.ToElection(new WestVirginiaCandidate { ElectionId = 1, ElectionDate = "2026-05-12" });
+        var election = WvCandidateMapper.ToElection(new WestVirginiaCandidate { ElectionId = 1, ElectionDate = "2026-05-12" }, DateFormats);
         var candidate = new WestVirginiaCandidate
         {
             CandidateId = 5,
@@ -71,7 +73,7 @@ public class WvCandidateMapperTests
     [Fact]
     public void ToCandidateRow_MunicipalElection_AppendsCategory_AndIgnoresTownName()
     {
-        var election = WvCandidateMapper.ToElection(new WestVirginiaCandidate { ElectionId = 1, ElectionDate = "2026-06-09" });
+        var election = WvCandidateMapper.ToElection(new WestVirginiaCandidate { ElectionId = 1, ElectionDate = "2026-06-09" }, DateFormats);
         var candidate = new WestVirginiaCandidate
         {
             CandidateId = 6,
@@ -100,6 +102,43 @@ public class WvCandidateMapperTests
         var raw = new WestVirginiaCandidate { OfficeDescription = description, ElectionCategory = category };
 
         Assert.Equal(expected, WvCandidateMapper.SourceOfficeType(raw));
+    }
+
+    [Fact]
+    public void ToCandidateRow_FormatsMailingAddress()
+    {
+        var election = WvCandidateMapper.ToElection(new WestVirginiaCandidate { ElectionId = 1, ElectionDate = "2026-05-12" }, DateFormats);
+        var candidate = new WestVirginiaCandidate
+        {
+            CandidateBallotName = "Jane Public",
+            MailingAddress = new WestVirginiaAddress
+            {
+                StreetNumber = "123",
+                Street1 = "Main St",
+                City = "Charleston",
+                State = "WV",
+                Zip5 = "25301",
+            },
+        };
+
+        var data = WvCandidateMapper.ToCandidateRow(candidate, election, "https://example.com");
+
+        Assert.Equal("123 Main St", data.MailingAddressLine);
+        Assert.Equal("Charleston", data.MailingCity);
+        Assert.Equal("WV", data.MailingState);
+        Assert.Equal("25301", data.MailingZip);
+    }
+
+    [Fact]
+    public void ToCandidateRow_NoMailingAddress_LeavesAddressFieldsNull()
+    {
+        var election = WvCandidateMapper.ToElection(new WestVirginiaCandidate { ElectionId = 1, ElectionDate = "2026-05-12" }, DateFormats);
+        var candidate = new WestVirginiaCandidate { CandidateBallotName = "Jane Public" };
+
+        var data = WvCandidateMapper.ToCandidateRow(candidate, election, "https://example.com");
+
+        Assert.Null(data.MailingAddressLine);
+        Assert.Null(data.MailingCity);
     }
 
     [Fact]

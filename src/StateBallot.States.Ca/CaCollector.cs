@@ -1,4 +1,3 @@
-using System.Text.Json;
 using StateBallot.Core;
 
 namespace StateBallot.States.Ca;
@@ -41,10 +40,9 @@ public sealed class CaCollector : IStateCollector
         Console.WriteLine($"Collecting California ballot roster for {_year}...");
 
         var fipsPath = DataPaths.CountyFipsPath(_inputDataRoot, StateCode);
-        if (!File.Exists(fipsPath))
-            throw new InvalidOperationException($"County FIPS data file not found at {fipsPath}.");
-        var fips = JsonSerializer.Deserialize<SortedDictionary<string, string>>(File.ReadAllText(fipsPath))
-                   ?? throw new InvalidOperationException($"County FIPS data file {fipsPath} is empty.");
+        var fips = CountyFipsLoader.LoadRequired(fipsPath);
+        var dateFormats = DateFormatConfig.Load(DataPaths.DateFormatsPath(_inputDataRoot, StateCode));
+        var selectors = CaSelectors.Load(DataPaths.SelectorsPath(_inputDataRoot, StateCode));
 
         var result = new CollectResult
         {
@@ -52,7 +50,7 @@ public sealed class CaCollector : IStateCollector
                 fips.ToDictionary(kv => kv.Value, kv => kv.Key), StringComparer.Ordinal),
         };
 
-        var allElections = await new UpcomingElectionsScraper(_fetcher, _config).FetchAsync();
+        var allElections = await new UpcomingElectionsScraper(_fetcher, _config, dateFormats, selectors).FetchAsync();
         Console.WriteLine($"  Elections listed on the SoS upcoming-elections page: {allElections.Count}");
 
         var targetElections = ElectionFilters.ForTargetYear(allElections, _year);
@@ -68,7 +66,7 @@ public sealed class CaCollector : IStateCollector
         foreach (var election in targetElections)
         {
             Console.WriteLine($"  {election.Name} ({election.ElectionDate:MM/dd/yyyy})...");
-            var candidates = await CollectCandidatesAsync(election, result);
+            var candidates = await CollectCandidatesAsync(election, result, dateFormats, selectors);
             if (candidates is not null)
                 candidatesByElection[election.ElectionId] = candidates;
         }
@@ -76,7 +74,7 @@ public sealed class CaCollector : IStateCollector
         foreach (var candidates in candidatesByElection.Values)
             result.Candidates.AddRange(candidates);
 
-        var measures = await new QualifiedMeasuresScraper(_fetcher, _config).FetchAsync();
+        var measures = await new QualifiedMeasuresScraper(_fetcher, _config, dateFormats, selectors).FetchAsync();
         foreach (var measure in measures)
         {
             var date = DateOnly.Parse(measure.ElectionDate!);
@@ -87,12 +85,12 @@ public sealed class CaCollector : IStateCollector
         }
         Console.WriteLine($"  Qualified statewide measures: {result.StatewideProposedMeasures.Count}");
 
-        var directory = await new CountyDirectoryScraper(_fetcher, _config).FetchAsync(fipsPath);
+        var directory = await new CountyDirectoryScraper(_fetcher, _config, selectors).FetchAsync(fipsPath);
         RowHelpers.StampState(directory, StateCode);
         result.CountyDirectory.AddRange(directory);
         Console.WriteLine($"  Counties in directory: {result.CountyDirectory.Count}");
 
-        var countyEntries = await new CountyElectionsScraper(_fetcher, _config).FetchAsync(fips.Keys);
+        var countyEntries = await new CountyElectionsScraper(_fetcher, _config, dateFormats, selectors).FetchAsync(fips.Keys);
         ProcessCountyElections(countyEntries, targetElections, candidatesByElection, result);
 
         if (result.Candidates.Count == 0 && result.PendingElections.Count == result.Elections.Count)
@@ -103,7 +101,8 @@ public sealed class CaCollector : IStateCollector
         return result;
     }
 
-    private async Task<List<CandidateRow>?> CollectCandidatesAsync(Election election, CollectResult result)
+    private async Task<List<CandidateRow>?> CollectCandidatesAsync(
+        Election election, CollectResult result, string[] dateFormats, CaSelectors selectors)
     {
         string? url;
         if (election.Jurisdiction == "state")
@@ -114,7 +113,7 @@ public sealed class CaCollector : IStateCollector
         }
         else
         {
-            url = await new SpecialElectionPageScraper(_fetcher)
+            url = await new SpecialElectionPageScraper(_fetcher, dateFormats, selectors)
                 .FindCertifiedListUrlAsync(election.SourceUrl, election.ElectionDate);
             if (url is null)
             {
@@ -136,7 +135,7 @@ public sealed class CaCollector : IStateCollector
             return null;
         }
 
-        var candidates = CertifiedListPdfParser.Parse(pdfBytes, url);
+        var candidates = CertifiedListPdfParser.Parse(pdfBytes, url, selectors);
         foreach (var candidate in candidates)
         {
             RowHelpers.StampState(candidate, StateCode);

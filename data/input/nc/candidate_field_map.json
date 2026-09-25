@@ -1,0 +1,9 @@
+{
+  "Party": "party_candidate",
+  "FilingDate": "candidacy_dt",
+  "Email": "email",
+  "MailingAddressLine": "street_address",
+  "MailingCity": "city",
+  "MailingState": "state",
+  "MailingZip": "zip_code"
+}

@@ -32,8 +32,8 @@
   "CO": {
     "name": "Colorado",
     "fips": "08",
-    "status": "unimplemented",
-    "project": null
+    "status": "implemented",
+    "project": "StateBallot.States.Co"
   },
   "CT": {
     "name": "Connecticut",
@@ -68,8 +68,8 @@
   "HI": {
     "name": "Hawaii",
     "fips": "15",
-    "status": "unimplemented",
-    "project": null
+    "status": "implemented",
+    "project": "StateBallot.States.Hi"
   },
   "ID": {
     "name": "Idaho",
@@ -122,8 +122,8 @@
   "MD": {
     "name": "Maryland",
     "fips": "24",
-    "status": "unimplemented",
-    "project": null
+    "status": "implemented",
+    "project": "StateBallot.States.Md"
   },
   "MA": {
     "name": "Massachusetts",
@@ -146,8 +146,8 @@
   "MS": {
     "name": "Mississippi",
     "fips": "28",
-    "status": "unimplemented",
-    "project": null
+    "status": "implemented",
+    "project": "StateBallot.States.Ms"
   },
   "MO": {
     "name": "Missouri",
@@ -158,14 +158,14 @@
   "MT": {
     "name": "Montana",
     "fips": "30",
-    "status": "unimplemented",
-    "project": null
+    "status": "implemented",
+    "project": "StateBallot.States.Mt"
   },
   "NE": {
     "name": "Nebraska",
     "fips": "31",
-    "status": "unimplemented",
-    "project": null
+    "status": "implemented",
+    "project": "StateBallot.States.Ne"
   },
   "NV": {
     "name": "Nevada",
@@ -188,8 +188,8 @@
   "NM": {
     "name": "New Mexico",
     "fips": "35",
-    "status": "unimplemented",
-    "project": null
+    "status": "implemented",
+    "project": "StateBallot.States.Nm"
   },
   "NY": {
     "name": "New York",
@@ -200,8 +200,8 @@
   "NC": {
     "name": "North Carolina",
     "fips": "37",
-    "status": "unimplemented",
-    "project": null
+    "status": "implemented",
+    "project": "StateBallot.States.Nc"
   },
   "ND": {
     "name": "North Dakota",
@@ -242,14 +242,14 @@
   "SC": {
     "name": "South Carolina",
     "fips": "45",
-    "status": "unimplemented",
-    "project": null
+    "status": "implemented",
+    "project": "StateBallot.States.Sc"
   },
   "SD": {
     "name": "South Dakota",
     "fips": "46",
-    "status": "unimplemented",
-    "project": null
+    "status": "implemented",
+    "project": "StateBallot.States.Sd"
   },
   "TN": {
     "name": "Tennessee",
@@ -272,14 +272,14 @@
   "VT": {
     "name": "Vermont",
     "fips": "50",
-    "status": "unimplemented",
-    "project": null
+    "status": "implemented",
+    "project": "StateBallot.States.Vt"
   },
   "VA": {
     "name": "Virginia",
     "fips": "51",
-    "status": "unimplemented",
-    "project": null
+    "status": "implemented",
+    "project": "StateBallot.States.Va"
   },
   "WA": {
     "name": "Washington",
@@ -302,7 +302,7 @@
   "WY": {
     "name": "Wyoming",
     "fips": "56",
-    "status": "unimplemented",
-    "project": null
+    "status": "implemented",
+    "project": "StateBallot.States.Wy"
   }
 }

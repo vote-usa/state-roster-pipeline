@@ -56,6 +56,14 @@ public sealed class CandidateRow
     public string? ResidentialCounty { get; set; }
 
     /// <summary>
+    /// Raw filing status as the source publishes it (e.g. "Active", "Withdrawn -
+    /// 02/19/2026", "Deceased - 10/23/2025", "Seeking the Nomination") - not
+    /// normalized into a closed set, since the vocabulary and whether a date is
+    /// embedded varies per source (see the "never invented" convention above).
+    /// </summary>
+    public string? Status { get; set; }
+
+    /// <summary>
     /// The source system's identifier for the office/race (e.g. TX idOffice, WV officeId,
     /// VoteWA RaceID). Used to alias scraped offices to VoteUSA office keys.
     /// </summary>
