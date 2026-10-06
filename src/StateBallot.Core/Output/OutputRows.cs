@@ -45,6 +45,7 @@ public sealed class CandidateOut
     public string? MailingZip { get; set; }
     public string? ResidentialCity { get; set; }
     public string? ResidentialCounty { get; set; }
+    public string? Status { get; set; }
 
     /// <summary>The source system's identifier for the office/race, e.g. TX idOffice.</summary>
     public string? SourceOfficeId { get; set; }

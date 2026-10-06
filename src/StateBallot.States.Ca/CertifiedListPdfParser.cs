@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using StateBallot.Core;
 using UglyToad.PdfPig;
 using UglyToad.PdfPig.DocumentLayoutAnalysis.TextExtractor;
@@ -22,7 +23,7 @@ namespace StateBallot.States.Ca;
 public sealed class CertifiedListPdfParser
 {
     /// <summary>Extracts candidate rows; election fields and source URL are stamped by the caller.</summary>
-    public static List<CandidateRow> Parse(byte[] pdfBytes, string sourceUrl)
+    public static List<CandidateRow> Parse(byte[] pdfBytes, string sourceUrl, CaSelectors selectors)
     {
         var candidates = new List<CandidateRow>();
         using var pdf = PdfDocument.Open(pdfBytes);
@@ -44,7 +45,7 @@ public sealed class CertifiedListPdfParser
             var expectDesignation = false;
             foreach (var line in lines)
             {
-                if (CaSelectors.CertListSkipLine.IsMatch(line) || CaSelectors.CertListElectionLine.IsMatch(line))
+                if (selectors.CertListSkipLine.IsMatch(line) || selectors.CertListElectionLine.IsMatch(line))
                     continue;
 
                 if (expectDesignation)
@@ -54,20 +55,10 @@ public sealed class CertifiedListPdfParser
                     continue;
                 }
 
-                var match = CaSelectors.CertListCandidateLine.Match(line);
+                var match = selectors.CertListCandidateLine.Match(line);
                 if (match.Success && office is not null)
                 {
-                    var party = match.Groups["party"].Value;
-                    candidates.Add(new CandidateRow
-                    {
-                        Office = OfficePart(office),
-                        District = DistrictPart(office),
-                        County = null,
-                        CandidateName = match.Groups["name"].Value.Trim(),
-                        Party = party == "Unknown" ? null : party,
-                        Incumbent = match.Groups["incumbent"].Success ? true : null,
-                        SourceUrl = sourceUrl,
-                    });
+                    candidates.Add(ToCandidateRow(match, office, sourceUrl, selectors));
                     expectDesignation = true;
                 }
                 else
@@ -79,23 +70,37 @@ public sealed class CertifiedListPdfParser
             }
         }
 
-        if (candidates.Count == 0)
-            throw new InvalidOperationException(
-                $"No candidates parsed from certified list PDF at {sourceUrl} " +
-                $"(candidate pattern '{CaSelectors.CertListCandidateLine}'). The PDF layout may have changed.");
+        ScrapeGuard.RequireAny(candidates, () =>
+            $"No candidates parsed from certified list PDF at {sourceUrl} " +
+            $"(candidate pattern '{selectors.CertListCandidateLine}'). The PDF layout may have changed.");
 
         return candidates;
     }
 
-    private static string OfficePart(string office)
+    internal static CandidateRow ToCandidateRow(Match match, string office, string sourceUrl, CaSelectors selectors)
     {
-        var match = CaSelectors.OfficeWithDistrict.Match(office);
+        var party = match.Groups["party"].Value;
+        return new CandidateRow
+        {
+            Office = OfficePart(office, selectors),
+            District = DistrictPart(office, selectors),
+            County = null,
+            CandidateName = match.Groups["name"].Value.Trim(),
+            Party = party == "Unknown" ? null : party,
+            Incumbent = match.Groups["incumbent"].Success ? true : null,
+            SourceUrl = sourceUrl,
+        };
+    }
+
+    private static string OfficePart(string office, CaSelectors selectors)
+    {
+        var match = selectors.OfficeWithDistrict.Match(office);
         return match.Success ? match.Groups["office"].Value.Trim() : office;
     }
 
-    private static string? DistrictPart(string office)
+    private static string? DistrictPart(string office, CaSelectors selectors)
     {
-        var match = CaSelectors.OfficeWithDistrict.Match(office);
+        var match = selectors.OfficeWithDistrict.Match(office);
         return match.Success ? match.Groups["district"].Value : null;
     }
 }

@@ -1,0 +1,12 @@
+{
+  "Party": "Party",
+  "FilingDate": "Filing Date/Time",
+  "Phone": "Phone",
+  "Email": "Email",
+  "Website": "Website",
+  "MailingAddressLine": "Address",
+  "MailingCity": "City",
+  "MailingState": "State",
+  "MailingZip": "Zip",
+  "Status": "Status"
+}

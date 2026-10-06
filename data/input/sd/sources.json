@@ -1,0 +1,33 @@
+{
+  "elections": [
+    {
+      "url": "https://sdsos.gov/elections-voting/upcoming-elections/general-information/2026 Election Information/2026-candidate-calendar.aspx",
+      "format": "html"
+    }
+  ],
+  "statewide_candidates": [
+    {
+      "url": "https://vip.sdsos.gov/candidatelist.aspx?eid=773",
+      "format": "csv"
+    },
+    {
+      "url": "https://vip.sdsos.gov/candidatelist.aspx?eid=774",
+      "format": "csv"
+    }
+  ],
+  "statewide_measures": [],
+  "county_directory": [],
+  "verification_only": [
+    {
+      "url": "https://ballotpedia.org/South_Dakota_elections,_2026",
+      "format": "html"
+    }
+  ],
+  "gaps": [],
+  "next_run": {
+    "recommended_after": "2027-01-01",
+    "reason": "All 2026 candidates collected. Re-run next year to check for new filings.",
+    "next_election_date": null,
+    "next_election_type": null
+  }
+}

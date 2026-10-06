@@ -1,0 +1,631 @@
+{
+  "elections": [
+    {
+      "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+      "format": "csv"
+    }
+  ],
+  "statewide_candidates": [
+    {
+      "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+      "format": "csv"
+    }
+  ],
+  "statewide_measures": [],
+  "county_directory": [],
+  "verification_only": [
+    {
+      "url": "https://ballotpedia.org/North_Carolina_elections,_2026",
+      "format": "html"
+    }
+  ],
+  "gaps": [],
+  "next_run": {
+    "recommended_after": "2027-01-01",
+    "reason": "All 2026 candidates collected. Re-run next year to check for new filings.",
+    "next_election_date": null,
+    "next_election_type": null
+  },
+  "county_ballots": {
+    "ALAMANCE": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "ALEXANDER": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "ALLEGHANY": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "ANSON": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "ASHE": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "AVERY": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "BEAUFORT": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "BERTIE": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "BLADEN": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "BRUNSWICK": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "BUNCOMBE": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "BURKE": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "CABARRUS": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "CALDWELL": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "CAMDEN": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "CARTERET": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "CASWELL": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "CATAWBA": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "CHATHAM": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "CHEROKEE": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "CHOWAN": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "CLAY": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "CLEVELAND": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "COLUMBUS": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "CRAVEN": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "CUMBERLAND": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "CURRITUCK": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "DARE": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "DAVIDSON": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "DAVIE": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "DUPLIN": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "DURHAM": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "EDGECOMBE": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "FORSYTH": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "FRANKLIN": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "GASTON": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "GATES": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "GRAHAM": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "GRANVILLE": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "GREENE": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "GUILFORD": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "HALIFAX": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "HARNETT": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "HAYWOOD": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "HENDERSON": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "HERTFORD": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "HOKE": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "HYDE": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "IREDELL": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "JACKSON": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "JOHNSTON": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "JONES": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "LEE": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "LENOIR": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "LINCOLN": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "MACON": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "MADISON": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "MARTIN": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "MCDOWELL": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "MECKLENBURG": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "MITCHELL": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "MONTGOMERY": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "MOORE": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "NASH": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "NEW HANOVER": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "NORTHAMPTON": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "ONSLOW": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "ORANGE": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "PAMLICO": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "PASQUOTANK": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "PENDER": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "PERQUIMANS": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "PERSON": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "PITT": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "POLK": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "RANDOLPH": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "RICHMOND": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "ROBESON": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "ROCKINGHAM": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "ROWAN": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "RUTHERFORD": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "SAMPSON": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "SCOTLAND": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "STANLY": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "STOKES": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "SURRY": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "SWAIN": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "TRANSYLVANIA": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "TYRRELL": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "UNION": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "VANCE": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "WAKE": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "WARREN": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "WASHINGTON": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "WATAUGA": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "WAYNE": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "WILKES": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "WILSON": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "YADKIN": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ],
+    "YANCEY": [
+      {
+        "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/2026/Candidate%20Filing/Candidate_Listing_2026.csv",
+        "format": "csv"
+      }
+    ]
+  }
+}

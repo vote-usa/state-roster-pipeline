@@ -12,6 +12,7 @@ namespace StateBallot.Core;
 public static partial class OcdDivisionId
 {
     private static readonly Regex Digits = DigitsRegex();
+    private static readonly Regex PlainDistrict = PlainDistrictRegex();
     private static readonly Regex CountySuffix = CountySuffixRegex();
     private static readonly Regex CongressionalDistrictPattern = CongressionalDistrictRegex();
     private static readonly Regex StateSenateDistrictPattern = StateSenateDistrictRegex();
@@ -43,14 +44,22 @@ public static partial class OcdDivisionId
 
         var officeKey = NormalizeKey(office);
 
-        if (IsUsHouse(officeKey) && HasDistrict(district))
+        var isUsHouse = IsUsHouse(state, officeKey);
+        var isStateSenate = IsStateSenate(officeKey);
+        var isStateHouse = IsStateHouse(state, officeKey);
+
+        if (isUsHouse && HasDistrict(district))
             return CongressionalDistrict(state, district!);
 
-        if (IsStateSenate(officeKey) && HasDistrict(district))
+        if (isStateSenate && HasDistrict(district))
             return StateSenateDistrict(state, district!);
 
-        if (IsStateHouse(officeKey) && HasDistrict(district))
+        if (isStateHouse && HasDistrict(district))
             return StateHouseDistrict(state, district!);
+
+        // A legislative seat whose district is not a plain number (VT's "ADD 1", "BEN RUT") is left unmapped.
+        if ((isUsHouse || isStateSenate || isStateHouse) && !string.IsNullOrWhiteSpace(district))
+            return null;
 
         // US Senate and statewide executive / judicial offices.
         if (IsStatewideOffice(officeKey))
@@ -61,7 +70,7 @@ public static partial class OcdDivisionId
             return County(state, county);
 
         // Districted office we don't recognize, or multi-county local: leave null.
-        if (HasDistrict(district))
+        if (!string.IsNullOrWhiteSpace(district) && Digits.IsMatch(district))
             return null;
 
         return State(state);
@@ -121,8 +130,18 @@ public static partial class OcdDivisionId
         return null;
     }
 
+    /// <summary>
+    /// True when the value is a plain district number ("01", "14") or ends in
+    /// "District n" or "District No. n" (WA's "Legislative District 6",
+    /// "Congressional District No. 5"), not merely a string that contains a digit somewhere. VT's
+    /// legislative districts ("ADD 1", "CHI CT 1", "BEN RUT") are a compound
+    /// county-abbreviation + number code where the abbreviation is the
+    /// load-bearing part. Digit-extracting those would silently collapse
+    /// every county's district "1" onto the same wrong sldu/sldl id, so
+    /// ForCandidate leaves them unmapped instead.
+    /// </summary>
     private static bool HasDistrict(string? district) =>
-        !string.IsNullOrWhiteSpace(district) && Digits.IsMatch(district);
+        !string.IsNullOrWhiteSpace(district) && PlainDistrict.IsMatch(district.Trim());
 
     private static string NormalizeState(string stateCode) =>
         stateCode.Trim().ToLowerInvariant();
@@ -150,12 +169,25 @@ public static partial class OcdDivisionId
             .Replace('.', ' ')
             .Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
 
-    private static bool IsUsHouse(string officeKey) =>
+    private static bool IsUsHouse(string state, string officeKey) =>
         officeKey.Contains("united states representative", StringComparison.Ordinal) ||
         officeKey.Contains("u s representative", StringComparison.Ordinal) ||
         officeKey.Contains("us representative", StringComparison.Ordinal) ||
         officeKey.Contains("representative in congress", StringComparison.Ordinal) ||
-        officeKey.Equals("congress", StringComparison.Ordinal);
+        officeKey.Equals("congress", StringComparison.Ordinal) ||
+        // "House of Representatives" is federal only with a federal qualifier
+        // (CO and NC "US House of Representatives", SC "U.S. House of
+        // Representatives", MS "United States House of Representatives").
+        // Without one it is usually a state chamber: NC names its own lower
+        // house "NC HOUSE OF REPRESENTATIVES".
+        officeKey.Contains("united states house of representatives", StringComparison.Ordinal) ||
+        officeKey.Contains("u s house of representatives", StringComparison.Ordinal) ||
+        officeKey.Contains("us house of representatives", StringComparison.Ordinal) ||
+        // VA's export says "Member, House of Representatives" for the federal
+        // seat with no qualifier at all. It is unambiguous there because VA's
+        // own lower chamber is the House of Delegates.
+        (NormalizeState(state) == "va" &&
+         officeKey.Equals("member, house of representatives", StringComparison.Ordinal));
 
     private static bool IsStateSenate(string officeKey) =>
         officeKey.Contains("state senator", StringComparison.Ordinal) ||
@@ -165,13 +197,18 @@ public static partial class OcdDivisionId
          !officeKey.Contains("u s ", StringComparison.Ordinal) &&
          !officeKey.Contains("us ", StringComparison.Ordinal));
 
-    private static bool IsStateHouse(string officeKey) =>
+    private static bool IsStateHouse(string state, string officeKey) =>
         officeKey.Contains("state assembly", StringComparison.Ordinal) ||
         officeKey.Contains("member of the state assembly", StringComparison.Ordinal) ||
         officeKey.Contains("member of the assembly", StringComparison.Ordinal) ||
         officeKey.Contains("assemblymember", StringComparison.Ordinal) ||
         officeKey.Contains("assembly member", StringComparison.Ordinal) ||
-        officeKey.Contains("state representative", StringComparison.Ordinal);
+        officeKey.Contains("state representative", StringComparison.Ordinal) ||
+        // CO's own export names the office "State House of Representatives" (no
+        // "member"/"state representative" wording).
+        officeKey.Contains("state house of representatives", StringComparison.Ordinal) ||
+        // NC prefixes its own chamber with the state code ("NC HOUSE OF REPRESENTATIVES").
+        officeKey.StartsWith(NormalizeState(state) + " house of representatives", StringComparison.Ordinal);
 
     private static bool IsStatewideOffice(string officeKey)
     {
@@ -193,6 +230,9 @@ public static partial class OcdDivisionId
 
     [GeneratedRegex(@"\d+", RegexOptions.Compiled)]
     private static partial Regex DigitsRegex();
+
+    [GeneratedRegex(@"^(?:.*\bdistrict\s+(?:no\.?\s*)?)?\d+$", RegexOptions.IgnoreCase | RegexOptions.Compiled)]
+    private static partial Regex PlainDistrictRegex();
 
     [GeneratedRegex(@"\s+County\s*$", RegexOptions.IgnoreCase | RegexOptions.Compiled)]
     private static partial Regex CountySuffixRegex();

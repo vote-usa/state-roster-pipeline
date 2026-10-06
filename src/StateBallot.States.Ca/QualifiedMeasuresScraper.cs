@@ -1,4 +1,3 @@
-using System.Globalization;
 using AngleSharp.Dom;
 using AngleSharp.Html.Parser;
 using StateBallot.Core;
@@ -16,11 +15,16 @@ public sealed class QualifiedMeasuresScraper
 {
     private readonly HttpFetcher _fetcher;
     private readonly CaSourceConfig _config;
+    private readonly string[] _dateFormats;
+    private readonly CaSelectors _selectors;
 
-    public QualifiedMeasuresScraper(HttpFetcher fetcher, CaSourceConfig config)
+    /// <param name="dateFormats">Accepted date formats, from data/input/ca/date_formats.json.</param>
+    public QualifiedMeasuresScraper(HttpFetcher fetcher, CaSourceConfig config, string[] dateFormats, CaSelectors selectors)
     {
         _fetcher = fetcher;
         _config = config;
+        _dateFormats = dateFormats;
+        _selectors = selectors;
     }
 
     public async Task<List<MeasureRow>> FetchAsync()
@@ -35,14 +39,13 @@ public sealed class QualifiedMeasuresScraper
         for (var i = 0; i < elements.Count; i++)
         {
             var element = elements[i];
-            var text = Normalize(element.TextContent);
+            var text = TextNormalization.CollapseWhitespace(element.TextContent);
 
             if (element.LocalName == "h2")
             {
-                var headingMatch = CaSelectors.MeasuresElectionHeading.Match(text);
+                var headingMatch = _selectors.MeasuresElectionHeading.Match(text);
                 if (headingMatch.Success &&
-                    DateOnly.TryParseExact(headingMatch.Groups["date"].Value, "MMMM d, yyyy",
-                        CultureInfo.InvariantCulture, DateTimeStyles.None, out var date))
+                    DateParsing.TryParseAny(headingMatch.Groups["date"].Value, _dateFormats, out var date))
                     currentElectionDate = date;
                 continue;
             }
@@ -50,7 +53,7 @@ public sealed class QualifiedMeasuresScraper
             if (currentElectionDate is null)
                 continue;
 
-            var propMatch = CaSelectors.PropositionHeading.Match(text);
+            var propMatch = _selectors.PropositionHeading.Match(text);
             if (propMatch.Success)
             {
                 // Multi-paragraph format with a standalone "Proposition N" heading, then the measure's content in the
@@ -59,8 +62,8 @@ public sealed class QualifiedMeasuresScraper
                 for (var j = i + 1; j < elements.Count; j++)
                 {
                     var next = elements[j];
-                    var nextText = Normalize(next.TextContent);
-                    if (next.LocalName is "h2" or "hr" || CaSelectors.PropositionHeading.IsMatch(nextText))
+                    var nextText = TextNormalization.CollapseWhitespace(next.TextContent);
+                    if (next.LocalName is "h2" or "hr" || _selectors.PropositionHeading.IsMatch(nextText))
                         break;
                     if (nextText.Length == 0 || nextText.StartsWith("Note:", StringComparison.OrdinalIgnoreCase))
                         continue;
@@ -69,7 +72,8 @@ public sealed class QualifiedMeasuresScraper
                 if (content.Count == 0)
                     continue;
 
-                measures.Add(ParseMeasure($"Proposition {propMatch.Groups["num"].Value}", currentElectionDate.Value, content));
+                measures.Add(ToMeasureRow(
+                    $"Proposition {propMatch.Groups["num"].Value}", currentElectionDate.Value, content, _config.QualifiedMeasuresUrl));
                 continue;
             }
 
@@ -77,36 +81,35 @@ public sealed class QualifiedMeasuresScraper
             // both the bolded "Proposition N" heading and the linked title.
             if (element.QuerySelector("strong") is { } strong)
             {
-                var inlineMatch = CaSelectors.PropositionHeading.Match(Normalize(strong.TextContent));
+                var inlineMatch = _selectors.PropositionHeading.Match(TextNormalization.CollapseWhitespace(strong.TextContent));
                 if (inlineMatch.Success)
                 {
                     strong.Remove();
-                    measures.Add(ParseMeasure(
-                        $"Proposition {inlineMatch.Groups["num"].Value}", currentElectionDate.Value, [element]));
+                    measures.Add(ToMeasureRow(
+                        $"Proposition {inlineMatch.Groups["num"].Value}", currentElectionDate.Value, [element], _config.QualifiedMeasuresUrl));
                 }
             }
         }
 
-        if (measures.Count == 0)
-            throw new InvalidOperationException(
-                $"No qualified measures parsed from {_config.QualifiedMeasuresUrl} " +
-                $"(heading pattern '{CaSelectors.MeasuresElectionHeading}', proposition pattern '{CaSelectors.PropositionHeading}'). " +
-                "The page markup may have changed, or no measures have qualified yet.");
+        ScrapeGuard.RequireAny(measures, () =>
+            $"No qualified measures parsed from {_config.QualifiedMeasuresUrl} " +
+            $"(heading pattern '{_selectors.MeasuresElectionHeading}', proposition pattern '{_selectors.PropositionHeading}'). " +
+            "The page markup may have changed, or no measures have qualified yet.");
 
         return measures;
     }
 
-    private MeasureRow ParseMeasure(string measureId, DateOnly electionDate, List<IElement> content)
+    internal static MeasureRow ToMeasureRow(string measureId, DateOnly electionDate, List<IElement> content, string sourceUrl)
     {
         var links = content
             .SelectMany(e => e.QuerySelectorAll("a[href]"))
-            .Select(a => (Text: Normalize(a.TextContent), Href: a.GetAttribute("href")!))
+            .Select(a => (Text: TextNormalization.CollapseWhitespace(a.TextContent), Href: a.GetAttribute("href")!))
             .Where(l => l.Href.StartsWith("http", StringComparison.OrdinalIgnoreCase))
             .ToList();
 
         var first = content[0];
-        var boldTitle = Normalize(first.QuerySelector("strong")?.TextContent ?? "");
-        var firstText = Normalize(first.TextContent);
+        var boldTitle = TextNormalization.CollapseWhitespace(first.QuerySelector("strong")?.TextContent ?? "");
+        var firstText = TextNormalization.CollapseWhitespace(first.TextContent);
         string title;
         string? summary;
         string? fullTextUrl;
@@ -117,8 +120,8 @@ public sealed class QualifiedMeasuresScraper
             // spanning paragraphs and bullet lists), with the Attorney General's
             // full-text PDF linked at the end.
             title = boldTitle.TrimEnd('.', ' ');
-            var full = string.Join(" ", content.Select(e => Normalize(e.TextContent)));
-            summary = Normalize(full[boldTitle.Length..]);
+            var full = string.Join(" ", content.Select(e => TextNormalization.CollapseWhitespace(e.TextContent)));
+            summary = TextNormalization.CollapseWhitespace(full[boldTitle.Length..]);
             if (summary.Length == 0) summary = null;
             fullTextUrl = links.Select(l => l.Href).LastOrDefault();
         }
@@ -148,10 +151,7 @@ public sealed class QualifiedMeasuresScraper
             FullTextUrl = fullTextUrl,
             Jurisdiction = "state",
             County = null,
-            SourceUrl = _config.QualifiedMeasuresUrl,
+            SourceUrl = sourceUrl,
         };
     }
-
-    private static string Normalize(string text) =>
-        string.Join(' ', text.Replace('\u00a0', ' ').Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)).Trim();
 }

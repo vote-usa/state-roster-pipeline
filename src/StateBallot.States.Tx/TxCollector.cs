@@ -10,18 +10,25 @@ public sealed class TxCollector : IStateCollector
     private readonly TxSourceConfig _config;
     private readonly IPublishSchedule _schedule;
     private readonly int _year;
+    private readonly string[] _dateFormats;
+    private readonly Dictionary<string, string> _electionTypeNames;
 
     public string StateCode => "TX";
 
-    /// <param name="stateDataDir">Per-state output directory (data/output/&lt;xx&gt;/). Inputs are under data/input/&lt;xx&gt;/.</param>
-    // Unused today: TX has no per-state input files (no county_fips.json). Kept to match
-    // Runner.cs's shared IStateCollector factory signature.
-    public TxCollector(HttpFetcher fetcher, int year, string stateDataDir, TxSourceConfig? config = null)
+    /// <param name="stateDataDir">Per-state output directory (data/output/&lt;xx&gt;/). Inputs are under data/input/&lt;xx&gt;/,
+    /// including date_formats.json and election_type_names.json.</param>
+    public TxCollector(
+        HttpFetcher fetcher, int year, string stateDataDir, string? inputDataRoot = null, TxSourceConfig? config = null)
     {
         _fetcher = fetcher;
         _year = year;
         _config = config ?? new TxSourceConfig();
         _schedule = new TxPublishSchedule();
+
+        var dataRoot = ResolveInputDataRoot(stateDataDir, inputDataRoot);
+        _dateFormats = DateFormatConfig.Load(DataPaths.DateFormatsPath(dataRoot, StateCode));
+        _electionTypeNames = new Dictionary<string, string>(
+            LookupTableLoader.Load(DataPaths.ElectionTypeNamesPath(dataRoot, StateCode)), StringComparer.OrdinalIgnoreCase);
 
         // Stamps Cloudflare-spoofing headers onto the fetcher for every request it
         // makes from now on - assumes one HttpFetcher per single-state run (true today
@@ -46,7 +53,7 @@ public sealed class TxCollector : IStateCollector
                 $"No elections found for {_year} via getElectionsByYear. " +
                 "If this is early in the year the API may not list the year's elections yet.");
 
-        var mappedElections = rawElections.Select(TxCandidateMapper.ToElection);
+        var mappedElections = rawElections.Select(e => TxCandidateMapper.ToElection(e, _dateFormats, _electionTypeNames));
         var targetElections = ElectionFilters.ForTargetYear(mappedElections, _year);
 
         var result = new CollectResult();
@@ -103,5 +110,15 @@ public sealed class TxCollector : IStateCollector
         sources.StatewideCandidates = [new SourceEntry(_config.CandidatesUrl, "json (POST)")];
         sources.VerificationOnly = [new SourceEntry("https://ballotpedia.org/Texas_elections," + _year, "html")];
         sources.NextRun = _schedule.Recommend(result, _year);
+    }
+
+    private static string ResolveInputDataRoot(string stateDataDir, string? inputDataRoot)
+    {
+        if (!string.IsNullOrWhiteSpace(inputDataRoot))
+            return Path.GetFullPath(inputDataRoot);
+        return DataPaths.TryInferPipelineDataRoot(stateDataDir)
+            ?? throw new InvalidOperationException(
+                $"Cannot infer input data root from output dir '{stateDataDir}'. " +
+                "Pass inputDataRoot (CLI --input-root) when writing outside data/output/<xx>.");
     }
 }

@@ -1,4 +1,3 @@
-using System.Globalization;
 using AngleSharp.Dom;
 using AngleSharp.Html.Parser;
 using StateBallot.Core;
@@ -14,11 +13,16 @@ public sealed class UpcomingElectionsScraper
 {
     private readonly HttpFetcher _fetcher;
     private readonly CaSourceConfig _config;
+    private readonly string[] _dateFormats;
+    private readonly CaSelectors _selectors;
 
-    public UpcomingElectionsScraper(HttpFetcher fetcher, CaSourceConfig config)
+    /// <param name="dateFormats">Accepted date formats, from data/input/ca/date_formats.json.</param>
+    public UpcomingElectionsScraper(HttpFetcher fetcher, CaSourceConfig config, string[] dateFormats, CaSelectors selectors)
     {
         _fetcher = fetcher;
         _config = config;
+        _dateFormats = dateFormats;
+        _selectors = selectors;
     }
 
     public async Task<List<Election>> FetchAsync()
@@ -28,7 +32,7 @@ public sealed class UpcomingElectionsScraper
 
         var elections = new List<Election>();
         string? currentSection = null;
-        foreach (var element in doc.QuerySelectorAll($"{CaSelectors.UpcomingSectionHeading}, ul"))
+        foreach (var element in doc.QuerySelectorAll($"{_selectors.UpcomingSectionHeading}, ul"))
         {
             if (element.LocalName is "h2" or "h3")
             {
@@ -36,41 +40,31 @@ public sealed class UpcomingElectionsScraper
                 continue;
             }
 
-            var isStatewide = currentSection?.EndsWith(CaSelectors.StatewideSectionTitle, StringComparison.OrdinalIgnoreCase) == true;
-            var isSpecialVacancy = currentSection?.EndsWith(CaSelectors.SpecialVacancySectionTitle, StringComparison.OrdinalIgnoreCase) == true;
+            var isStatewide = currentSection?.EndsWith(_selectors.StatewideSectionTitle, StringComparison.OrdinalIgnoreCase) == true;
+            var isSpecialVacancy = currentSection?.EndsWith(_selectors.SpecialVacancySectionTitle, StringComparison.OrdinalIgnoreCase) == true;
             if (!isStatewide && !isSpecialVacancy)
                 continue;
 
             foreach (var anchor in element.QuerySelectorAll("li a"))
             {
                 var text = anchor.TextContent.Trim();
-                var match = CaSelectors.ElectionLinkText.Match(text);
+                var match = _selectors.ElectionLinkText.Match(text);
                 if (!match.Success)
                     continue; // e.g. link to the county-administered elections page
 
-                if (!DateOnly.TryParseExact(match.Groups["date"].Value, "MMMM d, yyyy",
-                        CultureInfo.InvariantCulture, DateTimeStyles.None, out var date))
+                if (!DateParsing.TryParseAny(match.Groups["date"].Value, _dateFormats, out var date))
                     continue;
 
                 var name = match.Groups["name"].Value.Trim().TrimEnd(',');
                 var url = ResolveUrl(anchor.GetAttribute("href"));
-                elections.Add(new Election
-                {
-                    ElectionId = url is null ? name : url.TrimEnd('/').Split('/')[^1],
-                    Name = text,
-                    ElectionDate = date,
-                    ElectionType = InferElectionType(name),
-                    Jurisdiction = isStatewide ? "state" : JurisdictionFromName(name),
-                    SourceUrl = url ?? _config.UpcomingElectionsUrl,
-                });
+                elections.Add(ToElection(text, name, date, url, isStatewide, _config.UpcomingElectionsUrl));
             }
         }
 
-        if (elections.Count == 0)
-            throw new InvalidOperationException(
-                $"No elections parsed from {_config.UpcomingElectionsUrl} " +
-                $"(sections '{CaSelectors.StatewideSectionTitle}' / '{CaSelectors.SpecialVacancySectionTitle}', " +
-                $"pattern '{CaSelectors.ElectionLinkText}'). The page markup may have changed.");
+        ScrapeGuard.RequireAny(elections, () =>
+            $"No elections parsed from {_config.UpcomingElectionsUrl} " +
+            $"(sections '{_selectors.StatewideSectionTitle}' / '{_selectors.SpecialVacancySectionTitle}', " +
+            $"pattern '{_selectors.ElectionLinkText}'). The page markup may have changed.");
 
         return elections;
     }
@@ -83,6 +77,17 @@ public sealed class UpcomingElectionsScraper
             ? href
             : new Uri(new Uri(_config.UpcomingElectionsUrl), href).ToString();
     }
+
+    internal static Election ToElection(
+        string linkText, string name, DateOnly date, string? url, bool isStatewide, string fallbackSourceUrl) => new()
+    {
+        ElectionId = url is null ? name : url.TrimEnd('/').Split('/')[^1],
+        Name = linkText,
+        ElectionDate = date,
+        ElectionType = InferElectionType(name),
+        Jurisdiction = isStatewide ? "state" : JurisdictionFromName(name),
+        SourceUrl = url ?? fallbackSourceUrl,
+    };
 
     internal static string InferElectionType(string name)
     {

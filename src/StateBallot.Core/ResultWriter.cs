@@ -100,6 +100,7 @@ public sealed class ResultWriter
         MailingZip = c.MailingZip,
         ResidentialCity = c.ResidentialCity,
         ResidentialCounty = c.ResidentialCounty,
+        Status = c.Status,
         SourceOfficeId = c.SourceOfficeId,
         SourceOfficeType = c.SourceOfficeType,
         LocalJurisdiction = c.LocalJurisdiction,
