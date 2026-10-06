@@ -132,8 +132,8 @@ public static partial class OcdDivisionId
 
     /// <summary>
     /// True when the value is a plain district number ("01", "14") or ends in
-    /// "District n" (WA's "Legislative District 6", "Congressional District
-    /// 1"), not merely a string that contains a digit somewhere. VT's
+    /// "District n" or "District No. n" (WA's "Legislative District 6",
+    /// "Congressional District No. 5"), not merely a string that contains a digit somewhere. VT's
     /// legislative districts ("ADD 1", "CHI CT 1", "BEN RUT") are a compound
     /// county-abbreviation + number code where the abbreviation is the
     /// load-bearing part. Digit-extracting those would silently collapse
@@ -231,7 +231,7 @@ public static partial class OcdDivisionId
     [GeneratedRegex(@"\d+", RegexOptions.Compiled)]
     private static partial Regex DigitsRegex();
 
-    [GeneratedRegex(@"^(?:.*\bdistrict\s+)?\d+$", RegexOptions.IgnoreCase | RegexOptions.Compiled)]
+    [GeneratedRegex(@"^(?:.*\bdistrict\s+(?:no\.?\s*)?)?\d+$", RegexOptions.IgnoreCase | RegexOptions.Compiled)]
     private static partial Regex PlainDistrictRegex();
 
     [GeneratedRegex(@"\s+County\s*$", RegexOptions.IgnoreCase | RegexOptions.Compiled)]

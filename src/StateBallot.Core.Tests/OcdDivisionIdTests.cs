@@ -6,6 +6,8 @@ public class OcdDivisionIdTests
     [InlineData("WA", "U.S. Representative", "Congressional District 1", "ocd-division/country:us/state:wa/cd:1")]
     [InlineData("WA", "State Senator", "Legislative District 6", "ocd-division/country:us/state:wa/sldu:6")]
     [InlineData("WA", "State Representative Pos. 1", "Legislative District 1", "ocd-division/country:us/state:wa/sldl:1")]
+    [InlineData("WA", "U.S. Representative", "Congressional District No. 5", "ocd-division/country:us/state:wa/cd:5")]
+    [InlineData("WA", "State Representative Pos. 2", "Legislative District No. 9", "ocd-division/country:us/state:wa/sldl:9")]
     [InlineData("NC", "US HOUSE OF REPRESENTATIVES", "09", "ocd-division/country:us/state:nc/cd:9")]
     [InlineData("NC", "NC HOUSE OF REPRESENTATIVES", "012", "ocd-division/country:us/state:nc/sldl:12")]
     [InlineData("NC", "NC STATE SENATE", "01", "ocd-division/country:us/state:nc/sldu:1")]
