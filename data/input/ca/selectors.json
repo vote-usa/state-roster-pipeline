@@ -1,0 +1,18 @@
+{
+  "upcomingSectionHeading": "h2, h3",
+  "statewideSectionTitle": "Statewide Elections",
+  "specialVacancySectionTitle": "Special Vacancy Elections",
+  "electionLinkText": "^(?<name>.+?)\\s*[-\u2013\u2014]\\s*(?<date>[A-Z][a-z]+ \\d{1,2}, \\d{4})\\s*$",
+  "measuresElectionHeading": "^(?<date>[A-Z][a-z]+ \\d{1,2}, \\d{4}),?\\s+Statewide Ballot Measures",
+  "propositionHeading": "^Proposition\\s+(?<num>\\d+[A-Z]?)\\s*$",
+  "countySectionHeading": "h2",
+  "noElectionsScheduledText": "No elections scheduled",
+  "countyElectionLine": "^(?<date>[A-Z][a-z]+ \\d{1,2}, \\d{4})\\s*[-\u2013\u2014]\\s*(?<name>.+?)\\s*$",
+  "phoneLine": "^\\(?\\d{3}\\)?[ .-]?\\d{3}[ .-]?\\d{4}",
+  "specialElectionSectionDate": "(?<date>[A-Z][a-z]+ \\d{1,2}, \\d{4})",
+  "certifiedListLinkText": "Certified List of Candidates",
+  "certListSkipLine": "^(Official Certified List of Candidates|Page \\d+ of \\d+|\\* ?Incumbent|\\d{1,2}/\\d{1,2}/\\d{4})",
+  "certListElectionLine": "Election\\s*[-\u2013\u2014]\\s*[A-Z][a-z]+ \\d{1,2}, \\d{4}\\s*$",
+  "certListCandidateLine": "^(?<name>.+?)(?<incumbent>\\*)?\\s+(?<party>Democratic|Republican|American Independent|Green|Libertarian|Peace and Freedom|No Party Preference|Unknown)\\s*$",
+  "officeWithDistrict": "^(?<office>.+?)\\s+District\\s+(?<district>\\d+)\\s*$"
+}

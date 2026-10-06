@@ -1,0 +1,29 @@
+{
+  "elections": [
+    {
+      "url": "https://sos.ms.gov/content/CandidateQualifying/default.aspx",
+      "format": "csv (via WebForms POST)"
+    }
+  ],
+  "statewide_candidates": [
+    {
+      "url": "https://sos.ms.gov/content/CandidateQualifying/default.aspx",
+      "format": "csv (via WebForms POST)"
+    }
+  ],
+  "statewide_measures": [],
+  "county_directory": [],
+  "verification_only": [
+    {
+      "url": "https://ballotpedia.org/Mississippi_elections,_2026",
+      "format": "html"
+    }
+  ],
+  "gaps": [],
+  "next_run": {
+    "recommended_after": "2027-01-01",
+    "reason": "All 2026 candidates collected. Re-run next year to check for new filings.",
+    "next_election_date": null,
+    "next_election_type": null
+  }
+}

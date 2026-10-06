@@ -108,6 +108,20 @@ Adding one: a new class `M00n_<Name>` with `[Migration(n, "<description>")]`, im
 | 2 | `M002_RawCapture` | `Captures`, `CaptureFetches`, `CollectionPasses.CaptureId` |
 | 3 | `M003_CountyListText` | `County` on `RunCandidates`, `RunMeasures`, `PassProposedMeasures` becomes TEXT |
 
+## Tests
+
+`dotnet test` runs the fast suite only (no Docker, no network). The live
+suite (`StateBallot.Staging.Tests/LiveCollectionIntegrationTests.cs`) runs
+every implemented state's collector against real sources and a throwaway
+Testcontainers MySQL - useful for catching schema/data-shape mismatches
+(column too narrow, a collector's constructor contract broken) that only
+show up against real data, but slow (2-3 minutes) and needs Docker. Run it
+explicitly:
+
+```bash
+dotnet test --filter Category=Integration
+```
+
 Connection strings come from `ROSTER_STAGING_CONNECTION` and `VOTE_CONNECTION`
 (defaults point at this Docker setup).
 

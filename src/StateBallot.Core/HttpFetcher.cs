@@ -69,6 +69,21 @@ public sealed class HttpFetcher : IDisposable
         return PayloadText.Decode(fetched!.Payload, fetched.ContentType);
     }
 
+    /// <summary>
+    /// POSTs a form-urlencoded body (e.g. for replaying an ASP.NET WebForms
+    /// postback - see WebFormsPostback); returns the raw response string.
+    /// </summary>
+    public async Task<string> PostFormAsync(
+        string url, IEnumerable<KeyValuePair<string, string>> formFields, FetchTag? tag = null)
+    {
+        var fields = formFields.ToList();
+        using var probe = new FormUrlEncodedContent(fields);
+        var requestSha = RawSink.Sha256(await probe.ReadAsByteArrayAsync());
+        var fetched = await FetchAsync(
+            "POST", url, requestSha, tag, () => _http.PostAsync(Rewrite(url), new FormUrlEncodedContent(fields)), nullOn4xx: false);
+        return PayloadText.Decode(fetched!.Payload, fetched.ContentType);
+    }
+
     /// <summary>Fetches binary content (e.g. a PDF), with the same retry/throttle behavior.</summary>
     public async Task<byte[]> GetBytesAsync(string url, FetchTag? tag = null)
     {

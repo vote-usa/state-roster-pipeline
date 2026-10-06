@@ -1,0 +1,33 @@
+{
+  "elections": [
+    {
+      "url": "https://sos.vermont.gov/elections/election-info-resources/candidates",
+      "format": "html"
+    }
+  ],
+  "statewide_candidates": [
+    {
+      "url": "https://outside.vermont.gov/dept/sos/Elections_Division/election_info_resources/candidates/2026_statewide_primary_qualified_candidates.xlsx",
+      "format": "xlsx"
+    },
+    {
+      "url": "https://outside.vermont.gov/dept/sos/Elections_Division/election_info_resources/candidates/2026_general_election_qualified_candidates.xlsx",
+      "format": "xlsx"
+    }
+  ],
+  "statewide_measures": [],
+  "county_directory": [],
+  "verification_only": [
+    {
+      "url": "https://ballotpedia.org/Vermont_elections,_2026",
+      "format": "html"
+    }
+  ],
+  "gaps": [],
+  "next_run": {
+    "recommended_after": "2027-01-01",
+    "reason": "All 2026 candidates collected. Re-run next year to check for new filings.",
+    "next_election_date": null,
+    "next_election_type": null
+  }
+}

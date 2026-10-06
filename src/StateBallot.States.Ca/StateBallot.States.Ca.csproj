@@ -15,4 +15,8 @@
     <ProjectReference Include="..\StateBallot.Core\StateBallot.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="StateBallot.States.Ca.Tests" />
+  </ItemGroup>
+
 </Project>

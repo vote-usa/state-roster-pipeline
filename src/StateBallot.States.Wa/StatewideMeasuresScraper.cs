@@ -15,8 +15,13 @@ public sealed class StatewideMeasuresScraper
     public const string Role = "statewide-measures";
 
     private readonly WaSourceConfig _config;
+    private readonly Selectors _selectors;
 
-    public StatewideMeasuresScraper(WaSourceConfig config) => _config = config;
+    public StatewideMeasuresScraper(WaSourceConfig config, Selectors selectors)
+    {
+        _config = config;
+        _selectors = selectors;
+    }
 
     public async Task CaptureAsync(HttpFetcher fetcher) =>
         await fetcher.GetStringAsync(_config.StatewideMeasuresUrl, FetchTag.Of(Role));
@@ -29,10 +34,10 @@ public sealed class StatewideMeasuresScraper
         var measures = new List<MeasureRow>();
         var anyHeadingMatched = false;
 
-        foreach (var heading in doc.QuerySelectorAll(Selectors.MeasureHeading))
+        foreach (var heading in doc.QuerySelectorAll(_selectors.MeasureHeading))
         {
             var headingText = heading.TextContent.Trim();
-            var match = Selectors.MeasureHeadingText.Match(headingText);
+            var match = _selectors.MeasureHeadingText.Match(headingText);
             if (!match.Success)
                 continue;
             anyHeadingMatched = true;
@@ -42,16 +47,16 @@ public sealed class StatewideMeasuresScraper
             // signal matches the target year (or no year signal exists at all,
             // e.g. classic ids like "2124" outside any year section).
             var sectionYear = FindSectionYear(heading);
-            var idYearMatch = Selectors.MeasureIdYear.Match(match.Groups["id"].Value);
+            var idYearMatch = _selectors.MeasureIdYear.Match(match.Groups["id"].Value);
             int? idYear = idYearMatch.Success ? 2000 + int.Parse(idYearMatch.Groups["yy"].Value) : null;
             if ((sectionYear ?? idYear) is not null && sectionYear != year && idYear != year)
                 continue;
 
             string? fullTextUrl = null;
             string? titleLetterUrl = null;
-            foreach (var link in CollectLinksUntilNextHeading(heading, baseUri))
+            foreach (var link in CollectLinksUntilNextHeading(heading, baseUri, _selectors))
             {
-                if (Selectors.FullTextLink.IsMatch(link.Text))
+                if (_selectors.FullTextLink.IsMatch(link.Text))
                     fullTextUrl = link.Href;
                 else
                     titleLetterUrl ??= link.Href;
@@ -70,10 +75,9 @@ public sealed class StatewideMeasuresScraper
             });
         }
 
-        if (!anyHeadingMatched)
-            throw new InvalidOperationException(
-                $"No statewide measures parsed from {_config.StatewideMeasuresUrl} using heading selector '{Selectors.MeasureHeading}'. " +
-                "Either no measures are filed yet for the year or the page markup changed; verify the page manually.");
+        ScrapeGuard.Require(anyHeadingMatched, () =>
+            $"No statewide measures parsed from {_config.StatewideMeasuresUrl} using heading selector '{_selectors.MeasureHeading}'. " +
+            "Either no measures are filed yet for the year or the page markup changed; verify the page manually.");
 
         // Empty with headings present: the page parses fine but covers a
         // different filing cycle than the target year (e.g. a back-fill run);
@@ -92,13 +96,14 @@ public sealed class StatewideMeasuresScraper
         return null;
     }
 
-    private static IEnumerable<(string Text, string Href)> CollectLinksUntilNextHeading(IElement heading, Uri baseUri)
+    private static IEnumerable<(string Text, string Href)> CollectLinksUntilNextHeading(
+        IElement heading, Uri baseUri, Selectors selectors)
     {
         for (var node = heading.NextElementSibling; node is not null; node = node.NextElementSibling)
         {
             if (node.TagName is "H2" or "H3")
                 yield break;
-            foreach (var a in node.QuerySelectorAll(Selectors.MeasurePdfLink))
+            foreach (var a in node.QuerySelectorAll(selectors.MeasurePdfLink))
             {
                 var href = a.GetAttribute("href");
                 if (!string.IsNullOrEmpty(href))

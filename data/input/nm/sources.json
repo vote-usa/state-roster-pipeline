@@ -1,0 +1,34 @@
+{
+  "elections": [
+    {
+      "url": "https://www.sos.nm.gov/voting-and-elections/view-all-elections/",
+      "format": "html"
+    }
+  ],
+  "statewide_candidates": [
+    {
+      "url": "https://candidateportal.servis.sos.state.nm.us/CandidateList.aspx?eid=2917&cty=99",
+      "format": "html"
+    }
+  ],
+  "statewide_measures": [
+    {
+      "url": "https://candidateportal.servis.sos.state.nm.us/CandidateList.aspx?eid=2917&cty=99",
+      "format": "html"
+    }
+  ],
+  "county_directory": [],
+  "verification_only": [
+    {
+      "url": "https://ballotpedia.org/New_Mexico_elections,_2026",
+      "format": "html"
+    }
+  ],
+  "gaps": [],
+  "next_run": {
+    "recommended_after": "2027-01-01",
+    "reason": "All 2026 candidates collected. Re-run next year to check for new filings.",
+    "next_election_date": null,
+    "next_election_type": null
+  }
+}

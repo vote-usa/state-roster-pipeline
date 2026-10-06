@@ -20,8 +20,16 @@ public sealed class CountyElectionsScraper
     public const string Role = "county-elections";
 
     private readonly CaSourceConfig _config;
+    private readonly string[] _dateFormats;
+    private readonly CaSelectors _selectors;
 
-    public CountyElectionsScraper(CaSourceConfig config) => _config = config;
+    /// <param name="dateFormats">Accepted date formats, from data/input/ca/date_formats.json.</param>
+    public CountyElectionsScraper(CaSourceConfig config, string[] dateFormats, CaSelectors selectors)
+    {
+        _config = config;
+        _dateFormats = dateFormats;
+        _selectors = selectors;
+    }
 
     public async Task CaptureAsync(HttpFetcher fetcher) =>
         await fetcher.GetStringAsync(_config.CountyAdministeredElectionsUrl, FetchTag.Of(Role));
@@ -34,7 +42,7 @@ public sealed class CountyElectionsScraper
         var entries = new List<CountyElectionEntry>();
         var countiesSeen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var heading in doc.QuerySelectorAll(CaSelectors.CountySectionHeading))
+        foreach (var heading in doc.QuerySelectorAll(_selectors.CountySectionHeading))
         {
             var countyName = heading.TextContent.Trim();
             if (!expectedCounties.Contains(countyName) || !countiesSeen.Add(countyName))
@@ -51,15 +59,14 @@ public sealed class CountyElectionsScraper
 
                 foreach (var item in sibling.QuerySelectorAll("li"))
                 {
-                    var text = Normalize(item.TextContent);
+                    var text = TextNormalization.CollapseWhitespace(item.TextContent);
                     if (text.Length == 0 ||
-                        text.Contains(CaSelectors.NoElectionsScheduledText, StringComparison.OrdinalIgnoreCase))
+                        text.Contains(_selectors.NoElectionsScheduledText, StringComparison.OrdinalIgnoreCase))
                         continue;
 
-                    var match = CaSelectors.CountyElectionLine.Match(text);
+                    var match = _selectors.CountyElectionLine.Match(text);
                     if (!match.Success ||
-                        !DateOnly.TryParseExact(match.Groups["date"].Value, "MMMM d, yyyy",
-                            CultureInfo.InvariantCulture, DateTimeStyles.None, out var date))
+                        !DateParsing.TryParseAny(match.Groups["date"].Value, _dateFormats, out var date))
                         continue;
 
                     entries.Add(new CountyElectionEntry(
@@ -72,14 +79,10 @@ public sealed class CountyElectionsScraper
             }
         }
 
-        if (countiesSeen.Count == 0)
-            throw new InvalidOperationException(
-                $"No county sections found at {_config.CountyAdministeredElectionsUrl} " +
-                $"using selector '{CaSelectors.CountySectionHeading}'. The page markup may have changed.");
+        ScrapeGuard.RequireAny(countiesSeen, () =>
+            $"No county sections found at {_config.CountyAdministeredElectionsUrl} " +
+            $"using selector '{_selectors.CountySectionHeading}'. The page markup may have changed.");
 
         return entries;
     }
-
-    private static string Normalize(string text) =>
-        string.Join(' ', text.Replace('\u00a0', ' ').Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)).Trim();
 }

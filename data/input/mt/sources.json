@@ -1,0 +1,33 @@
+{
+  "elections": [
+    {
+      "url": "https://candidatefiling.mt.gov/candidatefiling/CandidateList.aspx",
+      "format": "html"
+    }
+  ],
+  "statewide_candidates": [
+    {
+      "url": "https://candidatefiling.mt.gov/candidatefiling/CandidateList.aspx?e=450002928",
+      "format": "csv"
+    },
+    {
+      "url": "https://candidatefiling.mt.gov/candidatefiling/CandidateList.aspx?e=450002987",
+      "format": "csv"
+    }
+  ],
+  "statewide_measures": [],
+  "county_directory": [],
+  "verification_only": [
+    {
+      "url": "https://ballotpedia.org/Montana_elections,_2026",
+      "format": "html"
+    }
+  ],
+  "gaps": [],
+  "next_run": {
+    "recommended_after": "2027-01-01",
+    "reason": "All 2026 candidates collected. Re-run next year to check for new filings.",
+    "next_election_date": null,
+    "next_election_type": null
+  }
+}

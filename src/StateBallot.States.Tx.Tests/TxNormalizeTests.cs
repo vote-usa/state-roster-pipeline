@@ -8,11 +8,24 @@ namespace StateBallot.States.Tx.Tests;
 public sealed class TxNormalizeTests : IDisposable
 {
     private readonly string _dir = Path.Combine(Path.GetTempPath(), "tx-capture-" + Guid.NewGuid().ToString("N"));
+    private readonly string _inputRoot = Path.Combine(Path.GetTempPath(), "tx-input-" + Guid.NewGuid().ToString("N"));
+
+    public TxNormalizeTests()
+    {
+        var stateInput = Path.Combine(_inputRoot, "input", "tx");
+        Directory.CreateDirectory(stateInput);
+        File.WriteAllText(Path.Combine(stateInput, "date_formats.json"), """["yyyy-MM-dd"]""");
+        File.WriteAllText(
+            Path.Combine(stateInput, "election_type_names.json"),
+            """{ "P": "Primary", "G": "General", "S": "Special", "R": "Runoff" }""");
+    }
 
     public void Dispose()
     {
         if (Directory.Exists(_dir))
             Directory.Delete(_dir, recursive: true);
+        if (Directory.Exists(_inputRoot))
+            Directory.Delete(_inputRoot, recursive: true);
     }
 
     [Fact]
@@ -31,7 +44,7 @@ public sealed class TxNormalizeTests : IDisposable
             """);
         SetCaptureDate(new DateTime(2026, 9, 23, 12, 0, 0, DateTimeKind.Utc));
 
-        var result = new TxCollector(2026, _dir).Normalize(new CaptureReader(_dir));
+        var result = new TxCollector(2026, _dir, _inputRoot).Normalize(new CaptureReader(_dir));
 
         var election = Assert.Single(result.Elections);
         Assert.Equal("2", election.ElectionId);
@@ -49,7 +62,7 @@ public sealed class TxNormalizeTests : IDisposable
             """);
         SetCaptureDate(new DateTime(2026, 9, 23, 12, 0, 0, DateTimeKind.Utc));
 
-        var ex = Assert.Throws<InvalidOperationException>(() => new TxCollector(2026, _dir).Normalize(new CaptureReader(_dir)));
+        var ex = Assert.Throws<InvalidOperationException>(() => new TxCollector(2026, _dir, _inputRoot).Normalize(new CaptureReader(_dir)));
         Assert.Contains("'candidates' (election=2)", ex.Message);
     }
 
