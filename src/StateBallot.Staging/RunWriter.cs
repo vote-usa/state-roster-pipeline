@@ -257,12 +257,12 @@ public sealed class RunWriter
                 OcdDivisionId, CandidateName, Party, Incumbent, SourceUrl, SourceCandidateId, SourceElectionId, FilingDate, Email, Phone,
                 CampaignPhone, Website, Occupation, MailingAddressLine, MailingCity, MailingState, MailingZip,
                 ResidentialCity, ResidentialCounty, SourceOfficeId, SourceOfficeType, LocalJurisdiction,
-                FirstName, MiddleName, LastName, Suffix)
+                FirstName, MiddleName, LastName, Suffix, Status)
             VALUES (@RunId, @State, @ElectionDate, @ElectionType, @Office, @District, @County,
                 @OcdDivisionId, @CandidateName, @Party, @Incumbent, @SourceUrl, @SourceCandidateId, @SourceElectionId, @FilingDate, @Email, @Phone,
                 @CampaignPhone, @Website, @Occupation, @MailingAddressLine, @MailingCity, @MailingState, @MailingZip,
                 @ResidentialCity, @ResidentialCounty, @SourceOfficeId, @SourceOfficeType, @LocalJurisdiction,
-                @FirstName, @MiddleName, @LastName, @Suffix)
+                @FirstName, @MiddleName, @LastName, @Suffix, @Status)
             """,
             rows.Select(c => new
             {
@@ -272,7 +272,7 @@ public sealed class RunWriter
                 c.Email, c.Phone, c.CampaignPhone, c.Website, c.Occupation,
                 c.MailingAddressLine, c.MailingCity, c.MailingState, c.MailingZip,
                 c.ResidentialCity, c.ResidentialCounty, c.SourceOfficeId, c.SourceOfficeType, c.LocalJurisdiction,
-                c.FirstName, c.MiddleName, c.LastName, c.Suffix,
+                c.FirstName, c.MiddleName, c.LastName, c.Suffix, c.Status,
             }).ToList(),
             transaction: tx, cancellationToken: ct));
     }

@@ -76,6 +76,8 @@ fallback is not always enough on its own: TX ran two special elections on
 
 `County` on candidate and measure rows is null for statewide, federal, legislative and judicial rows, one name for a local row, and a `"; "`-joined list for a race or measure that spans counties. Those columns are TEXT so a long list can never fail a pass. `RunCountyBallots.County` is always one county name.
 
+`RunCandidates.Status` is the candidate's filing status exactly as the source words it ("Active", "Withdrawn - 02/19/2026", "Seeking the Nomination"), null when the source publishes none. It is not the run's own `Runs.Status`, and it is not normalized: a withdrawn candidate is still a stored row, so a consumer has to read this column to leave them off a ballot.
+
 ```bash
 # every election for a state and year: capture, then normalize into a pass
 dotnet run --project src/StateBallot.Cli -- --state WV --year 2026
@@ -107,6 +109,7 @@ Adding one: a new class `M00n_<Name>` with `[Migration(n, "<description>")]`, im
 | 1 | `M001_StagingRuns` | collection passes, per-election runs and their rows |
 | 2 | `M002_RawCapture` | `Captures`, `CaptureFetches`, `CollectionPasses.CaptureId` |
 | 3 | `M003_CountyListText` | `County` on `RunCandidates`, `RunMeasures`, `PassProposedMeasures` becomes TEXT |
+| 4 | `M004_CandidateStatus` | `RunCandidates.Status`, the candidate's filing status as the source publishes it |
 
 ## Tests
 
