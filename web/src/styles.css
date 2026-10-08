@@ -26,8 +26,6 @@ main { max-width: 1280px; margin: 0 auto; padding: 20px 24px 60px; }
 .top nav { display: flex; gap: 16px; }
 .top nav a { color: var(--muted); padding: 4px 0; }
 .top nav a.active { color: var(--fg); border-bottom: 2px solid var(--accent); }
-.top .mock { margin-left: auto; color: var(--wait); background: var(--wait-bg); padding: 2px 8px; border-radius: 4px; font-size: 12px; }
-.pill { margin-left: 6px; background: var(--run-bg); color: var(--run); border-radius: 10px; padding: 0 7px; font-size: 12px; }
 
 button, select, input { font: inherit; color: inherit; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 5px 10px; }
 button { cursor: pointer; }
@@ -61,7 +59,6 @@ tr:last-child td { border-bottom: 0; }
 .spacer { flex: 1; }
 .indent { margin-left: 28px; }
 
-.active { list-style: none; margin: 0 0 14px; padding: 10px 14px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; }
 details { margin-top: 16px; }
 summary { cursor: pointer; color: var(--muted); }
 
@@ -88,6 +85,10 @@ summary { cursor: pointer; color: var(--muted); }
 pre { margin: 6px 0; white-space: pre-wrap; overflow-wrap: anywhere; font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; }
 pre.error { color: var(--bad); background: var(--bad-bg); padding: 8px 10px; border-radius: 6px; }
 pre.log { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px; max-height: 520px; overflow: auto; }
+
+.pager { display: flex; align-items: center; gap: 12px; margin-top: 10px; }
+.note { margin: 16px 0 0; }
+pre.command { max-height: none; user-select: all; }
 
 .backdrop { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.45); display: flex; align-items: flex-start; justify-content: center; padding: 60px 16px; overflow: auto; }
 .dialog { width: 560px; max-width: 100%; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 20px; }

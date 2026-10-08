@@ -1,6 +1,6 @@
 import { Link, useParams } from "react-router-dom";
-import { electionKey, electionsFor, pass, stateInfo } from "../data";
-import { CaptureLink, Empty, When, count } from "../ui";
+import { electionsFrom, useApi, type StateDetail } from "../api";
+import { CaptureLink, Empty, Pending, When, count } from "../ui";
 
 function Delta({ value, previous }: { value: number; previous: number | undefined }) {
   const change = previous === undefined ? 0 : value - previous;
@@ -14,15 +14,19 @@ function Delta({ value, previous }: { value: number; previous: number | undefine
 
 export function ElectionPage() {
   const { code = "", key = "" } = useParams();
-  const state = stateInfo(code);
-  const election = electionsFor(code).find(e => electionKey(e.latest) === key || e.key === key);
-  if (!state || !election) return <Empty>No such election for {code}.</Empty>;
+  const state = useApi<StateDetail>(`/states/${code}`, 5000);
+  if (!state.data) return <Pending query={state} />;
+
+  // The router hands back the key decoded, so compare both forms.
+  const election = electionsFrom(state.data.runs).find(e => e.key === key || decodeURIComponent(e.key) === key);
+  if (!election) return <Empty>No such election for {code}.</Empty>;
 
   const { latest, runs } = election;
+  const passes = new Map(state.data.passes.map(p => [p.passId, p]));
 
   return (
     <>
-      <p className="crumbs"><Link to="/">States</Link> / <Link to={`/states/${code}`}>{state.name}</Link></p>
+      <p className="crumbs"><Link to="/">States</Link> / <Link to={`/states/${code}`}>{state.data.name}</Link></p>
       <h1>{latest.electionDate} {latest.electionType}</h1>
       <p className="muted">{latest.electionName}. Source election id {latest.sourceElectionId || "none"}.</p>
 
@@ -35,7 +39,7 @@ export function ElectionPage() {
         <tbody>
           {runs.map((r, i) => {
             const before = runs[i + 1];
-            const p = pass(r.passId);
+            const p = passes.get(r.passId);
             return (
               <tr key={r.runId}>
                 <td><Link to={`/runs/${r.runId}`}><b>run {r.runId}</b></Link>{i === 0 && <span className="muted"> latest</span>}</td>

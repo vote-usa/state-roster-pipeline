@@ -45,6 +45,8 @@ state-roster-pipeline/
                              # schedule - one project per implemented state
     StateBallot.States.{Xx}.Tests/  # mapper/parsing tests - one project per state
     StateBallot.Cli/         # args + catalog/discovery runner
+    StateBallot.Api/         # read API over the staging database, for the run console
+  web/                       # run console (React), talks to StateBallot.Api
   data/
     input/
       state_catalog.json     # all 50 states + DC (implemented | unimplemented)
@@ -130,6 +132,18 @@ Everything after `collector` is passed to the CLI unchanged.
 The container runs as the image's non-root `app` user. On Linux hosts make
 sure `data/` is writable by that uid (1654), or add `user: "${UID}:${GID}"`
 to the service.
+
+## Run console
+
+A web view of the staging database: every state's captures, normalizations and per-election runs, with the candidates, measures, county ballots, gaps, sources and logs of each run. It is read-only for now. Its "Start a run" dialog builds the CLI command for the run you describe.
+
+```bash
+docker compose up -d --wait mysql
+dotnet run --project src/StateBallot.Api      # http://localhost:5080, reads ROSTER_STAGING_CONNECTION
+cd web && npm install && npm run dev          # http://localhost:5173
+```
+
+The API has no authentication and listens on localhost only. Do not expose it.
 
 ## Tests
 

@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { NavLink, Route, Routes } from "react-router-dom";
-import { useJobs } from "./data";
 import { StartRunContext, type StartRunPreset } from "./ui";
 import { StartRunDialog } from "./StartRunDialog";
 import { Overview } from "./pages/Overview";
@@ -12,7 +11,6 @@ import { Activity } from "./pages/Activity";
 
 export function App() {
   const [preset, setPreset] = useState<StartRunPreset | null>(null);
-  const active = useJobs().filter(j => j.status === "queued" || j.status === "running").length;
 
   return (
     <StartRunContext.Provider value={setPreset}>
@@ -20,9 +18,9 @@ export function App() {
         <strong>Roster console</strong>
         <nav>
           <NavLink to="/" end>States</NavLink>
-          <NavLink to="/activity">Activity{active > 0 && <span className="pill">{active}</span>}</NavLink>
+          <NavLink to="/activity">Activity</NavLink>
         </nav>
-        <span className="mock">Mock data. Starting a run changes nothing.</span>
+        <span className="spacer" />
         <button className="primary" onClick={() => setPreset({})}>Start a run</button>
       </header>
       <main>
