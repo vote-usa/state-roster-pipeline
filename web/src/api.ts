@@ -52,6 +52,34 @@ export interface CaptureDetail { capture: Capture; fetches: Fetch[]; passes: Pas
 export interface RunDetail { run: Run; pass: Pass }
 export interface ActivityData { captures: Capture[]; passes: Pass[]; runs: Run[] }
 
+export interface Job {
+  jobId: number; stateCode: string; year: number; kind: RunKind; normalizeCaptureId: number | null;
+  electionFilter: string | null; status: Status; requestedBy: string; requestedAt: string;
+  startedAt: string | null; finishedAt: string | null; captureId: number | null; passId: number | null;
+  errorText: string | null;
+}
+
+export interface JobsData { jobs: Job[]; runs: Run[] }
+
+export interface StartJob {
+  stateCode: string; year: number; kind: RunKind; normalizeCaptureId: number | null;
+  electionFilter: string | null; requestedBy: string;
+}
+
+/** Queues a run. Rejects with the API's reason when the request is refused. */
+export async function startJob(request: StartJob): Promise<Job> {
+  const response = await fetch("/api/jobs", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request),
+  });
+  const body = await response.json().catch(() => null);
+  if (!response.ok) throw new Error(body?.error ?? `The API answered ${response.status}.`);
+  return body;
+}
+
+export const isActive = (job: Job) => job.status === "queued" || job.status === "running";
+
 async function get<T>(path: string): Promise<T> {
   const response = await fetch(`/api${path}`);
   if (!response.ok) {

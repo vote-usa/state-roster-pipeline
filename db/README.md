@@ -64,8 +64,11 @@ A run has two stages. The **capture** fetches every source page for a state and 
 | `PassCountyDirectory` | state level | county elections offices, belongs to no election |
 | `PassProposedMeasures` | state level | statewide measures with no ballot date yet |
 | `PassUnassignedRows` | exception log | rows whose election could not be identified, with the reason |
+| `Jobs` | one run requested from the console | what to run (`capture`, `normalize` of a named capture, or `both`), optional election filter, who asked, status, and the capture and pass it produced |
 
 The payloads themselves are not in the database. They are files under `data/raw/<xx>/<capture id>/` beside a `fetch_log.json` that mirrors `CaptureFetches`, gitignored and pruned to the newest few per state by `--keep-raw` (default 3). `CaptureFetches` rows are kept after the files are pruned, so a stored row can always be tied to the hash of the payload it came from. Passes stored before captures existed have a null `CaptureId`.
+
+`Jobs` is only the console's queue. The API inserts a `queued` row and returns, and a worker inside the API claims the oldest one, runs it through the same `CollectorRunner` the CLI uses, and marks it `succeeded` or `failed`. One job runs at a time, and a state can have only one job queued or running. What a job produced is in `Captures`, `CollectionPasses` and `Runs` with `Source` `web`, and `Jobs.CaptureId` / `Jobs.PassId` point at it. A failed job's error is the message only, with the full text on the capture or pass. A CLI run has no job. If the API stops mid-run, the next start marks that job, and any `web` capture or pass still `running`, as failed.
 
 Each row records the source system's own election id, so placing it on a run is
 exact. Where an id is missing the matcher falls back to a unique election-type
@@ -110,6 +113,7 @@ Adding one: a new class `M00n_<Name>` with `[Migration(n, "<description>")]`, im
 | 2 | `M002_RawCapture` | `Captures`, `CaptureFetches`, `CollectionPasses.CaptureId` |
 | 3 | `M003_CountyListText` | `County` on `RunCandidates`, `RunMeasures`, `PassProposedMeasures` becomes TEXT |
 | 4 | `M004_CandidateStatus` | `RunCandidates.Status`, the candidate's filing status as the source publishes it |
+| 5 | `M005_Jobs` | `Jobs`, the run console's queue |
 
 ## Tests
 

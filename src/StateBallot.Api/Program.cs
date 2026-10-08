@@ -1,18 +1,28 @@
 using Microsoft.AspNetCore.Diagnostics;
 using MySqlConnector;
+using StateBallot.Api;
 using StateBallot.Core;
 using StateBallot.Staging;
 
-// Read API for the run console in web/. Local only: no auth, so it listens on localhost unless told otherwise.
+// API for the run console in web/. Local only: no auth, so it listens on localhost unless told otherwise.
 var builder = WebApplication.CreateBuilder(args);
 if (string.IsNullOrEmpty(builder.Configuration["urls"]))
     builder.WebHost.UseUrls("http://localhost:5080");
 
-var app = builder.Build();
-
+// ROSTER_DATA_ROOT points the console at another data/ folder, e.g. a scratch copy next to a scratch database.
 var db = StagingDb.FromEnvironment();
-var dataRoot = CollectorRunner.FindDataRoot();
+var dataRoot = Environment.GetEnvironmentVariable("ROSTER_DATA_ROOT") is { Length: > 0 } root
+    ? Path.GetFullPath(root)
+    : CollectorRunner.FindDataRoot();
 var queries = new StagingQueries(db, dataRoot);
+var jobs = new JobStore(db);
+
+builder.Services.AddSingleton(db);
+builder.Services.AddSingleton(jobs);
+builder.Services.AddSingleton(new DataRoot(dataRoot));
+builder.Services.AddHostedService<JobWorker>();
+
+var app = builder.Build();
 app.Logger.LogInformation("Staging {Staging}, data root {DataRoot}", StagingDb.Describe(db.StagingConnectionString), dataRoot);
 
 app.UseExceptionHandler(handler => handler.Run(async context =>
@@ -108,4 +118,80 @@ api.MapGet("/activity", async (CancellationToken ct) =>
     };
 });
 
+api.MapGet("/jobs", async (CancellationToken ct) =>
+{
+    var recent = await jobs.RecentAsync(50, ct);
+    return new
+    {
+        jobs = recent,
+        runs = await queries.RunsForPassesAsync(recent.Where(j => j.PassId is not null).Select(j => j.PassId!.Value), ct),
+    };
+});
+
+api.MapGet("/jobs/{id:int}", async (int id, CancellationToken ct) =>
+    await jobs.GetAsync(id, ct) is { } job ? Results.Ok(job) : Results.NotFound(new { error = $"No job {id}." }));
+
+// Queues a run and returns at once. Everything that can be refused is refused here, so a queued job is one that can start.
+api.MapPost("/jobs", async (StartJob body, CancellationToken ct) =>
+{
+    IResult Refuse(string error) => Results.BadRequest(new { error });
+
+    var state = (body.StateCode ?? "").Trim().ToUpperInvariant();
+    var catalog = StateCatalog.LoadFromDataRoot(dataRoot);
+    if (!catalog.TryGet(state, out var entry))
+        return Refuse($"No state '{state}' in the catalog.");
+    if (!StateCatalog.IsImplemented(entry.Status) || !CollectorDiscovery.Discover().ContainsKey(state))
+        return Refuse($"{entry.Name} has no collector yet.");
+
+    var kind = body.Kind;
+    if (kind is not (JobStore.Capture or JobStore.Normalize or JobStore.Both))
+        return Refuse($"Kind must be {JobStore.Capture}, {JobStore.Normalize} or {JobStore.Both}.");
+
+    var requestedBy = (body.RequestedBy ?? "").Trim();
+    if (requestedBy.Length is 0 or > 100)
+        return Refuse("Enter your name (up to 100 characters). It is recorded on the run.");
+
+    string? election = null;
+    if (kind != JobStore.Capture && !string.IsNullOrWhiteSpace(body.ElectionFilter))
+    {
+        if (!DateOnly.TryParseExact(body.ElectionFilter, "yyyy-MM-dd", out _))
+            return Refuse($"The election date must be yyyy-MM-dd, got '{body.ElectionFilter}'.");
+        election = body.ElectionFilter;
+    }
+
+    int year;
+    int? normalizeCaptureId = null;
+    if (kind == JobStore.Normalize)
+    {
+        if (body.NormalizeCaptureId is not { } captureId)
+            return Refuse("Choose the capture to normalize.");
+        var capture = await queries.CaptureAsync(captureId, ct);
+        if (capture is null)
+            return Refuse($"No capture {captureId}.");
+        if (capture.StateCode != state)
+            return Refuse($"Capture {captureId} is for {capture.StateCode}, not {state}.");
+        if (capture.Status != "succeeded")
+            return Refuse($"Capture {captureId} is {capture.Status}. Only a succeeded capture can be normalized.");
+        if (!capture.FilesPresent)
+            return Refuse($"Capture {captureId}'s payloads are no longer on disk, so it cannot be normalized.");
+        normalizeCaptureId = captureId;
+        year = capture.Year;
+    }
+    else
+    {
+        if (body.Year is not (>= 2000 and <= 2100))
+            return Refuse("Enter the election year.");
+        year = body.Year.Value;
+    }
+
+    if (await jobs.ActiveForStateAsync(state, ct) is { } active)
+        return Results.Conflict(new { error = $"{entry.Name} already has job {active.JobId} {active.Status}. Wait for it to finish." });
+
+    var jobId = await jobs.EnqueueAsync(new JobStore.NewJob(state, year, kind, normalizeCaptureId, election, requestedBy), ct);
+    return Results.Accepted($"/api/jobs/{jobId}", await jobs.GetAsync(jobId, ct));
+});
+
 app.Run();
+
+internal sealed record StartJob(
+    string? StateCode, int? Year, string? Kind, int? NormalizeCaptureId, string? ElectionFilter, string? RequestedBy);

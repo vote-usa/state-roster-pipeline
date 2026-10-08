@@ -1,8 +1,9 @@
 import { Link } from "react-router-dom";
-import { useApi, type ActivityData } from "../api";
-import { CaptureLink, Empty, ErrorText, Pending, StatusBadge, When, bytes, duration } from "../ui";
+import { useApi, type ActivityData, type JobsData } from "../api";
+import { CaptureLink, Empty, ErrorText, Pending, StatusBadge, When, bytes, duration, kindLabel } from "../ui";
 
 export function Activity() {
+  const jobs = useApi<JobsData>("/jobs", 2000);
   const activity = useApi<ActivityData>("/activity", 5000);
   if (!activity.data) return <Pending query={activity} />;
 
@@ -11,9 +12,38 @@ export function Activity() {
   return (
     <>
       <h1>Activity</h1>
-      <p className="muted">The 50 most recent captures and normalizations across every state, from the CLI or anywhere else.</p>
+
+      <h2>Runs started here</h2>
+      <p className="muted">Jobs run one at a time, oldest first. A run made from the CLI has no job and appears only in the tables below.</p>
+      {!jobs.data ? <Pending query={jobs} /> : jobs.data.jobs.length === 0 ? <Empty>Nothing has been started from the console yet.</Empty> : (
+        <table>
+          <thead><tr><th>Job</th><th>State</th><th>What</th><th>Requested</th><th>Took</th><th>Result</th></tr></thead>
+          <tbody>
+            {jobs.data.jobs.map(j => (
+              <tr key={j.jobId}>
+                <td className="nowrap"><StatusBadge status={j.status} /> {j.jobId}</td>
+                <td><Link to={`/states/${j.stateCode}`}><b>{j.stateCode}</b></Link> {j.year}</td>
+                <td>
+                  {kindLabel[j.kind]}{j.normalizeCaptureId && ` capture ${j.normalizeCaptureId}`}
+                  {j.electionFilter && <div className="muted">only {j.electionFilter}</div>}
+                </td>
+                <td><When iso={j.requestedAt} /> <span className="muted">by {j.requestedBy}</span></td>
+                <td>{j.startedAt ? duration(j.startedAt, j.finishedAt) : ""}</td>
+                <td>
+                  {j.captureId !== null && <div><CaptureLink id={j.captureId} /></div>}
+                  {jobs.data.runs.filter(r => r.passId === j.passId).map(r => (
+                    <div key={r.runId}><Link to={`/runs/${r.runId}`}>run {r.runId}</Link> {r.electionDate} {r.electionType}</div>
+                  ))}
+                  <ErrorText text={j.errorText} />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
 
       <h2>Captures</h2>
+      <p className="muted">The 50 most recent across every state, from the console or the CLI.</p>
       {captures.length === 0 ? <Empty>Nothing captured yet.</Empty> : (
         <table>
           <thead><tr><th>Capture</th><th>State</th><th>Started</th><th>Took</th><th>Fetched</th><th>By</th></tr></thead>
@@ -33,6 +63,7 @@ export function Activity() {
       )}
 
       <h2>Normalizations</h2>
+      <p className="muted">The 50 most recent.</p>
       {passes.length === 0 ? <Empty>Nothing normalized yet.</Empty> : (
         <table>
           <thead><tr><th>Pass</th><th>State</th><th>Of</th><th>Started</th><th>Took</th><th>Runs</th><th>By</th></tr></thead>

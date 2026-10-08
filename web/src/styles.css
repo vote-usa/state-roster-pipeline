@@ -39,6 +39,8 @@ th, td { text-align: left; vertical-align: top; padding: 7px 10px; border-bottom
 th { font-size: 12px; font-weight: 600; color: var(--muted); white-space: nowrap; }
 tr:last-child td { border-bottom: 0; }
 .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pill { margin-left: 6px; background: var(--run-bg); color: var(--run); border-radius: 10px; padding: 0 7px; font-size: 12px; }
+.active { list-style: none; margin: 0 0 14px; padding: 10px 14px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; }
 .nowrap { white-space: nowrap; }
 .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
 .wrap { overflow-wrap: anywhere; }
@@ -87,8 +89,6 @@ pre.error { color: var(--bad); background: var(--bad-bg); padding: 8px 10px; bor
 pre.log { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px; max-height: 520px; overflow: auto; }
 
 .pager { display: flex; align-items: center; gap: 12px; margin-top: 10px; }
-.note { margin: 16px 0 0; }
-pre.command { max-height: none; user-select: all; }
 
 .backdrop { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.45); display: flex; align-items: flex-start; justify-content: center; padding: 60px 16px; overflow: auto; }
 .dialog { width: 560px; max-width: 100%; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 20px; }

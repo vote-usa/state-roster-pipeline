@@ -1,7 +1,7 @@
 import { createContext, useContext, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import type { UseQueryResult } from "@tanstack/react-query";
-import type { Status } from "./api";
+import type { RunKind, Status } from "./api";
 
 export function StatusBadge({ status }: { status: Status | "pending" | "pruned" }) {
   return <span className={`badge ${status}`}>{status}</span>;
@@ -39,6 +39,12 @@ export const count = (n: number) => n.toLocaleString("en-US");
 export function CaptureLink({ id }: { id: number | null }) {
   return id === null ? <span className="muted">no capture</span> : <Link to={`/captures/${id}`}>capture {id}</Link>;
 }
+
+export const kindLabel: Record<RunKind, string> = {
+  both: "Capture and normalize",
+  capture: "Capture only",
+  normalize: "Normalize",
+};
 
 export function Empty({ children }: { children: ReactNode }) {
   return <p className="empty">{children}</p>;

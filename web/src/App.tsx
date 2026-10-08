@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { NavLink, Route, Routes } from "react-router-dom";
+import { isActive, useApi, type JobsData } from "./api";
 import { StartRunContext, type StartRunPreset } from "./ui";
 import { StartRunDialog } from "./StartRunDialog";
 import { Overview } from "./pages/Overview";
@@ -11,6 +12,7 @@ import { Activity } from "./pages/Activity";
 
 export function App() {
   const [preset, setPreset] = useState<StartRunPreset | null>(null);
+  const active = (useApi<JobsData>("/jobs", 2000).data?.jobs ?? []).filter(isActive).length;
 
   return (
     <StartRunContext.Provider value={setPreset}>
@@ -18,7 +20,7 @@ export function App() {
         <strong>Roster console</strong>
         <nav>
           <NavLink to="/" end>States</NavLink>
-          <NavLink to="/activity">Activity</NavLink>
+          <NavLink to="/activity">Activity{active > 0 && <span className="pill">{active}</span>}</NavLink>
         </nav>
         <span className="spacer" />
         <button className="primary" onClick={() => setPreset({})}>Start a run</button>

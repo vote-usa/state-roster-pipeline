@@ -45,7 +45,7 @@ state-roster-pipeline/
                              # schedule - one project per implemented state
     StateBallot.States.{Xx}.Tests/  # mapper/parsing tests - one project per state
     StateBallot.Cli/         # args + catalog/discovery runner
-    StateBallot.Api/         # read API over the staging database, for the run console
+    StateBallot.Api/         # API for the run console: reads staging, queues and runs jobs
   web/                       # run console (React), talks to StateBallot.Api
   data/
     input/
@@ -135,7 +135,7 @@ to the service.
 
 ## Run console
 
-A web view of the staging database: every state's captures, normalizations and per-election runs, with the candidates, measures, county ballots, gaps, sources and logs of each run. It is read-only for now. Its "Start a run" dialog builds the CLI command for the run you describe.
+A web view of the staging database: every state's captures, normalizations and per-election runs, with the candidates, measures, county ballots, gaps, sources and logs of each run. "Start a run" queues a capture, a normalization of an existing capture, or both, and the API runs queued jobs one at a time through the same code as the CLI. Runs made from the CLI show up too.
 
 With Docker, one command builds and starts the console, its API and the database:
 
@@ -152,6 +152,8 @@ cd web && npm install && npm run dev          # http://localhost:5173
 ```
 
 Both ways use ports 5080 and 5173, so stop one before starting the other (`docker compose stop web api`).
+
+The staging schema must be at version 5 (`--migrate`) for the job queue.
 
 The API has no authentication. It listens on localhost only, and the compose services publish their ports to this machine only. Do not expose it.
 

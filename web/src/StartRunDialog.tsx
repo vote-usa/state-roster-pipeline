@@ -1,6 +1,8 @@
-import { useState } from "react";
-import { useApi, type RunKind, type StateDetail, type StateSummary } from "./api";
-import { Pending, ago, bytes, type StartRunPreset } from "./ui";
+import { useState, type FormEvent } from "react";
+import { useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
+import { startJob, useApi, type RunKind, type StateDetail, type StateSummary } from "./api";
+import { ErrorText, Pending, ago, bytes, type StartRunPreset } from "./ui";
 
 const NAME_KEY = "roster-console.requested-by";
 
@@ -9,6 +11,8 @@ function savedName(): string {
 }
 
 export function StartRunDialog({ preset, onClose }: { preset: StartRunPreset; onClose: () => void }) {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const states = useApi<StateSummary[]>("/states");
   const implemented = (states.data ?? []).filter(s => s.implemented);
   const [picked, setPicked] = useState(preset.stateCode);
@@ -18,7 +22,8 @@ export function StartRunDialog({ preset, onClose }: { preset: StartRunPreset; on
   const [captureId, setCaptureId] = useState<number | null>(preset.normalizeCaptureId ?? null);
   const [electionFilter, setElectionFilter] = useState("");
   const [requestedBy, setRequestedBy] = useState(savedName);
-  const [copied, setCopied] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [refusal, setRefusal] = useState<string | null>(null);
   const detail = useApi<StateDetail>(`/states/${stateCode || "none"}`);
 
   if (!states.data) return <div className="backdrop" onClick={onClose}><div className="dialog"><Pending query={states} /></div></div>;
@@ -26,43 +31,49 @@ export function StartRunDialog({ preset, onClose }: { preset: StartRunPreset; on
   // Only a succeeded capture whose payloads are still on disk can be normalized.
   const usable = (detail.data?.code === stateCode ? detail.data.captures : []).filter(c => c.status === "succeeded" && c.filesPresent);
   const chosen = usable.find(c => c.captureId === captureId) ?? usable[0];
-  const blocked = kind === "normalize" && !chosen;
-
   const name = requestedBy.trim();
-  const command = [
-    "dotnet run --project src/StateBallot.Cli --",
-    `--state ${stateCode}`,
-    kind === "normalize" ? `--normalize ${chosen?.captureId ?? "<capture>"}` : `--year ${year}`,
-    kind === "capture" ? "--capture-only" : "",
-    kind !== "capture" && electionFilter ? `--election ${electionFilter}` : "",
-    name ? `--triggered-by ${/\s/.test(name) ? `"${name}"` : name}` : "",
-  ].filter(Boolean).join(" ");
+  const blocked = sending || name === "" || (kind === "normalize" && !chosen);
 
-  async function copy() {
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    setSending(true);
+    setRefusal(null);
     try { localStorage.setItem(NAME_KEY, name); } catch { /* the name is only a convenience */ }
     try {
-      await navigator.clipboard.writeText(command);
-      setCopied(true);
-    } catch { /* the command is on screen to select by hand */ }
+      await startJob({
+        stateCode,
+        year: kind === "normalize" ? chosen!.year : year,
+        kind,
+        normalizeCaptureId: kind === "normalize" ? chosen!.captureId : null,
+        electionFilter: kind !== "capture" && electionFilter ? electionFilter : null,
+        requestedBy: name,
+      });
+      await queryClient.invalidateQueries({ queryKey: ["/jobs"] });
+      onClose();
+      navigate("/activity");
+    } catch (error) {
+      setRefusal(error instanceof Error ? error.message : String(error));
+      setSending(false);
+    }
   }
 
   return (
     <div className="backdrop" onClick={onClose}>
-      <div className="dialog" onClick={e => e.stopPropagation()}>
+      <form className="dialog" onSubmit={submit} onClick={e => e.stopPropagation()}>
         <h2>Start a run</h2>
 
         <div className="fields">
           <label>State
-            <select value={stateCode} onChange={e => { setPicked(e.target.value); setCaptureId(null); setCopied(false); }}>
+            <select value={stateCode} onChange={e => { setPicked(e.target.value); setCaptureId(null); }}>
               {implemented.map(s => <option key={s.code} value={s.code}>{s.code} {s.name}</option>)}
             </select>
           </label>
           <label>Year
-            <input type="number" value={year} disabled={kind === "normalize"} onChange={e => setYear(Number(e.target.value))} />
+            <input type="number" value={kind === "normalize" && chosen ? chosen.year : year} disabled={kind === "normalize"} onChange={e => setYear(Number(e.target.value))} />
           </label>
         </div>
 
-        <fieldset onChange={() => setCopied(false)}>
+        <fieldset>
           <legend>What to run</legend>
           <label className="choice">
             <input type="radio" checked={kind === "both"} onChange={() => setKind("both")} />
@@ -89,21 +100,20 @@ export function StartRunDialog({ preset, onClose }: { preset: StartRunPreset; on
 
         <div className="fields">
           <label>Only this election <span className="muted">(optional)</span>
-            <input type="date" value={electionFilter} disabled={kind === "capture"} onChange={e => { setElectionFilter(e.target.value); setCopied(false); }} />
+            <input type="date" value={electionFilter} disabled={kind === "capture"} onChange={e => setElectionFilter(e.target.value)} />
           </label>
           <label>Your name <span className="muted">(recorded on the run)</span>
-            <input value={requestedBy} onChange={e => { setRequestedBy(e.target.value); setCopied(false); }} />
+            <input value={requestedBy} onChange={e => setRequestedBy(e.target.value)} />
           </label>
         </div>
 
-        <p className="muted note">The console cannot start runs yet. Until it can, this is the same run from the repo root:</p>
-        <pre className="log command">{command}</pre>
+        <ErrorText text={refusal} />
 
         <div className="actions">
-          <button type="button" onClick={onClose}>Close</button>
-          <button type="button" className="primary" disabled={blocked} onClick={copy}>{copied ? "Copied" : "Copy command"}</button>
+          <button type="button" onClick={onClose}>Cancel</button>
+          <button type="submit" className="primary" disabled={blocked}>{sending ? "Starting…" : "Start"}</button>
         </div>
-      </div>
+      </form>
     </div>
   );
 }

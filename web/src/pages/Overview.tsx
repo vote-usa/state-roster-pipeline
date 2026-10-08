@@ -1,10 +1,11 @@
 import { Link } from "react-router-dom";
-import { electionKey, useApi, type StateSummary } from "../api";
-import { CaptureLink, Pending, StatusBadge, ago, count, useStartRun } from "../ui";
+import { electionKey, isActive, useApi, type JobsData, type StateSummary } from "../api";
+import { CaptureLink, Pending, StatusBadge, ago, count, duration, kindLabel, useStartRun } from "../ui";
 
 export function Overview() {
   const startRun = useStartRun();
   const states = useApi<StateSummary[]>("/states", 5000);
+  const active = (useApi<JobsData>("/jobs", 2000).data?.jobs ?? []).filter(isActive).reverse();
   if (!states.data) return <Pending query={states} />;
 
   const implemented = states.data.filter(s => s.implemented);
@@ -13,6 +14,19 @@ export function Overview() {
   return (
     <>
       <h1>States</h1>
+
+      {active.length > 0 && (
+        <ul className="active">
+          {active.map(j => (
+            <li key={j.jobId}>
+              <StatusBadge status={j.status} /> <Link to={`/states/${j.stateCode}`}><b>{j.stateCode}</b></Link> {kindLabel[j.kind].toLowerCase()}
+              {j.normalizeCaptureId && ` capture ${j.normalizeCaptureId}`}
+              {j.status === "running" && <span className="muted">, {duration(j.startedAt, null)} so far</span>}
+            </li>
+          ))}
+        </ul>
+      )}
+
       <table>
         <thead>
           <tr>
