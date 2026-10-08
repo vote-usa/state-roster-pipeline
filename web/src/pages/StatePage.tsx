@@ -1,6 +1,6 @@
 import { Link, useParams } from "react-router-dom";
 import { electionKey, electionsFrom, useApi, type StateDetail } from "../api";
-import { CaptureLink, Empty, ErrorText, Pending, StatusBadge, When, bytes, count, duration, useStartRun } from "../ui";
+import { CaptureLink, Empty, ErrorText, Pending, SourceLinks, StatusBadge, When, ago, bytes, count, duration, useStartRun } from "../ui";
 
 export function StatePage() {
   const { code = "" } = useParams();
@@ -8,7 +8,8 @@ export function StatePage() {
   const state = useApi<StateDetail>(`/states/${code}`, 5000);
   if (!state.data) return <Pending query={state} />;
 
-  const { name, captures, passes, runs } = state.data;
+  const { name, captures, passes, runs, sources, gaps, nextRun } = state.data;
+  const latest = captures[0];
   const elections = electionsFrom(runs);
   // Passes stored before captures existed have no capture to sit under.
   const orphans = passes.filter(p => p.captureId === null);
@@ -19,6 +20,22 @@ export function StatePage() {
       <div className="title">
         <h1>{name}</h1>
         <button className="primary" onClick={() => startRun({ stateCode: code })}>Start a run</button>
+      </div>
+
+      <div className="summary">
+        <div><h3>Overview URLs</h3><SourceLinks sources={sources} kind="overview" /></div>
+        <div><h3>Roster URLs</h3><SourceLinks sources={sources} kind="roster" /></div>
+        <div>
+          <h3>Latest retrieve</h3>
+          {latest
+            ? <div><StatusBadge status={latest.status} /> <CaptureLink id={latest.captureId} /> <span className="muted">{ago(latest.startedAt)}</span></div>
+            : <div className="muted">never retrieved</div>}
+          {nextRun?.after && <div className="muted" title={nextRun.reason ?? undefined}>check again after {nextRun.after}</div>}
+        </div>
+        <div>
+          <h3>Gaps in the latest good run</h3>
+          {gaps.length === 0 ? <span className="muted">none reported</span> : gaps.map(g => <div key={g} className="warn">{g}</div>)}
+        </div>
       </div>
 
       <h2>Elections</h2>
@@ -39,8 +56,8 @@ export function StatePage() {
         ))}
       </div>
 
-      <h2>Captures and what was built from them</h2>
-      {captures.length === 0 && <Empty>Nothing captured yet.</Empty>}
+      <h2>Retrieves and what was built from them</h2>
+      {captures.length === 0 && <Empty>Nothing retrieved yet.</Empty>}
       {captures.map(c => {
         const built = passes.filter(p => p.captureId === c.captureId);
         return (
@@ -56,14 +73,14 @@ export function StatePage() {
                 : <StatusBadge status="pruned" />)}
             </div>
             <ErrorText text={c.errorText} />
-            {built.length === 0 && c.status === "succeeded" && <p className="muted indent">Captured only. Not normalized yet.</p>}
+            {built.length === 0 && c.status === "succeeded" && <p className="muted indent">Retrieved only. Not normalized yet.</p>}
             {built.map(p => <PassRow key={p.passId} pass={p} runs={runs} />)}
           </section>
         );
       })}
       {orphans.length > 0 && (
         <section className="block">
-          <div className="blockhead"><b>Passes with no capture on record</b></div>
+          <div className="blockhead"><b>Passes with no retrieve on record</b></div>
           {orphans.map(p => <PassRow key={p.passId} pass={p} runs={runs} />)}
         </section>
       )}

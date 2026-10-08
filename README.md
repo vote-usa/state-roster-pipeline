@@ -135,7 +135,7 @@ to the service.
 
 ## Run console
 
-A web view of the staging database: every state's captures, normalizations and per-election runs, with the candidates, measures, county ballots, gaps, sources and logs of each run. "Start a run" queues a capture, a normalization of an existing capture, or both, and the API runs queued jobs one at a time through the same code as the CLI. Runs made from the CLI show up too.
+A web view of the staging database: every state's captures, normalizations and per-election runs, with the candidates, measures, county ballots, gaps, sources and logs of each run. The console calls a capture a "retrieve". "Start a run" queues a retrieve, a normalization of an existing retrieve, or both, and the API runs queued jobs one at a time through the same code as the CLI. Runs made from the CLI show up too.
 
 With Docker, one command builds and starts the console, its API and the database:
 

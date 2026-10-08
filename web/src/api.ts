@@ -44,10 +44,13 @@ export interface Page<T> { total: number; rows: T[] }
 
 export interface StateSummary {
   code: string; name: string; implemented: boolean; lastCapture: Capture | null; lastPass: Pass | null;
-  gapCount: number | null; nextRun: NextRun | null; elections: Run[];
+  gapCount: number | null; nextRun: NextRun | null; sources: Source[]; elections: Run[];
 }
 
-export interface StateDetail { code: string; name: string; implemented: boolean; captures: Capture[]; passes: Pass[]; runs: Run[] }
+export interface StateDetail {
+  code: string; name: string; implemented: boolean; gaps: string[]; nextRun: NextRun | null; sources: Source[];
+  captures: Capture[]; passes: Pass[]; runs: Run[];
+}
 export interface CaptureDetail { capture: Capture; fetches: Fetch[]; passes: Pass[]; runs: Run[] }
 export interface RunDetail { run: Run; pass: Pass }
 export interface ActivityData { captures: Capture[]; passes: Pass[]; runs: Run[] }

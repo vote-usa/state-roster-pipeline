@@ -60,6 +60,7 @@ api.MapGet("/states", async (CancellationToken ct) =>
             lastPass = passes.GetValueOrDefault(code),
             gapCount = good?.Gaps.Count,
             nextRun = good?.NextRun,
+            sources = good?.Sources ?? [],
             elections = elections[code],
         };
     });
@@ -72,11 +73,15 @@ api.MapGet("/states/{code}", async (string code, CancellationToken ct) =>
     if (!catalog.TryGet(code, out var entry))
         return Results.NotFound(new { error = $"No state {code} in the catalog." });
 
+    var good = await queries.LatestSucceededPassAsync(code, ct);
     return Results.Ok(new
     {
         code,
         name = entry.Name,
         implemented = StateCatalog.IsImplemented(entry.Status),
+        gaps = good?.Gaps ?? [],
+        nextRun = good?.NextRun,
+        sources = good?.Sources ?? [],
         captures = await queries.CapturesAsync(code, ct),
         passes = await queries.PassesAsync(code, ct),
         runs = await queries.RunsAsync(code, ct),
@@ -92,7 +97,7 @@ api.MapGet("/captures/{id:int}", async (int id, CancellationToken ct) =>
             passes = await queries.PassesForCaptureAsync(id, ct),
             runs = await queries.RunsForCaptureAsync(id, ct),
         })
-        : Results.NotFound(new { error = $"No capture {id}." }));
+        : Results.NotFound(new { error = $"No retrieve {id}." }));
 
 api.MapGet("/runs/{id:int}", async (int id, CancellationToken ct) =>
     await queries.RunAsync(id, ct) is { } run
@@ -131,6 +136,7 @@ api.MapGet("/jobs", async (CancellationToken ct) =>
 api.MapGet("/jobs/{id:int}", async (int id, CancellationToken ct) =>
     await jobs.GetAsync(id, ct) is { } job ? Results.Ok(job) : Results.NotFound(new { error = $"No job {id}." }));
 
+// The console calls a capture a "retrieve", so the messages a person reads here do too.
 // Queues a run and returns at once. Everything that can be refused is refused here, so a queued job is one that can start.
 api.MapPost("/jobs", async (StartJob body, CancellationToken ct) =>
 {
@@ -164,16 +170,16 @@ api.MapPost("/jobs", async (StartJob body, CancellationToken ct) =>
     if (kind == JobStore.Normalize)
     {
         if (body.NormalizeCaptureId is not { } captureId)
-            return Refuse("Choose the capture to normalize.");
+            return Refuse("Choose the retrieve to normalize.");
         var capture = await queries.CaptureAsync(captureId, ct);
         if (capture is null)
-            return Refuse($"No capture {captureId}.");
+            return Refuse($"No retrieve {captureId}.");
         if (capture.StateCode != state)
-            return Refuse($"Capture {captureId} is for {capture.StateCode}, not {state}.");
+            return Refuse($"Retrieve {captureId} is for {capture.StateCode}, not {state}.");
         if (capture.Status != "succeeded")
-            return Refuse($"Capture {captureId} is {capture.Status}. Only a succeeded capture can be normalized.");
+            return Refuse($"Retrieve {captureId} is {capture.Status}. Only a succeeded retrieve can be normalized.");
         if (!capture.FilesPresent)
-            return Refuse($"Capture {captureId}'s payloads are no longer on disk, so it cannot be normalized.");
+            return Refuse($"Retrieve {captureId}'s payloads are no longer on disk, so it cannot be normalized.");
         normalizeCaptureId = captureId;
         year = capture.Year;
     }

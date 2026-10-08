@@ -31,7 +31,7 @@ export function App() {
           <Route path="/states/:code" element={<StatePage />} />
           <Route path="/states/:code/elections/:key" element={<ElectionPage />} />
           <Route path="/runs/:id" element={<RunPage />} />
-          <Route path="/captures/:id" element={<CapturePage />} />
+          <Route path="/retrieves/:id" element={<CapturePage />} />
           <Route path="/activity" element={<Activity />} />
         </Routes>
       </main>

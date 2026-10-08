@@ -24,7 +24,7 @@ export function Activity() {
                 <td className="nowrap"><StatusBadge status={j.status} /> {j.jobId}</td>
                 <td><Link to={`/states/${j.stateCode}`}><b>{j.stateCode}</b></Link> {j.year}</td>
                 <td>
-                  {kindLabel[j.kind]}{j.normalizeCaptureId && ` capture ${j.normalizeCaptureId}`}
+                  {kindLabel[j.kind]}{j.normalizeCaptureId && ` retrieve ${j.normalizeCaptureId}`}
                   {j.electionFilter && <div className="muted">only {j.electionFilter}</div>}
                 </td>
                 <td><When iso={j.requestedAt} /> <span className="muted">by {j.requestedBy}</span></td>
@@ -42,11 +42,11 @@ export function Activity() {
         </table>
       )}
 
-      <h2>Captures</h2>
+      <h2>Retrieves</h2>
       <p className="muted">The 50 most recent across every state, from the console or the CLI.</p>
-      {captures.length === 0 ? <Empty>Nothing captured yet.</Empty> : (
+      {captures.length === 0 ? <Empty>Nothing retrieved yet.</Empty> : (
         <table>
-          <thead><tr><th>Capture</th><th>State</th><th>Started</th><th>Took</th><th>Fetched</th><th>By</th></tr></thead>
+          <thead><tr><th>Retrieve</th><th>State</th><th>Started</th><th>Took</th><th>Fetched</th><th>By</th></tr></thead>
           <tbody>
             {captures.map(c => (
               <tr key={c.captureId}>

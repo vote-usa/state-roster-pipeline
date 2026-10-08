@@ -250,6 +250,12 @@ public sealed class StagingQueries
             $"{PassColumns}, SourcesJson",
             "PassId IN (SELECT MAX(PassId) FROM CollectionPasses WHERE Status = 'succeeded' GROUP BY StateCode)", null, ct);
 
+    /// <summary>One state's newest succeeded pass, with its sources.</summary>
+    public async Task<PassView?> LatestSucceededPassAsync(string stateCode, CancellationToken ct = default) =>
+        (await PassesWhereAsync(
+            $"{PassColumns}, SourcesJson",
+            "StateCode = @StateCode AND Status = 'succeeded' ORDER BY PassId DESC LIMIT 1", new { StateCode = stateCode }, ct)).SingleOrDefault();
+
     public Task<IReadOnlyList<PassView>> PassesAsync(string stateCode, CancellationToken ct = default) =>
         PassesWhereAsync(PassColumns, "StateCode = @StateCode ORDER BY PassId DESC", new { StateCode = stateCode }, ct);
 

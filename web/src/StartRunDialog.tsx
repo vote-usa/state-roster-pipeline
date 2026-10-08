@@ -28,7 +28,7 @@ export function StartRunDialog({ preset, onClose }: { preset: StartRunPreset; on
 
   if (!states.data) return <div className="backdrop" onClick={onClose}><div className="dialog"><Pending query={states} /></div></div>;
 
-  // Only a succeeded capture whose payloads are still on disk can be normalized.
+  // Only a succeeded retrieve whose payloads are still on disk can be normalized.
   const usable = (detail.data?.code === stateCode ? detail.data.captures : []).filter(c => c.status === "succeeded" && c.filesPresent);
   const chosen = usable.find(c => c.captureId === captureId) ?? usable[0];
   const name = requestedBy.trim();
@@ -77,22 +77,22 @@ export function StartRunDialog({ preset, onClose }: { preset: StartRunPreset; on
           <legend>What to run</legend>
           <label className="choice">
             <input type="radio" checked={kind === "both"} onChange={() => setKind("both")} />
-            <span><b>Capture and normalize</b><small>Fetch every source page, then build one run per election from it.</small></span>
+            <span><b>Retrieve and normalize</b><small>Fetch every source page, then build one run per election from it.</small></span>
           </label>
           <label className="choice">
             <input type="radio" checked={kind === "capture"} onChange={() => setKind("capture")} />
-            <span><b>Capture only</b><small>Fetch and save the source pages. Nothing is parsed yet.</small></span>
+            <span><b>Retrieve only</b><small>Fetch and save the source pages. Nothing is parsed yet.</small></span>
           </label>
           <label className="choice">
             <input type="radio" checked={kind === "normalize"} onChange={() => setKind("normalize")} />
-            <span><b>Normalize an existing capture</b><small>Rebuild runs from saved pages. No network, and the year comes from the capture.</small></span>
+            <span><b>Normalize an existing retrieve</b><small>Rebuild runs from saved pages. No network, and the year comes from the retrieve.</small></span>
           </label>
           {kind === "normalize" && (usable.length === 0
-            ? <p className="warn">{detail.data ? `${stateCode} has no succeeded capture with its payloads still on disk.` : "Loading captures…"}</p>
+            ? <p className="warn">{detail.data ? `${stateCode} has no succeeded retrieve with its payloads still on disk.` : "Loading retrieves…"}</p>
             : <select className="indent" value={chosen!.captureId} onChange={e => setCaptureId(Number(e.target.value))}>
                 {usable.map(c => (
                   <option key={c.captureId} value={c.captureId}>
-                    capture {c.captureId}, {c.year}, {ago(c.startedAt)}, {c.fetchCount} fetches, {bytes(c.rawBytes)}
+                    retrieve {c.captureId}, {c.year}, {ago(c.startedAt)}, {c.fetchCount} fetches, {bytes(c.rawBytes)}
                   </option>
                 ))}
               </select>)}

@@ -1,7 +1,7 @@
 import { createContext, useContext, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import type { UseQueryResult } from "@tanstack/react-query";
-import type { RunKind, Status } from "./api";
+import type { RunKind, Source, Status } from "./api";
 
 export function StatusBadge({ status }: { status: Status | "pending" | "pruned" }) {
   return <span className={`badge ${status}`}>{status}</span>;
@@ -36,13 +36,48 @@ export function bytes(n: number | null): string {
 
 export const count = (n: number) => n.toLocaleString("en-US");
 
+// The console says "retrieve" for what the pipeline and its tables call a capture.
 export function CaptureLink({ id }: { id: number | null }) {
-  return id === null ? <span className="muted">no capture</span> : <Link to={`/captures/${id}`}>capture {id}</Link>;
+  return id === null ? <span className="muted">no retrieve</span> : <Link to={`/retrieves/${id}`}>retrieve {id}</Link>;
+}
+
+// The source groups a pass reports, as the two URL columns show them. Overview is where a person
+// would look (the election index, and the verification-only link). Roster is what the collector parses.
+const OVERVIEW: Record<string, string> = { elections: "", verification_only: "check" };
+const ROSTER: Record<string, string> = { statewide_candidates: "C", statewide_measures: "M", local_measures: "M" };
+
+function shortUrl(url: string): string {
+  const short = url.replace(/^https?:\/\/(www\.)?/, "");
+  return short.length > 34 ? `${short.slice(0, 33)}…` : short;
+}
+
+export function SourceLinks({ sources, kind }: { sources: Source[]; kind: "overview" | "roster" }) {
+  const labels = kind === "overview" ? OVERVIEW : ROSTER;
+  const seen = new Set<string>();
+  const shown = sources.filter(s => s.group in labels && s.url.startsWith("http") && !seen.has(s.url) && seen.add(s.url));
+  if (shown.length === 0) return <span className="muted">none recorded</span>;
+  return (
+    <>
+      {shown.map(s => (
+        <div key={s.url} className="source">
+          {labels[s.group] && <span className="muted">{labels[s.group]}: </span>}
+          <a href={s.url} target="_blank" rel="noreferrer" title={s.url}>{shortUrl(s.url)}</a>
+          {kind === "roster" && s.format && <span className="format">{s.format}</span>}
+        </div>
+      ))}
+    </>
+  );
+}
+
+/** One pipeline stage's latest outcome as a small icon. The detail is in the tooltip. */
+export function Stage({ label, status, detail }: { label: string; status: Status | null; detail: string }) {
+  const glyph = status === "succeeded" ? "✓" : status === "failed" ? "✕" : status === null ? "–" : "…";
+  return <span className={`stage ${status ?? "none"}`} title={`${label}: ${detail}`}>{glyph}</span>;
 }
 
 export const kindLabel: Record<RunKind, string> = {
-  both: "Capture and normalize",
-  capture: "Capture only",
+  both: "Retrieve and normalize",
+  capture: "Retrieve only",
   normalize: "Normalize",
 };
 

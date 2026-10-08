@@ -31,6 +31,8 @@ button, select, input { font: inherit; color: inherit; background: var(--panel);
 button { cursor: pointer; }
 button:hover { border-color: var(--accent); }
 button.primary { background: var(--accent); border-color: var(--accent); color: var(--panel); }
+button.link { border: 0; padding: 0; background: none; color: var(--accent); }
+button.link:hover { text-decoration: underline; }
 button:disabled { opacity: 0.5; cursor: not-allowed; }
 
 table { width: 100%; border-collapse: collapse; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; }
@@ -50,6 +52,17 @@ tr:last-child td { border-bottom: 0; }
 .badge.failed { background: var(--bad-bg); color: var(--bad); }
 .badge.running { background: var(--run-bg); color: var(--run); }
 .badge.queued, .badge.pending { background: var(--wait-bg); color: var(--wait); }
+
+.source { white-space: nowrap; }
+.format { margin-left: 5px; padding: 0 4px; border: 1px solid var(--line); border-radius: 3px; font-size: 10px; text-transform: uppercase; color: var(--muted); }
+.stage { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; margin-right: 4px; border: 1.5px solid currentColor; border-radius: 50%; font-size: 11px; font-weight: 700; cursor: default; color: var(--muted); }
+.stage.succeeded { color: var(--ok); }
+.stage.failed { color: var(--bad); }
+.stage.running, .stage.queued { color: var(--run); }
+.search { width: 360px; max-width: 100%; margin-bottom: 12px; }
+.summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; padding: 12px 14px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; }
+.summary h3 { margin: 0 0 6px; font-size: 12px; color: var(--muted); }
+.summary > div { min-width: 0; overflow: hidden; }
 
 .muted { color: var(--muted); }
 .warn { color: var(--bad); }

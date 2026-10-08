@@ -15,8 +15,8 @@ export function CapturePage() {
     <>
       <p className="crumbs"><Link to="/">States</Link> / <Link to={`/states/${c.stateCode}`}>{c.stateCode}</Link></p>
       <div className="title">
-        <h1>Capture {c.captureId} <StatusBadge status={c.status} /></h1>
-        {canNormalize && <button className="primary" onClick={() => startRun({ stateCode: c.stateCode, normalizeCaptureId: c.captureId })}>Normalize this capture</button>}
+        <h1>Retrieve {c.captureId} <StatusBadge status={c.status} /></h1>
+        {canNormalize && <button className="primary" onClick={() => startRun({ stateCode: c.stateCode, normalizeCaptureId: c.captureId })}>Normalize this retrieve</button>}
       </div>
       <dl className="facts">
         <dt>State and year</dt><dd>{c.stateCode} {c.year}{c.wayback && `, via Wayback ${c.wayback}`}</dd>
@@ -25,11 +25,11 @@ export function CapturePage() {
         <dt>Fetched</dt><dd>{c.fetchCount} requests, {bytes(c.rawBytes)}</dd>
         <dt>Payloads</dt><dd>{c.filesPresent
           ? `on disk at data/${c.rawDir}`
-          : c.status === "running" ? "being written" : "not on disk. The fetch records below remain, but this capture cannot be normalized."}</dd>
+          : c.status === "running" ? "being written" : "not on disk. The fetch records below remain, but this retrieve cannot be normalized."}</dd>
       </dl>
       <ErrorText text={c.errorText} />
 
-      <h2>Normalizations of this capture</h2>
+      <h2>Normalizations of this retrieve</h2>
       {passes.length === 0 ? <Empty>None yet.</Empty> : (
         <table>
           <thead><tr><th>Pass</th><th>When</th><th>Runs</th><th className="num">Gaps</th></tr></thead>
@@ -52,7 +52,7 @@ export function CapturePage() {
       )}
 
       <h2>Fetches</h2>
-      {fetches.length === 0 ? <Empty>{c.status === "running" ? "Fetch records are stored when the capture finishes." : "No fetches recorded."}</Empty> : (
+      {fetches.length === 0 ? <Empty>{c.status === "running" ? "Fetch records are stored when the retrieve finishes." : "No fetches recorded."}</Empty> : (
         <table>
           <thead><tr><th className="num">#</th><th>Role</th><th>Keys</th><th>Request</th><th className="num">HTTP</th><th className="num">Size</th><th className="num">Time</th></tr></thead>
           <tbody>
