@@ -1,5 +1,6 @@
 using AngleSharp.Html.Parser;
 using StateBallot.Core;
+using StateBallot.Core.Raw;
 
 namespace StateBallot.States.Va;
 
@@ -22,7 +23,6 @@ namespace StateBallot.States.Va;
 [StateCode("VA")]
 public sealed class VaCollector : IStateCollector
 {
-    private readonly HttpFetcher _fetcher;
     private readonly VaSourceConfig _config;
     private readonly IPublishSchedule _schedule;
     private readonly int _year;
@@ -34,9 +34,8 @@ public sealed class VaCollector : IStateCollector
     /// <param name="stateDataDir">Per-state output directory (data/output/&lt;xx&gt;/). Inputs are under data/input/&lt;xx&gt;/,
     /// including date_formats.json.</param>
     public VaCollector(
-        HttpFetcher fetcher, int year, string stateDataDir, string? inputDataRoot = null, VaSourceConfig? config = null)
+        int year, string stateDataDir, string? inputDataRoot = null, VaSourceConfig? config = null)
     {
-        _fetcher = fetcher;
         _year = year;
         _stateDataDir = stateDataDir;
         _inputDataRoot = ResolveInputDataRoot(stateDataDir, inputDataRoot);
@@ -44,15 +43,31 @@ public sealed class VaCollector : IStateCollector
         _schedule = new VaPublishSchedule();
     }
 
-    public async Task<CollectResult> CollectAsync()
+    public const string CandidateListIndexRole = "candidate-list-index";
+    public const string ElectionPageRole = "election-page";
+    public const string CandidateListRole = "candidate-list";
+
+    public async Task CaptureAsync(HttpFetcher fetcher, DateOnly asOf)
     {
-        Console.WriteLine($"Collecting Virginia ballot roster for {_year}...");
+        Console.WriteLine($"Capturing Virginia sources for {_year}...");
+
+        var electionPageUrl = FindElectionPageUrl(
+            await fetcher.GetStringAsync(_config.CandidateListIndexUrl, FetchTag.Of(CandidateListIndexRole)));
+        var pageHtml = await fetcher.GetStringAsync(electionPageUrl, FetchTag.Of(ElectionPageRole));
+        await fetcher.GetBytesAsync(
+            XlsxUrl(electionPageUrl, new HtmlParser().ParseDocument(pageHtml)), FetchTag.Of(CandidateListRole));
+    }
+
+    public CollectResult Normalize(CaptureReader capture)
+    {
+        Console.WriteLine($"Normalizing Virginia capture {capture.CaptureId} for {_year}...");
 
         var dataRoot = _inputDataRoot;
         var dateFormats = DateFormatConfig.Load(DataPaths.DateFormatsPath(dataRoot, StateCode));
         var fieldMap = LookupTableLoader.Load(DataPaths.CandidateFieldMapPath(dataRoot, StateCode));
 
-        var (electionPageUrl, electionPage) = await FindElectionPageAsync();
+        var electionPageUrl = FindElectionPageUrl(capture.Require(CandidateListIndexRole).Text());
+        var electionPage = new HtmlParser().ParseDocument(capture.Require(ElectionPageRole).Text());
 
         var titleMatch = VaSelectors.TitleDate.Match(electionPage.Title ?? "");
         if (!titleMatch.Success || !DateParsing.TryParseAny(titleMatch.Groups["date"].Value, dateFormats, out var electionDate))
@@ -65,14 +80,12 @@ public sealed class VaCollector : IStateCollector
         RowHelpers.StampState(election, StateCode);
         Console.WriteLine($"  Elections found: 1");
 
-        var xlsxHref = electionPage.QuerySelector(VaSelectors.XlsxLinkCss)?.GetAttribute("href")
-            ?? throw new InvalidOperationException($"No XLSX link found on {electionPageUrl}.");
-        var xlsxUrl = new Uri(new Uri(electionPageUrl), xlsxHref).ToString();
+        var xlsxUrl = XlsxUrl(electionPageUrl, electionPage);
 
         var result = new CollectResult();
         result.Elections.Add(election);
 
-        var bytes = await _fetcher.GetBytesAsync(xlsxUrl);
+        var bytes = capture.Require(CandidateListRole).Bytes();
         var rawRows = XlsxTableParser.Parse(bytes)
             .Where(r => !string.IsNullOrWhiteSpace(r.GetValueOrDefault("Office Title")))
             .Select(row => VaCandidateMapper.ToCandidateRow(row, election, xlsxUrl, fieldMap))
@@ -97,11 +110,14 @@ public sealed class VaCollector : IStateCollector
         return result;
     }
 
-    /// <summary>Finds the index page's link to the requested year's "All Offices" general election page, and fetches/parses it.</summary>
-    private async Task<(string Url, AngleSharp.Dom.IDocument Page)> FindElectionPageAsync()
+    /// <summary>
+    /// The index page links one "&lt;year&gt; ... All Offices Candidate List"
+    /// page per current-cycle election. The link is followed, not templated,
+    /// because the page's own URL carries no predictable year or date.
+    /// </summary>
+    private string FindElectionPageUrl(string indexHtml)
     {
-        var indexHtml = await _fetcher.GetStringAsync(_config.CandidateListIndexUrl);
-        var indexDoc = await new HtmlParser().ParseDocumentAsync(indexHtml);
+        var indexDoc = new HtmlParser().ParseDocument(indexHtml);
 
         foreach (var link in indexDoc.QuerySelectorAll("a"))
         {
@@ -114,14 +130,19 @@ public sealed class VaCollector : IStateCollector
             if (string.IsNullOrWhiteSpace(href))
                 continue;
 
-            var url = new Uri(new Uri(_config.CandidateListIndexUrl), href).ToString();
-            var html = await _fetcher.GetStringAsync(url);
-            return (url, await new HtmlParser().ParseDocumentAsync(html));
+            return new Uri(new Uri(_config.CandidateListIndexUrl), href).ToString();
         }
 
         throw new InvalidOperationException(
             $"{_config.CandidateListIndexUrl} has no '{_year} ... All Offices Candidate List' link. " +
             "This index only ever shows the current cycle - back-filling a past year isn't supported by this source.");
+    }
+
+    private static string XlsxUrl(string electionPageUrl, AngleSharp.Dom.IDocument electionPage)
+    {
+        var xlsxHref = electionPage.QuerySelector(VaSelectors.XlsxLinkCss)?.GetAttribute("href")
+            ?? throw new InvalidOperationException($"No XLSX link found on {electionPageUrl}.");
+        return new Uri(new Uri(electionPageUrl), xlsxHref).ToString();
     }
 
     private void BuildSourcesManifest(CollectResult result, string electionPageUrl, string xlsxUrl)

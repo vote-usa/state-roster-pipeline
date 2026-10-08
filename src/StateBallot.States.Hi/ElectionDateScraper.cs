@@ -1,4 +1,5 @@
 using StateBallot.Core;
+using StateBallot.Core.Raw;
 
 namespace StateBallot.States.Hi;
 
@@ -10,22 +11,23 @@ namespace StateBallot.States.Hi;
 /// </summary>
 public sealed class ElectionDateScraper
 {
-    private readonly HttpFetcher _fetcher;
+    public const string Role = "elections-home";
+
     private readonly HiSourceConfig _config;
     private readonly string[] _dateFormats;
 
     /// <param name="dateFormats">Accepted date formats, from data/input/hi/date_formats.json.</param>
-    public ElectionDateScraper(HttpFetcher fetcher, HiSourceConfig config, string[] dateFormats)
+    public ElectionDateScraper(HiSourceConfig config, string[] dateFormats)
     {
-        _fetcher = fetcher;
         _config = config;
         _dateFormats = dateFormats;
     }
 
-    public async Task<(Election Primary, Election General)> FetchAsync(int year)
-    {
-        var html = await _fetcher.GetStringAsync(_config.ElectionsHomeUrl);
+    public static async Task CaptureAsync(HttpFetcher fetcher, HiSourceConfig config) =>
+        await fetcher.GetStringAsync(config.ElectionsHomeUrl, FetchTag.Of(Role));
 
+    public (Election Primary, Election General) Parse(string html, int year)
+    {
         var primaryMatch = HiSelectors.PrimaryDate.Match(html);
         var generalMatch = HiSelectors.GeneralDate.Match(html);
 

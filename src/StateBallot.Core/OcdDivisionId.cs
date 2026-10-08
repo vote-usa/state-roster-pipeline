@@ -69,8 +69,9 @@ public static partial class OcdDivisionId
         if (!string.IsNullOrWhiteSpace(county) && !county.Contains(';'))
             return County(state, county);
 
-        // Districted office we don't recognize, or multi-county local: leave null.
-        if (!string.IsNullOrWhiteSpace(district) && Digits.IsMatch(district))
+        // An office tied to a district, court or town we can't map (VT's Justice of the Peace
+        // carries its town here, WA's district court judges their court) is not statewide.
+        if (!string.IsNullOrWhiteSpace(district))
             return null;
 
         return State(state);

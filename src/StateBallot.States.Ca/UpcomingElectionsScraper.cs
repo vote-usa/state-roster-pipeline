@@ -1,6 +1,7 @@
 using AngleSharp.Dom;
 using AngleSharp.Html.Parser;
 using StateBallot.Core;
+using StateBallot.Core.Raw;
 
 namespace StateBallot.States.Ca;
 
@@ -11,24 +12,26 @@ namespace StateBallot.States.Ca;
 /// </summary>
 public sealed class UpcomingElectionsScraper
 {
-    private readonly HttpFetcher _fetcher;
+    public const string Role = "upcoming-elections";
+
     private readonly CaSourceConfig _config;
     private readonly string[] _dateFormats;
     private readonly CaSelectors _selectors;
 
     /// <param name="dateFormats">Accepted date formats, from data/input/ca/date_formats.json.</param>
-    public UpcomingElectionsScraper(HttpFetcher fetcher, CaSourceConfig config, string[] dateFormats, CaSelectors selectors)
+    public UpcomingElectionsScraper(CaSourceConfig config, string[] dateFormats, CaSelectors selectors)
     {
-        _fetcher = fetcher;
         _config = config;
         _dateFormats = dateFormats;
         _selectors = selectors;
     }
 
-    public async Task<List<Election>> FetchAsync()
+    public async Task<List<Election>> CaptureAsync(HttpFetcher fetcher) =>
+        Parse(await fetcher.GetStringAsync(_config.UpcomingElectionsUrl, FetchTag.Of(Role)));
+
+    public List<Election> Parse(string html)
     {
-        var html = await _fetcher.GetStringAsync(_config.UpcomingElectionsUrl);
-        var doc = await new HtmlParser().ParseDocumentAsync(html);
+        var doc = new HtmlParser().ParseDocument(html);
 
         var elections = new List<Election>();
         string? currentSection = null;

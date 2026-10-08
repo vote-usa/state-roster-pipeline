@@ -9,7 +9,7 @@ namespace StateBallot.Staging.Tests;
 /// --output-root). Catches constructor-contract regressions like a collector
 /// still calling DataPaths.FromStateOutputDir on a path that isn't a real
 /// data/output/&lt;xx&gt; dir - no network or database needed, since this never
-/// calls CollectAsync.
+/// captures or normalizes.
 /// </summary>
 public class CollectorDiscoveryTests
 {
@@ -29,14 +29,13 @@ public class CollectorDiscoveryTests
     public void EveryDiscoveredCollector_ConstructsWithoutThrowing()
     {
         var dataRoot = CollectorRunner.FindDataRoot();
-        using var fetcher = new HttpFetcher();
         var collectors = CollectorDiscovery.Discover();
 
         Assert.NotEmpty(collectors);
 
         foreach (var (code, factory) in collectors)
         {
-            var ex = Record.Exception(() => factory(fetcher, DateTime.UtcNow.Year, dataRoot, dataRoot));
+            var ex = Record.Exception(() => factory(DateTime.UtcNow.Year, dataRoot, dataRoot));
             Assert.True(ex is null, $"{code} collector constructor threw: {ex}");
         }
     }

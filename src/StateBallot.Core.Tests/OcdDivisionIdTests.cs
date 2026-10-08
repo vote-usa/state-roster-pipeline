@@ -28,9 +28,17 @@ public class OcdDivisionIdTests
     [InlineData("VT", "State Senator", "BEN RUT")]
     [InlineData("MS", "House of Representatives", "12")]
     [InlineData("WA", "Commissioner District 4", "Port Of Bellingham Commissioner District 4")]
+    [InlineData("VT", "JUSTICE OF THE PEACE", "ADDISON")]
+    [InlineData("WA", "District Court Judge Department 1", "District Court")]
     public void ForCandidate_DistrictThatCannotBeMapped_IsNull(string state, string office, string district)
     {
         Assert.Null(OcdDivisionId.ForCandidate(state, office, district, null));
+    }
+
+    [Fact]
+    public void ForCandidate_StatewideOfficeKeepsTheStateIdEvenWithADistrictLabel()
+    {
+        Assert.Equal("ocd-division/country:us/state:wa", OcdDivisionId.ForCandidate("WA", "Governor", "State", null));
     }
 
     [Fact]

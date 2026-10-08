@@ -1,4 +1,5 @@
 using StateBallot.Core;
+using StateBallot.Core.Raw;
 
 namespace StateBallot.States.Vt;
 
@@ -15,7 +16,6 @@ namespace StateBallot.States.Vt;
 [StateCode("VT")]
 public sealed class VtCollector : IStateCollector
 {
-    private readonly HttpFetcher _fetcher;
     private readonly VtSourceConfig _config;
     private readonly IPublishSchedule _schedule;
     private readonly int _year;
@@ -27,9 +27,8 @@ public sealed class VtCollector : IStateCollector
     /// <param name="stateDataDir">Per-state output directory (data/output/&lt;xx&gt;/). Inputs are under data/input/&lt;xx&gt;/,
     /// including date_formats.json.</param>
     public VtCollector(
-        HttpFetcher fetcher, int year, string stateDataDir, string? inputDataRoot = null, VtSourceConfig? config = null)
+        int year, string stateDataDir, string? inputDataRoot = null, VtSourceConfig? config = null)
     {
-        _fetcher = fetcher;
         _year = year;
         _stateDataDir = stateDataDir;
         _inputDataRoot = ResolveInputDataRoot(stateDataDir, inputDataRoot);
@@ -37,15 +36,31 @@ public sealed class VtCollector : IStateCollector
         _schedule = new VtPublishSchedule();
     }
 
-    public async Task<CollectResult> CollectAsync()
+    public const string CandidateListRole = "candidate-list";
+
+    public async Task CaptureAsync(HttpFetcher fetcher, DateOnly asOf)
     {
-        Console.WriteLine($"Collecting Vermont ballot roster for {_year}...");
+        Console.WriteLine($"Capturing Vermont sources for {_year}...");
+
+        var dateFormats = DateFormatConfig.Load(DataPaths.DateFormatsPath(_inputDataRoot, StateCode));
+        var found = await new VtElectionDateScraper(_config, dateFormats).TryCaptureAsync(fetcher, _year);
+        if (found is null)
+            return;
+
+        foreach (var election in new[] { found.Value.Primary, found.Value.General })
+            await fetcher.TryGetBytesAsync(
+                _config.CandidateListUrl(_year, election.ElectionType), FetchTag.Of(CandidateListRole, ("type", election.ElectionType)));
+    }
+
+    public CollectResult Normalize(CaptureReader capture)
+    {
+        Console.WriteLine($"Normalizing Vermont capture {capture.CaptureId} for {_year}...");
 
         var dataRoot = _inputDataRoot;
         var dateFormats = DateFormatConfig.Load(DataPaths.DateFormatsPath(dataRoot, StateCode));
         var fieldMap = LookupTableLoader.Load(DataPaths.CandidateFieldMapPath(dataRoot, StateCode));
 
-        var found = await new VtElectionDateScraper(_fetcher, _config, dateFormats).TryFetchAsync(_year)
+        var found = new VtElectionDateScraper(_config, dateFormats).TryParse(capture.Require(VtElectionDateScraper.Role).Text(), _year)
             ?? throw new InvalidOperationException(
                 $"{_config.CandidatesPageUrl} doesn't currently show {_year}'s election dates (it's an evergreen " +
                 "page that only ever reflects the current cycle). Back-filling a past year's dates isn't supported by this source.");
@@ -61,9 +76,9 @@ public sealed class VtCollector : IStateCollector
         {
             var xlsxUrl = _config.CandidateListUrl(_year, election.ElectionType);
             candidateListUrls.Add(new SourceEntry(xlsxUrl, "xlsx"));
-            var bytes = await _fetcher.TryGetBytesAsync(xlsxUrl);
+            var captured = capture.Require(CandidateListRole, ("type", election.ElectionType));
 
-            if (bytes is null)
+            if (!captured.HasPayload)
             {
                 result.Gaps.Add(
                     $"{election.Name} ({election.ElectionDate:yyyy-MM-dd}): {xlsxUrl} not published yet. Re-run later.");
@@ -73,7 +88,7 @@ public sealed class VtCollector : IStateCollector
 
             // Every genuine row has a Contest; guards against any stray blank
             // formatting row ClosedXML's used-range picks up ahead of the real header.
-            var rows = XlsxTableParser.Parse(bytes)
+            var rows = XlsxTableParser.Parse(captured.Bytes())
                 .Where(r => !string.IsNullOrWhiteSpace(r.GetValueOrDefault("Contest")))
                 .ToList();
 

@@ -1,6 +1,7 @@
 using System.Text.RegularExpressions;
 using AngleSharp.Html.Parser;
 using StateBallot.Core;
+using StateBallot.Core.Raw;
 
 namespace StateBallot.States.Wa;
 
@@ -11,25 +12,27 @@ namespace StateBallot.States.Wa;
 /// </summary>
 public sealed class CountyDirectoryScraper
 {
-    private readonly HttpFetcher _fetcher;
+    public const string Role = "county-directory";
+
     private readonly WaSourceConfig _config;
     private readonly Selectors _selectors;
 
-    public CountyDirectoryScraper(HttpFetcher fetcher, WaSourceConfig config, Selectors selectors)
+    public CountyDirectoryScraper(WaSourceConfig config, Selectors selectors)
     {
-        _fetcher = fetcher;
         _config = config;
         _selectors = selectors;
     }
 
+    public async Task CaptureAsync(HttpFetcher fetcher) =>
+        await fetcher.GetStringAsync(_config.CountyElectionsOfficesUrl, FetchTag.Of(Role));
+
     /// <param name="expectedCounties">County names from the VoteWA dropdown; used to validate coverage.</param>
     /// <param name="fipsFilePath">JSON file mapping county name to FIPS code.</param>
-    public async Task<List<CountyDirectoryRow>> FetchAsync(ICollection<string> expectedCounties, string fipsFilePath)
+    public List<CountyDirectoryRow> Parse(string html, ICollection<string> expectedCounties, string fipsFilePath)
     {
         var fips = CountyFipsLoader.LoadOrEmpty(fipsFilePath);
 
-        var html = await _fetcher.GetStringAsync(_config.CountyElectionsOfficesUrl);
-        var doc = await new HtmlParser().ParseDocumentAsync(html);
+        var doc = new HtmlParser().ParseDocument(html);
 
         var rows = doc.QuerySelectorAll(_selectors.CountyOfficeRows).ToList();
         ScrapeGuard.RequireAny(rows, () =>

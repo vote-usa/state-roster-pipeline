@@ -1,6 +1,7 @@
 using AngleSharp.Dom;
 using AngleSharp.Html.Parser;
 using StateBallot.Core;
+using StateBallot.Core.Raw;
 
 namespace StateBallot.States.Ca;
 
@@ -13,24 +14,26 @@ namespace StateBallot.States.Ca;
 /// </summary>
 public sealed class QualifiedMeasuresScraper
 {
-    private readonly HttpFetcher _fetcher;
+    public const string Role = "qualified-measures";
+
     private readonly CaSourceConfig _config;
     private readonly string[] _dateFormats;
     private readonly CaSelectors _selectors;
 
     /// <param name="dateFormats">Accepted date formats, from data/input/ca/date_formats.json.</param>
-    public QualifiedMeasuresScraper(HttpFetcher fetcher, CaSourceConfig config, string[] dateFormats, CaSelectors selectors)
+    public QualifiedMeasuresScraper(CaSourceConfig config, string[] dateFormats, CaSelectors selectors)
     {
-        _fetcher = fetcher;
         _config = config;
         _dateFormats = dateFormats;
         _selectors = selectors;
     }
 
-    public async Task<List<MeasureRow>> FetchAsync()
+    public async Task CaptureAsync(HttpFetcher fetcher) =>
+        await fetcher.GetStringAsync(_config.QualifiedMeasuresUrl, FetchTag.Of(Role));
+
+    public List<MeasureRow> Parse(string html)
     {
-        var html = await _fetcher.GetStringAsync(_config.QualifiedMeasuresUrl);
-        var doc = await new HtmlParser().ParseDocumentAsync(html);
+        var doc = new HtmlParser().ParseDocument(html);
 
         var measures = new List<MeasureRow>();
         DateOnly? currentElectionDate = null;

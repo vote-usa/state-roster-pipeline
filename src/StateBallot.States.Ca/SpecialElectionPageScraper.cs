@@ -1,6 +1,7 @@
 using System.Globalization;
 using AngleSharp.Html.Parser;
 using StateBallot.Core;
+using StateBallot.Core.Raw;
 
 namespace StateBallot.States.Ca;
 
@@ -12,23 +13,28 @@ namespace StateBallot.States.Ca;
 /// </summary>
 public sealed class SpecialElectionPageScraper
 {
-    private readonly HttpFetcher _fetcher;
+    public const string Role = "special-election-page";
+
     private readonly string[] _dateFormats;
     private readonly CaSelectors _selectors;
 
     /// <param name="dateFormats">Accepted date formats, from data/input/ca/date_formats.json.</param>
-    public SpecialElectionPageScraper(HttpFetcher fetcher, string[] dateFormats, CaSelectors selectors)
+    public SpecialElectionPageScraper(string[] dateFormats, CaSelectors selectors)
     {
-        _fetcher = fetcher;
         _dateFormats = dateFormats;
         _selectors = selectors;
     }
 
+    public async Task<string?> CaptureCertifiedListUrlAsync(HttpFetcher fetcher, Election election) =>
+        FindCertifiedListUrl(
+            await fetcher.GetStringAsync(election.SourceUrl, FetchTag.Of(Role, CaCollector.ElectionKeys(election))),
+            election.SourceUrl,
+            election.ElectionDate);
+
     /// <summary>Returns the certified-list PDF URL for the round held on <paramref name="electionDate"/>, or null if not posted.</summary>
-    public async Task<string?> FindCertifiedListUrlAsync(string pageUrl, DateOnly electionDate)
+    public string? FindCertifiedListUrl(string html, string pageUrl, DateOnly electionDate)
     {
-        var html = await _fetcher.GetStringAsync(pageUrl);
-        var doc = await new HtmlParser().ParseDocumentAsync(html);
+        var doc = new HtmlParser().ParseDocument(html);
 
         DateOnly? currentSectionDate = null;
         foreach (var element in doc.QuerySelectorAll("h2, a[href]"))

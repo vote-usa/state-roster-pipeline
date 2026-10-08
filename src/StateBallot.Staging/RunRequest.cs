@@ -21,6 +21,18 @@ public sealed record RunRequest(string State, int Year)
     public bool DryRun { get; init; }
     public string? Wayback { get; init; }
 
+    /// <summary>
+    /// Skip the capture stage and normalize this existing capture: a capture id, or dry-...
+    /// for a dry-run capture. The year comes from the capture.
+    /// </summary>
+    public string? Normalize { get; init; }
+
+    /// <summary>Stop after the capture stage.</summary>
+    public bool CaptureOnly { get; init; }
+
+    /// <summary>Capture directories to keep per state after a pass. Zero keeps them all.</summary>
+    public int KeepRaw { get; init; } = 3;
+
     /// <summary>Record the pass and its per-election runs in the staging schema. On by default.</summary>
     public bool Persist { get; init; } = true;
 
@@ -51,7 +63,8 @@ public sealed record ElectionRun(
 
 /// <summary>What a collection pass produced.</summary>
 public sealed record RunOutcome(
-    Core.CollectResult Result,
+    Core.CollectResult? Result,
+    string? CaptureId,
     int? PassId,
     IReadOnlyList<ElectionRun> Runs,
     int UnassignedRowCount,

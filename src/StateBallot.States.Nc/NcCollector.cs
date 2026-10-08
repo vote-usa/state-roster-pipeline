@@ -1,4 +1,5 @@
 using StateBallot.Core;
+using StateBallot.Core.Raw;
 
 namespace StateBallot.States.Nc;
 
@@ -15,7 +16,6 @@ namespace StateBallot.States.Nc;
 [StateCode("NC")]
 public sealed class NcCollector : IStateCollector
 {
-    private readonly HttpFetcher _fetcher;
     private readonly NcSourceConfig _config;
     private readonly IPublishSchedule _schedule;
     private readonly int _year;
@@ -27,9 +27,8 @@ public sealed class NcCollector : IStateCollector
     /// <param name="stateDataDir">Per-state output directory (data/output/&lt;xx&gt;/). Inputs are under data/input/&lt;xx&gt;/,
     /// including date_formats.json.</param>
     public NcCollector(
-        HttpFetcher fetcher, int year, string stateDataDir, string? inputDataRoot = null, NcSourceConfig? config = null)
+        int year, string stateDataDir, string? inputDataRoot = null, NcSourceConfig? config = null)
     {
-        _fetcher = fetcher;
         _year = year;
         _stateDataDir = stateDataDir;
         _inputDataRoot = ResolveInputDataRoot(stateDataDir, inputDataRoot);
@@ -37,16 +36,24 @@ public sealed class NcCollector : IStateCollector
         _schedule = new NcPublishSchedule();
     }
 
-    public async Task<CollectResult> CollectAsync()
+    public const string CandidateListingRole = "candidate-listing";
+
+    public async Task CaptureAsync(HttpFetcher fetcher, DateOnly asOf)
     {
-        Console.WriteLine($"Collecting North Carolina ballot roster for {_year}...");
+        Console.WriteLine($"Capturing North Carolina sources for {_year}...");
+        await fetcher.GetStringAsync(_config.CandidateListingUrl(_year), FetchTag.Of(CandidateListingRole));
+    }
+
+    public CollectResult Normalize(CaptureReader capture)
+    {
+        Console.WriteLine($"Normalizing North Carolina capture {capture.CaptureId} for {_year}...");
 
         var dataRoot = _inputDataRoot;
         var dateFormats = DateFormatConfig.Load(DataPaths.DateFormatsPath(dataRoot, StateCode));
         var fieldMap = LookupTableLoader.Load(DataPaths.CandidateFieldMapPath(dataRoot, StateCode));
 
         var url = _config.CandidateListingUrl(_year);
-        var csvText = await _fetcher.GetStringAsync(url);
+        var csvText = capture.Require(CandidateListingRole).Text();
         var rows = DelimitedTableParser.Parse(csvText);
         ScrapeGuard.RequireAny(rows, () => $"No rows parsed from {url}. The file may be empty or malformed.");
 

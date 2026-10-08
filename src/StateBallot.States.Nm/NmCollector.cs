@@ -1,4 +1,5 @@
 using StateBallot.Core;
+using StateBallot.Core.Raw;
 
 namespace StateBallot.States.Nm;
 
@@ -21,7 +22,6 @@ namespace StateBallot.States.Nm;
 [StateCode("NM")]
 public sealed class NmCollector : IStateCollector
 {
-    private readonly HttpFetcher _fetcher;
     private readonly NmSourceConfig _config;
     private readonly IPublishSchedule _schedule;
     private readonly int _year;
@@ -33,9 +33,8 @@ public sealed class NmCollector : IStateCollector
     /// <param name="stateDataDir">Per-state output directory (data/output/&lt;xx&gt;/). Inputs are under data/input/&lt;xx&gt;/,
     /// including date_formats.json and election_ids.json.</param>
     public NmCollector(
-        HttpFetcher fetcher, int year, string stateDataDir, string? inputDataRoot = null, NmSourceConfig? config = null)
+        int year, string stateDataDir, string? inputDataRoot = null, NmSourceConfig? config = null)
     {
-        _fetcher = fetcher;
         _year = year;
         _stateDataDir = stateDataDir;
         _inputDataRoot = ResolveInputDataRoot(stateDataDir, inputDataRoot);
@@ -43,22 +42,38 @@ public sealed class NmCollector : IStateCollector
         _schedule = new NmPublishSchedule();
     }
 
-    public async Task<CollectResult> CollectAsync()
+    public const string UpcomingElectionsRole = "upcoming-elections";
+    public const string CandidateListPageRole = "candidate-list-page";
+    public const string CandidateExportRole = "candidate-export";
+
+    public async Task CaptureAsync(HttpFetcher fetcher, DateOnly asOf)
     {
-        Console.WriteLine($"Collecting New Mexico ballot roster for {_year}...");
+        Console.WriteLine($"Capturing New Mexico sources for {_year}...");
+
+        var pageUrl = _config.CandidateListUrl(RequireGeneralElectionId());
+        await fetcher.GetStringAsync(_config.UpcomingElectionsPageUrl, FetchTag.Of(UpcomingElectionsRole));
+        var pageHtml = await fetcher.GetStringAsync(pageUrl, FetchTag.Of(CandidateListPageRole));
+
+        var exportFields = new Dictionary<string, string>
+        {
+            [NmSelectors.ExportFormatField] = NmSelectors.ExportFormatValue,
+            [NmSelectors.PartyFilterField] = NmSelectors.AllPartiesOrCounties,
+            [NmSelectors.CountyFilterField] = NmSelectors.AllPartiesOrCounties,
+        };
+        await WebFormsPostback.ClickButtonAsync(
+            fetcher, pageUrl, pageHtml, NmSelectors.ExportButtonField, exportFields, FetchTag.Of(CandidateExportRole));
+    }
+
+    public CollectResult Normalize(CaptureReader capture)
+    {
+        Console.WriteLine($"Normalizing New Mexico capture {capture.CaptureId} for {_year}...");
 
         var dataRoot = _inputDataRoot;
         var dateFormats = DateFormatConfig.Load(DataPaths.DateFormatsPath(dataRoot, StateCode));
         var fieldMap = LookupTableLoader.Load(DataPaths.CandidateFieldMapPath(dataRoot, StateCode));
-        var electionIds = LookupTableLoader.Load(DataPaths.ElectionIdsPath(dataRoot, StateCode));
+        var electionId = RequireGeneralElectionId();
 
-        if (!electionIds.TryGetValue("General", out var electionId) || electionId.Length == 0)
-            throw new InvalidOperationException(
-                $"{DataPaths.ElectionIdsPath(dataRoot, StateCode)} has no \"General\" entry. NM's candidate " +
-                "portal has no discoverable index of its own election ids - this must be re-derived by hand " +
-                "each cycle (see NmSourceConfig's doc comment).");
-
-        var electionsPageHtml = await _fetcher.GetStringAsync(_config.UpcomingElectionsPageUrl);
+        var electionsPageHtml = capture.Require(UpcomingElectionsRole).Text();
         var dateMatch = NmSelectors.GeneralElectionDateLine.Match(electionsPageHtml);
         if (!dateMatch.Success || !DateParsing.TryParseAny(dateMatch.Groups["date"].Value, dateFormats, out var electionDate))
             throw new InvalidOperationException(
@@ -73,17 +88,7 @@ public sealed class NmCollector : IStateCollector
         Console.WriteLine("  Elections found: 1");
 
         var pageUrl = _config.CandidateListUrl(electionId);
-        var pageHtml = await _fetcher.GetStringAsync(pageUrl);
-
-        var exportFields = new Dictionary<string, string>
-        {
-            [NmSelectors.ExportFormatField] = NmSelectors.ExportFormatValue,
-            [NmSelectors.PartyFilterField] = NmSelectors.AllPartiesOrCounties,
-            [NmSelectors.CountyFilterField] = NmSelectors.AllPartiesOrCounties,
-        };
-        var exportHtml = await WebFormsPostback.ClickButtonAsync(
-            _fetcher, pageUrl, pageHtml, NmSelectors.ExportButtonField, exportFields);
-        var rows = HtmlTableParser.Parse(exportHtml);
+        var rows = HtmlTableParser.Parse(capture.Require(CandidateExportRole).Text());
         ScrapeGuard.RequireAny(rows, () => $"No rows parsed from the export at {pageUrl} (button '{NmSelectors.ExportButtonField}').");
 
         var result = new CollectResult();
@@ -115,6 +120,18 @@ public sealed class NmCollector : IStateCollector
         CollectResultSorter.Sort(result);
         BuildSourcesManifest(result, pageUrl);
         return result;
+    }
+
+    private string RequireGeneralElectionId()
+    {
+        var path = DataPaths.ElectionIdsPath(_inputDataRoot, StateCode);
+        var electionIds = LookupTableLoader.Load(path);
+        if (!electionIds.TryGetValue("General", out var electionId) || electionId.Length == 0)
+            throw new InvalidOperationException(
+                $"{path} has no \"General\" entry. NM's candidate " +
+                "portal has no discoverable index of its own election ids - this must be re-derived by hand " +
+                "each cycle (see NmSourceConfig's doc comment).");
+        return electionId;
     }
 
     private void BuildSourcesManifest(CollectResult result, string candidateListUrl)

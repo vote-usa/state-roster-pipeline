@@ -1,5 +1,6 @@
 using AngleSharp.Html.Parser;
 using StateBallot.Core;
+using StateBallot.Core.Raw;
 
 namespace StateBallot.States.Sd;
 
@@ -18,7 +19,6 @@ namespace StateBallot.States.Sd;
 [StateCode("SD")]
 public sealed class SdCollector : IStateCollector
 {
-    private readonly HttpFetcher _fetcher;
     private readonly SdSourceConfig _config;
     private readonly IPublishSchedule _schedule;
     private readonly int _year;
@@ -30,9 +30,8 @@ public sealed class SdCollector : IStateCollector
     /// <param name="stateDataDir">Per-state output directory (data/output/&lt;xx&gt;/). Inputs are under data/input/&lt;xx&gt;/,
     /// including date_formats.json and election_ids.json.</param>
     public SdCollector(
-        HttpFetcher fetcher, int year, string stateDataDir, string? inputDataRoot = null, SdSourceConfig? config = null)
+        int year, string stateDataDir, string? inputDataRoot = null, SdSourceConfig? config = null)
     {
-        _fetcher = fetcher;
         _year = year;
         _stateDataDir = stateDataDir;
         _inputDataRoot = ResolveInputDataRoot(stateDataDir, inputDataRoot);
@@ -40,16 +39,43 @@ public sealed class SdCollector : IStateCollector
         _schedule = new SdPublishSchedule();
     }
 
-    public async Task<CollectResult> CollectAsync()
+    public const string UpcomingElectionsRole = "upcoming-elections";
+    public const string CandidateCalendarRole = "candidate-calendar";
+    public const string CandidateListPageRole = "candidate-list-page";
+    public const string CandidateExportRole = "candidate-export";
+
+    private static readonly string[] TargetTypes = ["Primary", "General"];
+
+    public async Task CaptureAsync(HttpFetcher fetcher, DateOnly asOf)
     {
-        Console.WriteLine($"Collecting South Dakota ballot roster for {_year}...");
+        Console.WriteLine($"Capturing South Dakota sources for {_year}...");
+
+        var indexHtml = await fetcher.GetStringAsync(_config.UpcomingElectionsPageUrl, FetchTag.Of(UpcomingElectionsRole));
+        await fetcher.GetStringAsync(CalendarUrl(indexHtml), FetchTag.Of(CandidateCalendarRole));
+
+        var electionIds = LookupTableLoader.Load(DataPaths.ElectionIdsPath(_inputDataRoot, StateCode));
+        foreach (var type in TargetTypes)
+        {
+            if (!electionIds.TryGetValue(type, out var electionId) || electionId.Length == 0)
+                continue;
+
+            var pageUrl = _config.CandidateListUrl(electionId);
+            var pageHtml = await fetcher.GetStringAsync(pageUrl, FetchTag.Of(CandidateListPageRole, ("type", type)));
+            await WebFormsPostback.TriggerPostbackAsync(
+                fetcher, pageUrl, pageHtml, SdSelectors.ExportToCsvEventTarget, tag: FetchTag.Of(CandidateExportRole, ("type", type)));
+        }
+    }
+
+    public CollectResult Normalize(CaptureReader capture)
+    {
+        Console.WriteLine($"Normalizing South Dakota capture {capture.CaptureId} for {_year}...");
 
         var dataRoot = _inputDataRoot;
         var dateFormats = DateFormatConfig.Load(DataPaths.DateFormatsPath(dataRoot, StateCode));
         var fieldMap = LookupTableLoader.Load(DataPaths.CandidateFieldMapPath(dataRoot, StateCode));
         var electionIds = LookupTableLoader.Load(DataPaths.ElectionIdsPath(dataRoot, StateCode));
 
-        var (calendarUrl, primaryDate, generalDate) = await FetchElectionDatesAsync(dateFormats);
+        var (calendarUrl, primaryDate, generalDate) = ParseElectionDates(capture, dateFormats);
 
         var result = new CollectResult();
         var candidateSourceUrls = new List<SourceEntry>();
@@ -69,9 +95,8 @@ public sealed class SdCollector : IStateCollector
             result.Elections.Add(election);
 
             var pageUrl = _config.CandidateListUrl(electionId);
-            var pageHtml = await _fetcher.GetStringAsync(pageUrl);
-            var csvText = await WebFormsPostback.TriggerPostbackAsync(_fetcher, pageUrl, pageHtml, SdSelectors.ExportToCsvEventTarget);
-            // Strip the export's own UTF-8 BOM (U+FEFF), if HttpFetcher's string decoding left it in verbatim.
+            var csvText = capture.Require(CandidateExportRole, ("type", type)).Text();
+            // Strip the export's own UTF-8 BOM (U+FEFF), if the payload decoding left it in verbatim.
             csvText = csvText.TrimStart('﻿');
 
             var rows = DelimitedTableParser.Parse(csvText)
@@ -106,17 +131,24 @@ public sealed class SdCollector : IStateCollector
         return result;
     }
 
-    /// <summary>Follows the evergreen upcoming-elections page to its current "*-candidate-calendar.aspx" link, and scrapes both election dates from it.</summary>
-    private async Task<(string CalendarUrl, DateOnly Primary, DateOnly General)> FetchElectionDatesAsync(string[] dateFormats)
+    /// <summary>
+    /// The upcoming-elections index links to the current cycle's own
+    /// "*-candidate-calendar.aspx" page, whose filename carries the year, so
+    /// the link is followed instead of templating the URL.
+    /// </summary>
+    private string CalendarUrl(string indexHtml)
     {
-        var indexHtml = await _fetcher.GetStringAsync(_config.UpcomingElectionsPageUrl);
         var linkMatch = SdSelectors.CandidateCalendarLink.Match(indexHtml);
         if (!linkMatch.Success)
             throw new InvalidOperationException($"No '*-candidate-calendar.aspx' link found on {_config.UpcomingElectionsPageUrl}.");
-        var calendarUrl = new Uri(new Uri(_config.UpcomingElectionsPageUrl), linkMatch.Groups["href"].Value).ToString();
+        return new Uri(new Uri(_config.UpcomingElectionsPageUrl), linkMatch.Groups["href"].Value).ToString();
+    }
 
-        var calendarHtml = await _fetcher.GetStringAsync(calendarUrl);
-        var document = new HtmlParser().ParseDocument(calendarHtml);
+    private (string CalendarUrl, DateOnly Primary, DateOnly General) ParseElectionDates(CaptureReader capture, string[] dateFormats)
+    {
+        var calendarUrl = CalendarUrl(capture.Require(UpcomingElectionsRole).Text());
+
+        var document = new HtmlParser().ParseDocument(capture.Require(CandidateCalendarRole).Text());
         var text = TextNormalization.CollapseWhitespace(document.Body?.TextContent ?? "");
 
         var primaryMatch = SdSelectors.PrimaryElectionDateLine.Match(text);

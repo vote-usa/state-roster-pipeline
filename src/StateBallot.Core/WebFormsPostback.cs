@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using StateBallot.Core.Raw;
 
 namespace StateBallot.Core;
 
@@ -51,14 +52,14 @@ public static class WebFormsPostback
     /// </param>
     public static async Task<string> ClickButtonAsync(
         HttpFetcher fetcher, string url, string html, string buttonName,
-        IReadOnlyDictionary<string, string>? extraFields = null)
+        IReadOnlyDictionary<string, string>? extraFields = null, FetchTag? tag = null)
     {
         var fields = HiddenFields(html);
         if (extraFields is not null)
             foreach (var (name, value) in extraFields)
                 fields[name] = value;
         fields[buttonName] = "";
-        return await fetcher.PostFormAsync(url, fields);
+        return await fetcher.PostFormAsync(url, fields, tag);
     }
 
     /// <summary>
@@ -75,11 +76,11 @@ public static class WebFormsPostback
     /// `form.submit()`.
     /// </summary>
     public static async Task<string> TriggerPostbackAsync(
-        HttpFetcher fetcher, string url, string html, string eventTarget, string eventArgument = "")
+        HttpFetcher fetcher, string url, string html, string eventTarget, string eventArgument = "", FetchTag? tag = null)
     {
         var fields = HiddenFields(html);
         fields["__EVENTTARGET"] = eventTarget;
         fields["__EVENTARGUMENT"] = eventArgument;
-        return await fetcher.PostFormAsync(url, fields);
+        return await fetcher.PostFormAsync(url, fields, tag);
     }
 }

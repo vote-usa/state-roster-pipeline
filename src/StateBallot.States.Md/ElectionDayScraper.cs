@@ -1,5 +1,6 @@
 using AngleSharp.Html.Parser;
 using StateBallot.Core;
+using StateBallot.Core.Raw;
 
 namespace StateBallot.States.Md;
 
@@ -12,23 +13,25 @@ namespace StateBallot.States.Md;
 /// </summary>
 public sealed class ElectionDayScraper
 {
-    private readonly HttpFetcher _fetcher;
+    public const string Role = "elections-page";
+
     private readonly MdSourceConfig _config;
     private readonly string[] _dateFormats;
 
     /// <param name="dateFormats">Accepted date formats, from data/input/md/date_formats.json.</param>
-    public ElectionDayScraper(HttpFetcher fetcher, MdSourceConfig config, string[] dateFormats)
+    public ElectionDayScraper(MdSourceConfig config, string[] dateFormats)
     {
-        _fetcher = fetcher;
         _config = config;
         _dateFormats = dateFormats;
     }
 
-    public async Task<List<Election>> FetchAsync(int year)
+    public async Task<List<Election>> CaptureAsync(HttpFetcher fetcher, int year) =>
+        Parse(await fetcher.GetStringAsync(_config.ElectionsPageUrl(year), FetchTag.Of(Role)), year);
+
+    public List<Election> Parse(string html, int year)
     {
         var url = _config.ElectionsPageUrl(year);
-        var html = await _fetcher.GetStringAsync(url);
-        var doc = await new HtmlParser().ParseDocumentAsync(html);
+        var doc = new HtmlParser().ParseDocument(html);
 
         var elections = new List<Election>();
         foreach (var dt in doc.QuerySelectorAll("dt"))

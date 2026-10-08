@@ -1,4 +1,5 @@
 using StateBallot.Core;
+using StateBallot.Core.Raw;
 
 namespace StateBallot.States.Wy;
 
@@ -14,7 +15,6 @@ namespace StateBallot.States.Wy;
 [StateCode("WY")]
 public sealed class WyCollector : IStateCollector
 {
-    private readonly HttpFetcher _fetcher;
     private readonly WySourceConfig _config;
     private readonly IPublishSchedule _schedule;
     private readonly int _year;
@@ -26,9 +26,8 @@ public sealed class WyCollector : IStateCollector
     /// <param name="stateDataDir">Per-state output directory (data/output/&lt;xx&gt;/). Inputs are under data/input/&lt;xx&gt;/,
     /// including date_formats.json.</param>
     public WyCollector(
-        HttpFetcher fetcher, int year, string stateDataDir, string? inputDataRoot = null, WySourceConfig? config = null)
+        int year, string stateDataDir, string? inputDataRoot = null, WySourceConfig? config = null)
     {
-        _fetcher = fetcher;
         _year = year;
         _stateDataDir = stateDataDir;
         _inputDataRoot = ResolveInputDataRoot(stateDataDir, inputDataRoot);
@@ -36,15 +35,27 @@ public sealed class WyCollector : IStateCollector
         _schedule = new WyPublishSchedule();
     }
 
-    public async Task<CollectResult> CollectAsync()
+    public const string CandidateListRole = "candidate-list";
+
+    public async Task CaptureAsync(HttpFetcher fetcher, DateOnly asOf)
     {
-        Console.WriteLine($"Collecting Wyoming ballot roster for {_year}...");
+        Console.WriteLine($"Capturing Wyoming sources for {_year}...");
+
+        var dateFormats = DateFormatConfig.Load(DataPaths.DateFormatsPath(_inputDataRoot, StateCode));
+        var elections = await new ElectionDateScraper(_config, dateFormats).CaptureAsync(fetcher, _year);
+        foreach (var type in elections.Select(e => e.ElectionType).Distinct())
+            await fetcher.GetStringAsync(_config.CandidateListUrl(_year, type), FetchTag.Of(CandidateListRole, ("type", type)));
+    }
+
+    public CollectResult Normalize(CaptureReader capture)
+    {
+        Console.WriteLine($"Normalizing Wyoming capture {capture.CaptureId} for {_year}...");
 
         var dataRoot = _inputDataRoot;
         var dateFormats = DateFormatConfig.Load(DataPaths.DateFormatsPath(dataRoot, StateCode));
         var fieldMap = LookupTableLoader.Load(DataPaths.CandidateFieldMapPath(dataRoot, StateCode));
 
-        var elections = await new ElectionDateScraper(_fetcher, _config, dateFormats).FetchAsync(_year);
+        var elections = new ElectionDateScraper(_config, dateFormats).Parse(capture.Require(ElectionDateScraper.Role).Text(), _year);
         Console.WriteLine($"  Elections found: {elections.Count}");
         RowHelpers.StampState(elections, StateCode);
 
@@ -54,7 +65,7 @@ public sealed class WyCollector : IStateCollector
         foreach (var election in elections)
         {
             var url = _config.CandidateListUrl(_year, election.ElectionType);
-            var csvText = await _fetcher.GetStringAsync(url);
+            var csvText = capture.Require(CandidateListRole, ("type", election.ElectionType)).Text();
             var rows = DelimitedTableParser.Parse(csvText);
 
             if (rows.Count == 0)

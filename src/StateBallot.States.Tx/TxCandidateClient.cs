@@ -1,25 +1,25 @@
 using System.Text.Json;
 using StateBallot.Core;
+using StateBallot.Core.Raw;
 
 namespace StateBallot.States.Tx;
 
 /// <summary>Client for the CivixApps findQualifiedCandidates endpoint.</summary>
 public sealed class TxCandidateClient
 {
-    private readonly HttpFetcher _fetcher;
+    public const string Role = "candidates";
+
     private readonly TxSourceConfig _config;
 
-    public TxCandidateClient(HttpFetcher fetcher, TxSourceConfig config)
+    public TxCandidateClient(TxSourceConfig config) => _config = config;
+
+    public async Task CaptureCandidatesAsync(HttpFetcher fetcher, int electionYear, string electionId)
     {
-        _fetcher = fetcher;
-        _config = config;
+        var request = new TxCandidateSearchRequest { ElectionYear = electionYear, ElectionId = int.Parse(electionId) };
+        await fetcher.PostJsonAsync(_config.CandidatesUrl, request, FetchTag.Of(Role, ("election", electionId)));
     }
 
-    public async Task<List<TexasCandidate>> FetchCandidatesAsync(int electionYear, int electionId)
-    {
-        var request = new TxCandidateSearchRequest { ElectionYear = electionYear, ElectionId = electionId };
-        var json = await _fetcher.PostJsonAsync(_config.CandidatesUrl, request);
-        return JsonSerializer.Deserialize<List<TexasCandidate>>(json)
-               ?? throw new InvalidOperationException($"Empty candidates response for election {electionId}");
-    }
+    public static List<TexasCandidate> Parse(string json, string electionId) =>
+        JsonSerializer.Deserialize<List<TexasCandidate>>(json)
+        ?? throw new InvalidOperationException($"Empty candidates response for election {electionId}");
 }

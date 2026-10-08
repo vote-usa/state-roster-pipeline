@@ -1,4 +1,5 @@
 using StateBallot.Core;
+using StateBallot.Core.Raw;
 
 namespace StateBallot.States.Md;
 
@@ -15,7 +16,6 @@ namespace StateBallot.States.Md;
 [StateCode("MD")]
 public sealed class MdCollector : IStateCollector
 {
-    private readonly HttpFetcher _fetcher;
     private readonly MdSourceConfig _config;
     private readonly IPublishSchedule _schedule;
     private readonly int _year;
@@ -27,9 +27,8 @@ public sealed class MdCollector : IStateCollector
     /// <param name="stateDataDir">Per-state output directory (data/output/&lt;xx&gt;/). Inputs are under data/input/&lt;xx&gt;/,
     /// including date_formats.json.</param>
     public MdCollector(
-        HttpFetcher fetcher, int year, string stateDataDir, string? inputDataRoot = null, MdSourceConfig? config = null)
+        int year, string stateDataDir, string? inputDataRoot = null, MdSourceConfig? config = null)
     {
-        _fetcher = fetcher;
         _year = year;
         _stateDataDir = stateDataDir;
         _inputDataRoot = ResolveInputDataRoot(stateDataDir, inputDataRoot);
@@ -37,15 +36,27 @@ public sealed class MdCollector : IStateCollector
         _schedule = new MdPublishSchedule();
     }
 
-    public async Task<CollectResult> CollectAsync()
+    public const string CandidateListRole = "candidate-list";
+
+    public async Task CaptureAsync(HttpFetcher fetcher, DateOnly asOf)
     {
-        Console.WriteLine($"Collecting Maryland ballot roster for {_year}...");
+        Console.WriteLine($"Capturing Maryland sources for {_year}...");
+
+        var dateFormats = DateFormatConfig.Load(DataPaths.DateFormatsPath(_inputDataRoot, StateCode));
+        var elections = await new ElectionDayScraper(_config, dateFormats).CaptureAsync(fetcher, _year);
+        foreach (var type in elections.Select(e => e.ElectionType).Distinct())
+            await fetcher.GetStringAsync(_config.StatewideCandidateListUrl(_year, type), FetchTag.Of(CandidateListRole, ("type", type)));
+    }
+
+    public CollectResult Normalize(CaptureReader capture)
+    {
+        Console.WriteLine($"Normalizing Maryland capture {capture.CaptureId} for {_year}...");
 
         var dataRoot = _inputDataRoot;
         var dateFormats = DateFormatConfig.Load(DataPaths.DateFormatsPath(dataRoot, StateCode));
         var fieldMap = LookupTableLoader.Load(DataPaths.CandidateFieldMapPath(dataRoot, StateCode));
 
-        var elections = await new ElectionDayScraper(_fetcher, _config, dateFormats).FetchAsync(_year);
+        var elections = new ElectionDayScraper(_config, dateFormats).Parse(capture.Require(ElectionDayScraper.Role).Text(), _year);
         Console.WriteLine($"  Election day entries found: {elections.Count}");
         RowHelpers.StampState(elections, StateCode);
 
@@ -56,7 +67,7 @@ public sealed class MdCollector : IStateCollector
         {
             Console.WriteLine($"  {election.Name} ({election.ElectionDate:yyyy-MM-dd})...");
             var url = _config.StatewideCandidateListUrl(_year, election.ElectionType);
-            var csvText = await _fetcher.GetStringAsync(url);
+            var csvText = capture.Require(CandidateListRole, ("type", election.ElectionType)).Text();
             var rows = DelimitedTableParser.Parse(csvText);
 
             if (rows.Count == 0)

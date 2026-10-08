@@ -1,4 +1,5 @@
 using StateBallot.Core;
+using StateBallot.Core.Raw;
 using UglyToad.PdfPig;
 using UglyToad.PdfPig.DocumentLayoutAnalysis.TextExtractor;
 
@@ -12,26 +13,28 @@ namespace StateBallot.States.Co;
 /// </summary>
 public sealed class CoElectionDateScraper
 {
-    private readonly HttpFetcher _fetcher;
+    public const string Role = "election-calendar";
+
     private readonly CoSourceConfig _config;
     private readonly string[] _dateFormats;
 
     /// <param name="dateFormats">Accepted date formats, from data/input/co/date_formats.json.</param>
-    public CoElectionDateScraper(HttpFetcher fetcher, CoSourceConfig config, string[] dateFormats)
+    public CoElectionDateScraper(CoSourceConfig config, string[] dateFormats)
     {
-        _fetcher = fetcher;
         _config = config;
         _dateFormats = dateFormats;
     }
 
     /// <summary>Returns null when the requested year's calendar hasn't been published yet (404).</summary>
-    public async Task<List<Election>?> TryFetchAsync(int year)
+    public async Task<List<Election>?> TryCaptureAsync(HttpFetcher fetcher, int year)
+    {
+        var bytes = await fetcher.TryGetBytesAsync(_config.ElectionCalendarPdfUrl(year), FetchTag.Of(Role));
+        return bytes is null ? null : Parse(bytes, year);
+    }
+
+    public List<Election> Parse(byte[] bytes, int year)
     {
         var url = _config.ElectionCalendarPdfUrl(year);
-        var bytes = await _fetcher.TryGetBytesAsync(url);
-        if (bytes is null)
-            return null;
-
         using var pdf = PdfDocument.Open(bytes);
         var firstPage = pdf.GetPage(1);
         var text = ContentOrderTextExtractor.GetText(firstPage);

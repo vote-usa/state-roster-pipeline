@@ -1,4 +1,5 @@
 using StateBallot.Core;
+using StateBallot.Core.Raw;
 
 namespace StateBallot.States.Hi;
 
@@ -14,7 +15,6 @@ namespace StateBallot.States.Hi;
 [StateCode("HI")]
 public sealed class HiCollector : IStateCollector
 {
-    private readonly HttpFetcher _fetcher;
     private readonly HiSourceConfig _config;
     private readonly IPublishSchedule _schedule;
     private readonly int _year;
@@ -26,9 +26,8 @@ public sealed class HiCollector : IStateCollector
     /// <param name="stateDataDir">Per-state output directory (data/output/&lt;xx&gt;/). Inputs are under data/input/&lt;xx&gt;/,
     /// including date_formats.json.</param>
     public HiCollector(
-        HttpFetcher fetcher, int year, string stateDataDir, string? inputDataRoot = null, HiSourceConfig? config = null)
+        int year, string stateDataDir, string? inputDataRoot = null, HiSourceConfig? config = null)
     {
-        _fetcher = fetcher;
         _year = year;
         _stateDataDir = stateDataDir;
         _inputDataRoot = ResolveInputDataRoot(stateDataDir, inputDataRoot);
@@ -36,19 +35,26 @@ public sealed class HiCollector : IStateCollector
         _schedule = new HiPublishSchedule();
     }
 
-    public async Task<CollectResult> CollectAsync()
+    public async Task CaptureAsync(HttpFetcher fetcher, DateOnly asOf)
     {
-        Console.WriteLine($"Collecting Hawaii ballot roster for {_year}...");
+        Console.WriteLine($"Capturing Hawaii sources for {_year}...");
+        await ElectionDateScraper.CaptureAsync(fetcher, _config);
+        await new CandidateExportClient(_config).CaptureAsync(fetcher, _year);
+    }
+
+    public CollectResult Normalize(CaptureReader capture)
+    {
+        Console.WriteLine($"Normalizing Hawaii capture {capture.CaptureId} for {_year}...");
 
         var dataRoot = _inputDataRoot;
         var dateFormats = DateFormatConfig.Load(DataPaths.DateFormatsPath(dataRoot, StateCode));
         var fieldMap = LookupTableLoader.Load(DataPaths.CandidateFieldMapPath(dataRoot, StateCode));
 
-        var (primary, general) = await new ElectionDateScraper(_fetcher, _config, dateFormats).FetchAsync(_year);
+        var (primary, general) = new ElectionDateScraper(_config, dateFormats).Parse(capture.Require(ElectionDateScraper.Role).Text(), _year);
         Console.WriteLine($"  {primary.Name} ({primary.ElectionDate:yyyy-MM-dd}), {general.Name} ({general.ElectionDate:yyyy-MM-dd})");
         RowHelpers.StampState([primary, general], StateCode);
 
-        var (rows, pageUrl) = await new CandidateExportClient(_fetcher, _config).FetchAsync(_year);
+        var (rows, pageUrl) = new CandidateExportClient(_config).Parse(capture, _year);
         Console.WriteLine($"  {rows.Count} candidate rows exported from {pageUrl}");
 
         var result = new CollectResult();

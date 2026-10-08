@@ -1,6 +1,7 @@
 using AngleSharp.Dom;
 using AngleSharp.Html.Parser;
 using StateBallot.Core;
+using StateBallot.Core.Raw;
 
 namespace StateBallot.States.Ca;
 
@@ -13,24 +14,26 @@ namespace StateBallot.States.Ca;
 /// </summary>
 public sealed class CountyDirectoryScraper
 {
-    private readonly HttpFetcher _fetcher;
+    public const string Role = "county-directory";
+
     private readonly CaSourceConfig _config;
     private readonly CaSelectors _selectors;
 
-    public CountyDirectoryScraper(HttpFetcher fetcher, CaSourceConfig config, CaSelectors selectors)
+    public CountyDirectoryScraper(CaSourceConfig config, CaSelectors selectors)
     {
-        _fetcher = fetcher;
         _config = config;
         _selectors = selectors;
     }
 
+    public async Task CaptureAsync(HttpFetcher fetcher) =>
+        await fetcher.GetStringAsync(_config.CountyElectionsOfficesUrl, FetchTag.Of(Role));
+
     /// <param name="fipsFilePath">JSON file mapping county name to FIPS code; also defines the expected county set.</param>
-    public async Task<List<CountyDirectoryRow>> FetchAsync(string fipsFilePath)
+    public List<CountyDirectoryRow> Parse(string html, string fipsFilePath)
     {
         var fips = CountyFipsLoader.LoadRequired(fipsFilePath);
 
-        var html = await _fetcher.GetStringAsync(_config.CountyElectionsOfficesUrl);
-        var doc = await new HtmlParser().ParseDocumentAsync(html);
+        var doc = new HtmlParser().ParseDocument(html);
 
         var byCounty = new SortedDictionary<string, CountyDirectoryRow>(StringComparer.OrdinalIgnoreCase);
         foreach (var heading in doc.QuerySelectorAll(_selectors.CountySectionHeading))

@@ -1,5 +1,6 @@
 using System.Text.Json;
 using StateBallot.Core;
+using StateBallot.Core.Raw;
 
 namespace StateBallot.States.Sc;
 
@@ -22,7 +23,6 @@ namespace StateBallot.States.Sc;
 [StateCode("SC")]
 public sealed class ScCollector : IStateCollector
 {
-    private readonly HttpFetcher _fetcher;
     private readonly ScSourceConfig _config;
     private readonly IPublishSchedule _schedule;
     private readonly int _year;
@@ -33,9 +33,8 @@ public sealed class ScCollector : IStateCollector
 
     /// <param name="stateDataDir">Per-state output directory (data/output/&lt;xx&gt;/). Inputs are under data/input/&lt;xx&gt;/.</param>
     public ScCollector(
-        HttpFetcher fetcher, int year, string stateDataDir, string? inputDataRoot = null, ScSourceConfig? config = null)
+        int year, string stateDataDir, string? inputDataRoot = null, ScSourceConfig? config = null)
     {
-        _fetcher = fetcher;
         _year = year;
         _stateDataDir = stateDataDir;
         _inputDataRoot = ResolveInputDataRoot(stateDataDir, inputDataRoot);
@@ -43,24 +42,45 @@ public sealed class ScCollector : IStateCollector
         _schedule = new ScPublishSchedule();
     }
 
-    public async Task<CollectResult> CollectAsync()
+    public const string ElectionsRole = "elections";
+    public const string CandidateSearchRole = "candidate-search";
+
+    private static readonly (string Type, string Name)[] TargetElections =
+        [("Primary", ScSelectors.PrimaryElectionName), ("General", ScSelectors.GeneralElectionName)];
+
+    public async Task CaptureAsync(HttpFetcher fetcher, DateOnly asOf)
     {
-        Console.WriteLine($"Collecting South Carolina ballot roster for {_year}...");
+        Console.WriteLine($"Capturing South Carolina sources for {_year}...");
+
+        var available = ParseElections(await fetcher.GetStringAsync(_config.ElectionsByYearUrl(_year), FetchTag.Of(ElectionsRole)));
+        foreach (var (_, name) in TargetElections)
+        {
+            var found = FindElection(available, name);
+            if (found is not null)
+                await fetcher.PostFormAsync(
+                    _config.CandidateSearchUrl,
+                    new Dictionary<string, string> { ["ElectionId"] = found.ElectionId },
+                    FetchTag.Of(CandidateSearchRole, ("election", found.ElectionId)));
+        }
+    }
+
+    public CollectResult Normalize(CaptureReader capture)
+    {
+        Console.WriteLine($"Normalizing South Carolina capture {capture.CaptureId} for {_year}...");
 
         var dataRoot = _inputDataRoot;
         var fieldMap = LookupTableLoader.Load(DataPaths.CandidateFieldMapPath(dataRoot, StateCode));
 
         var electionsUrl = _config.ElectionsByYearUrl(_year);
-        var electionsJson = await _fetcher.GetStringAsync(electionsUrl);
-        var available = JsonSerializer.Deserialize<List<ScElection>>(electionsJson) ?? [];
+        var available = ParseElections(capture.Require(ElectionsRole).Text());
         ScrapeGuard.RequireAny(available, () => $"No elections at all returned from {electionsUrl} for {_year}.");
 
         var result = new CollectResult();
         var candidateSourceUrls = new List<SourceEntry>();
 
-        foreach (var (type, name) in new[] { ("Primary", ScSelectors.PrimaryElectionName), ("General", ScSelectors.GeneralElectionName) })
+        foreach (var (type, name) in TargetElections)
         {
-            var found = available.FirstOrDefault(e => string.Equals(e.ElectionName, name, StringComparison.OrdinalIgnoreCase));
+            var found = FindElection(available, name);
             if (found is null)
             {
                 result.Gaps.Add($"'{name}' not found among {_year}'s elections at {electionsUrl}. Re-run later or check the source manually.");
@@ -72,8 +92,7 @@ public sealed class ScCollector : IStateCollector
             RowHelpers.StampState(election, StateCode);
             result.Elections.Add(election);
 
-            var html = await _fetcher.PostFormAsync(
-                _config.CandidateSearchUrl, new Dictionary<string, string> { ["ElectionId"] = found.ElectionId });
+            var html = capture.Require(CandidateSearchRole, ("election", found.ElectionId)).Text();
             var rows = HtmlTableParser.Parse(html);
             var sourceUrl = $"{_config.CandidateSearchUrl}?ElectionId={found.ElectionId}";
 
@@ -104,6 +123,12 @@ public sealed class ScCollector : IStateCollector
         BuildSourcesManifest(result, electionsUrl, candidateSourceUrls);
         return result;
     }
+
+    private static List<ScElection> ParseElections(string json) =>
+        JsonSerializer.Deserialize<List<ScElection>>(json) ?? [];
+
+    private static ScElection? FindElection(List<ScElection> available, string name) =>
+        available.FirstOrDefault(e => string.Equals(e.ElectionName, name, StringComparison.OrdinalIgnoreCase));
 
     private void BuildSourcesManifest(CollectResult result, string electionsUrl, List<SourceEntry> candidateListUrls)
     {

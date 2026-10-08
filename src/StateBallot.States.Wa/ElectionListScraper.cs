@@ -2,6 +2,7 @@ using System.Globalization;
 using AngleSharp.Html.Dom;
 using AngleSharp.Html.Parser;
 using StateBallot.Core;
+using StateBallot.Core.Raw;
 
 namespace StateBallot.States.Wa;
 
@@ -12,24 +13,26 @@ namespace StateBallot.States.Wa;
 /// </summary>
 public sealed class ElectionListScraper
 {
-    private readonly HttpFetcher _fetcher;
+    public const string Role = "election-list";
+
     private readonly WaSourceConfig _config;
     private readonly string[] _dateFormats;
     private readonly Selectors _selectors;
 
     /// <param name="dateFormats">Accepted date formats, from data/input/wa/date_formats.json.</param>
-    public ElectionListScraper(HttpFetcher fetcher, WaSourceConfig config, string[] dateFormats, Selectors selectors)
+    public ElectionListScraper(WaSourceConfig config, string[] dateFormats, Selectors selectors)
     {
-        _fetcher = fetcher;
         _config = config;
         _dateFormats = dateFormats;
         _selectors = selectors;
     }
 
-    public async Task<(List<Election> Elections, SortedDictionary<string, string> CountyCodes)> FetchAsync()
+    public async Task<(List<Election> Elections, SortedDictionary<string, string> CountyCodes)> CaptureAsync(HttpFetcher fetcher) =>
+        Parse(await fetcher.GetStringAsync(_config.CandidateListUrl, FetchTag.Of(Role)));
+
+    public (List<Election> Elections, SortedDictionary<string, string> CountyCodes) Parse(string html)
     {
-        var html = await _fetcher.GetStringAsync(_config.CandidateListUrl);
-        var doc = await new HtmlParser().ParseDocumentAsync(html);
+        var doc = new HtmlParser().ParseDocument(html);
 
         var electionOptions = doc.QuerySelectorAll($"{_selectors.ElectionDropdown} option")
             .OfType<IHtmlOptionElement>()

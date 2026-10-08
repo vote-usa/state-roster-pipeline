@@ -1,4 +1,5 @@
 using StateBallot.Core;
+using StateBallot.Core.Raw;
 
 namespace StateBallot.States.Ne;
 
@@ -17,7 +18,6 @@ namespace StateBallot.States.Ne;
 [StateCode("NE")]
 public sealed class NeCollector : IStateCollector
 {
-    private readonly HttpFetcher _fetcher;
     private readonly NeSourceConfig _config;
     private readonly IPublishSchedule _schedule;
     private readonly int _year;
@@ -29,9 +29,8 @@ public sealed class NeCollector : IStateCollector
     /// <param name="stateDataDir">Per-state output directory (data/output/&lt;xx&gt;/). Inputs are under data/input/&lt;xx&gt;/,
     /// including date_formats.json.</param>
     public NeCollector(
-        HttpFetcher fetcher, int year, string stateDataDir, string? inputDataRoot = null, NeSourceConfig? config = null)
+        int year, string stateDataDir, string? inputDataRoot = null, NeSourceConfig? config = null)
     {
-        _fetcher = fetcher;
         _year = year;
         _stateDataDir = stateDataDir;
         _inputDataRoot = ResolveInputDataRoot(stateDataDir, inputDataRoot);
@@ -39,20 +38,29 @@ public sealed class NeCollector : IStateCollector
         _schedule = new NePublishSchedule();
     }
 
-    public async Task<CollectResult> CollectAsync()
+    public const string CandidateFilingListRole = "candidate-filing-list";
+
+    public async Task CaptureAsync(HttpFetcher fetcher, DateOnly asOf)
     {
-        Console.WriteLine($"Collecting Nebraska ballot roster for {_year}...");
+        Console.WriteLine($"Capturing Nebraska sources for {_year}...");
+        await ElectionDateScraper.CaptureAsync(fetcher, _config);
+        await fetcher.GetBytesAsync(_config.StatewideCandidateFilingListUrl(_year), FetchTag.Of(CandidateFilingListRole));
+    }
+
+    public CollectResult Normalize(CaptureReader capture)
+    {
+        Console.WriteLine($"Normalizing Nebraska capture {capture.CaptureId} for {_year}...");
 
         var dataRoot = _inputDataRoot;
         var dateFormats = DateFormatConfig.Load(DataPaths.DateFormatsPath(dataRoot, StateCode));
         var fieldMap = LookupTableLoader.Load(DataPaths.CandidateFieldMapPath(dataRoot, StateCode));
 
-        var (primary, general) = await new ElectionDateScraper(_fetcher, _config, dateFormats).FetchAsync(_year);
+        var (primary, general) = new ElectionDateScraper(_config, dateFormats).Parse(capture.Require(ElectionDateScraper.Role).Text(), _year);
         Console.WriteLine($"  {primary.Name} ({primary.ElectionDate:yyyy-MM-dd}), {general.Name} ({general.ElectionDate:yyyy-MM-dd})");
         RowHelpers.StampState([primary, general], StateCode);
 
         var url = _config.StatewideCandidateFilingListUrl(_year);
-        var xlsxBytes = await _fetcher.GetBytesAsync(url);
+        var xlsxBytes = capture.Require(CandidateFilingListRole).Bytes();
 
         // The workbook is a live "currently filed" snapshot, not a fixed
         // as-of-filing-deadline list (same idea as MS's CSV export): before the
@@ -60,11 +68,11 @@ public sealed class NeCollector : IStateCollector
         // contested field, multiple per party); after the primary it's already
         // narrowed to the resolved nominees. There's no per-row date to key off
         // like MS has, so the whole sheet is attributed to whichever election
-        // is next based on today vs. the primary's own date - a known
+        // was next on the day of the capture vs. the primary's own date - a known
         // simplification for local nonpartisan races that never have a primary
         // at all (they're General-bound regardless of this comparison, so nothing
         // is actually miscategorized for those).
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = capture.AsOf;
         var candidateElection = today > primary.ElectionDate ? general : primary;
 
         var candidateRows = XlsxTableParser.Parse(xlsxBytes)

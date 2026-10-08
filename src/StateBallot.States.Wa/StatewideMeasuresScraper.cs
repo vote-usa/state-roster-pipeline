@@ -1,6 +1,7 @@
 using AngleSharp.Dom;
 using AngleSharp.Html.Parser;
 using StateBallot.Core;
+using StateBallot.Core.Raw;
 
 namespace StateBallot.States.Wa;
 
@@ -11,21 +12,23 @@ namespace StateBallot.States.Wa;
 /// </summary>
 public sealed class StatewideMeasuresScraper
 {
-    private readonly HttpFetcher _fetcher;
+    public const string Role = "statewide-measures";
+
     private readonly WaSourceConfig _config;
     private readonly Selectors _selectors;
 
-    public StatewideMeasuresScraper(HttpFetcher fetcher, WaSourceConfig config, Selectors selectors)
+    public StatewideMeasuresScraper(WaSourceConfig config, Selectors selectors)
     {
-        _fetcher = fetcher;
         _config = config;
         _selectors = selectors;
     }
 
-    public async Task<List<MeasureRow>> FetchAsync(int year)
+    public async Task CaptureAsync(HttpFetcher fetcher) =>
+        await fetcher.GetStringAsync(_config.StatewideMeasuresUrl, FetchTag.Of(Role));
+
+    public List<MeasureRow> Parse(string html, int year)
     {
-        var html = await _fetcher.GetStringAsync(_config.StatewideMeasuresUrl);
-        var doc = await new HtmlParser().ParseDocumentAsync(html);
+        var doc = new HtmlParser().ParseDocument(html);
         var baseUri = new Uri(_config.StatewideMeasuresUrl);
 
         var measures = new List<MeasureRow>();

@@ -1,4 +1,5 @@
 using StateBallot.Core;
+using StateBallot.Core.Raw;
 
 namespace StateBallot.States.Ca;
 
@@ -6,12 +7,15 @@ namespace StateBallot.States.Ca;
 [StateCode("CA")]
 public sealed class CaCollector : IStateCollector
 {
-    private readonly HttpFetcher _fetcher;
+    public const string CertifiedListRole = "certified-list";
+
     private readonly CaSourceConfig _config;
     private readonly IPublishSchedule _schedule;
     private readonly int _year;
     private readonly string _stateDataDir;
     private readonly string _inputDataRoot;
+    private readonly string[] _dateFormats;
+    private readonly CaSelectors _selectors;
 
     // Certified-list source per collected election, for the provenance manifest.
     private readonly Dictionary<string, string> _certifiedListUrls = new();
@@ -21,28 +25,53 @@ public sealed class CaCollector : IStateCollector
     /// <param name="stateDataDir">Per-state output directory (e.g. data/output/ca or state-roster-data/ca).</param>
     /// <param name="inputDataRoot">Pipeline data root containing input/. Inferred from data/output/&lt;xx&gt; when null.</param>
     public CaCollector(
-        HttpFetcher fetcher,
         int year,
         string stateDataDir,
         string? inputDataRoot = null,
         CaSourceConfig? config = null)
     {
-        _fetcher = fetcher;
         _year = year;
         _stateDataDir = stateDataDir;
         _inputDataRoot = ResolveInputDataRoot(stateDataDir, inputDataRoot);
         _config = config ?? new CaSourceConfig();
         _schedule = new CaPublishSchedule();
+        _dateFormats = DateFormatConfig.Load(DataPaths.DateFormatsPath(_inputDataRoot, StateCode));
+        _selectors = CaSelectors.Load(DataPaths.SelectorsPath(_inputDataRoot, StateCode));
     }
 
-    public async Task<CollectResult> CollectAsync()
+    /// <summary>
+    /// A special election's primary and general share one detail page and so one election id,
+    /// so the date is part of what identifies its captured pages.
+    /// </summary>
+    public static (string Key, string Value)[] ElectionKeys(Election election) =>
+        [("election", election.ElectionId), ("date", election.ElectionDate.ToString("yyyy-MM-dd"))];
+
+    public async Task CaptureAsync(HttpFetcher fetcher, DateOnly asOf)
     {
-        Console.WriteLine($"Collecting California ballot roster for {_year}...");
+        Console.WriteLine($"Capturing California sources for {_year}...");
+
+        var allElections = await new UpcomingElectionsScraper(_config, _dateFormats, _selectors).CaptureAsync(fetcher);
+        foreach (var election in ElectionFilters.ForTargetYear(allElections, _year, asOf))
+        {
+            Console.WriteLine($"  {election.Name} ({election.ElectionDate:MM/dd/yyyy})...");
+            var url = election.Jurisdiction == "state"
+                ? StatewideCertifiedListUrl(election)
+                : await new SpecialElectionPageScraper(_dateFormats, _selectors).CaptureCertifiedListUrlAsync(fetcher, election);
+            if (url is not null)
+                await fetcher.TryGetBytesAsync(url, FetchTag.Of(CertifiedListRole, ElectionKeys(election)));
+        }
+
+        await new QualifiedMeasuresScraper(_config, _dateFormats, _selectors).CaptureAsync(fetcher);
+        await new CountyDirectoryScraper(_config, _selectors).CaptureAsync(fetcher);
+        await new CountyElectionsScraper(_config, _dateFormats, _selectors).CaptureAsync(fetcher);
+    }
+
+    public CollectResult Normalize(CaptureReader capture)
+    {
+        Console.WriteLine($"Normalizing California capture {capture.CaptureId} for {_year}...");
 
         var fipsPath = DataPaths.CountyFipsPath(_inputDataRoot, StateCode);
         var fips = CountyFipsLoader.LoadRequired(fipsPath);
-        var dateFormats = DateFormatConfig.Load(DataPaths.DateFormatsPath(_inputDataRoot, StateCode));
-        var selectors = CaSelectors.Load(DataPaths.SelectorsPath(_inputDataRoot, StateCode));
 
         var result = new CollectResult
         {
@@ -50,10 +79,10 @@ public sealed class CaCollector : IStateCollector
                 fips.ToDictionary(kv => kv.Value, kv => kv.Key), StringComparer.Ordinal),
         };
 
-        var allElections = await new UpcomingElectionsScraper(_fetcher, _config, dateFormats, selectors).FetchAsync();
+        var allElections = new UpcomingElectionsScraper(_config, _dateFormats, _selectors).Parse(capture.Require(UpcomingElectionsScraper.Role).Text());
         Console.WriteLine($"  Elections listed on the SoS upcoming-elections page: {allElections.Count}");
 
-        var targetElections = ElectionFilters.ForTargetYear(allElections, _year);
+        var targetElections = ElectionFilters.ForTargetYear(allElections, _year, capture.AsOf);
         if (targetElections.Count == 0)
             throw new InvalidOperationException(
                 $"No upcoming elections found for {_year} at {_config.UpcomingElectionsUrl}. " +
@@ -66,7 +95,7 @@ public sealed class CaCollector : IStateCollector
         foreach (var election in targetElections)
         {
             Console.WriteLine($"  {election.Name} ({election.ElectionDate:MM/dd/yyyy})...");
-            var candidates = await CollectCandidatesAsync(election, result, dateFormats, selectors);
+            var candidates = CollectCandidates(election, result, capture);
             if (candidates is not null)
                 candidatesByElection[election.ElectionId] = candidates;
         }
@@ -74,24 +103,24 @@ public sealed class CaCollector : IStateCollector
         foreach (var candidates in candidatesByElection.Values)
             result.Candidates.AddRange(candidates);
 
-        var measures = await new QualifiedMeasuresScraper(_fetcher, _config, dateFormats, selectors).FetchAsync();
+        var measures = new QualifiedMeasuresScraper(_config, _dateFormats, _selectors).Parse(capture.Require(QualifiedMeasuresScraper.Role).Text());
         foreach (var measure in measures)
         {
             var date = DateOnly.Parse(measure.ElectionDate!);
-            if (!ElectionFilters.InTargetYear(date, _year))
+            if (!ElectionFilters.InTargetYear(date, _year, capture.AsOf))
                 continue;
             RowHelpers.StampState(measure, StateCode);
             result.StatewideProposedMeasures.Add(measure);
         }
         Console.WriteLine($"  Qualified statewide measures: {result.StatewideProposedMeasures.Count}");
 
-        var directory = await new CountyDirectoryScraper(_fetcher, _config, selectors).FetchAsync(fipsPath);
+        var directory = new CountyDirectoryScraper(_config, _selectors).Parse(capture.Require(CountyDirectoryScraper.Role).Text(), fipsPath);
         RowHelpers.StampState(directory, StateCode);
         result.CountyDirectory.AddRange(directory);
         Console.WriteLine($"  Counties in directory: {result.CountyDirectory.Count}");
 
-        var countyEntries = await new CountyElectionsScraper(_fetcher, _config, dateFormats, selectors).FetchAsync(fips.Keys);
-        ProcessCountyElections(countyEntries, targetElections, candidatesByElection, result);
+        var countyEntries = new CountyElectionsScraper(_config, _dateFormats, _selectors).Parse(capture.Require(CountyElectionsScraper.Role).Text(), fips.Keys);
+        ProcessCountyElections(countyEntries, targetElections, candidatesByElection, result, capture.AsOf);
 
         if (result.Candidates.Count == 0 && result.PendingElections.Count == result.Elections.Count)
             Console.WriteLine("  Note: no election has a published candidate list yet; see gaps.");
@@ -101,20 +130,24 @@ public sealed class CaCollector : IStateCollector
         return result;
     }
 
-    private async Task<List<CandidateRow>?> CollectCandidatesAsync(
-        Election election, CollectResult result, string[] dateFormats, CaSelectors selectors)
+    private string StatewideCertifiedListUrl(Election election)
+    {
+        var kind = election.ElectionType.Contains("Primary", StringComparison.OrdinalIgnoreCase)
+            ? "primary" : "general";
+        return _config.CertifiedListUrl(_year, kind);
+    }
+
+    private List<CandidateRow>? CollectCandidates(Election election, CollectResult result, CaptureReader capture)
     {
         string? url;
         if (election.Jurisdiction == "state")
         {
-            var kind = election.ElectionType.Contains("Primary", StringComparison.OrdinalIgnoreCase)
-                ? "primary" : "general";
-            url = _config.CertifiedListUrl(_year, kind);
+            url = StatewideCertifiedListUrl(election);
         }
         else
         {
-            url = await new SpecialElectionPageScraper(_fetcher, dateFormats, selectors)
-                .FindCertifiedListUrlAsync(election.SourceUrl, election.ElectionDate);
+            var page = capture.Require(SpecialElectionPageScraper.Role, ElectionKeys(election));
+            url = new SpecialElectionPageScraper(_dateFormats, _selectors).FindCertifiedListUrl(page.Text(), election.SourceUrl, election.ElectionDate);
             if (url is null)
             {
                 result.Gaps.Add(
@@ -125,8 +158,8 @@ public sealed class CaCollector : IStateCollector
             }
         }
 
-        var pdfBytes = await _fetcher.TryGetBytesAsync(url);
-        if (pdfBytes is null)
+        var certifiedList = capture.Require(CertifiedListRole, ElectionKeys(election));
+        if (!certifiedList.HasPayload)
         {
             result.Gaps.Add(
                 $"{election.Name} ({election.ElectionDate:yyyy-MM-dd}): certified candidate list is not posted yet at {url}. " +
@@ -135,7 +168,7 @@ public sealed class CaCollector : IStateCollector
             return null;
         }
 
-        var candidates = CertifiedListPdfParser.Parse(pdfBytes, url, selectors);
+        var candidates = CertifiedListPdfParser.Parse(certifiedList.Bytes(), url, _selectors);
         foreach (var candidate in candidates)
         {
             RowHelpers.StampState(candidate, StateCode);
@@ -153,11 +186,12 @@ public sealed class CaCollector : IStateCollector
         List<CountyElectionEntry> entries,
         List<Election> targetElections,
         Dictionary<string, List<CandidateRow>> candidatesByElection,
-        CollectResult result)
+        CollectResult result,
+        DateOnly asOf)
     {
         foreach (var entry in entries)
         {
-            if (!ElectionFilters.InTargetYear(entry.Date, _year))
+            if (!ElectionFilters.InTargetYear(entry.Date, _year, asOf))
                 continue;
 
             var tracked = targetElections.FirstOrDefault(e =>

@@ -1,4 +1,5 @@
 using StateBallot.Core;
+using StateBallot.Core.Raw;
 
 namespace StateBallot.States.Ne;
 
@@ -9,22 +10,23 @@ namespace StateBallot.States.Ne;
 /// </summary>
 public sealed class ElectionDateScraper
 {
-    private readonly HttpFetcher _fetcher;
+    public const string Role = "elections-page";
+
     private readonly NeSourceConfig _config;
     private readonly string[] _dateFormats;
 
     /// <param name="dateFormats">Accepted date formats, from data/input/ne/date_formats.json.</param>
-    public ElectionDateScraper(HttpFetcher fetcher, NeSourceConfig config, string[] dateFormats)
+    public ElectionDateScraper(NeSourceConfig config, string[] dateFormats)
     {
-        _fetcher = fetcher;
         _config = config;
         _dateFormats = dateFormats;
     }
 
-    public async Task<(Election Primary, Election General)> FetchAsync(int year)
-    {
-        var html = await _fetcher.GetStringAsync(_config.ElectionsPageUrl);
+    public static async Task CaptureAsync(HttpFetcher fetcher, NeSourceConfig config) =>
+        await fetcher.GetStringAsync(config.ElectionsPageUrl, FetchTag.Of(Role));
 
+    public (Election Primary, Election General) Parse(string html, int year)
+    {
         var primaryMatch = NeSelectors.PrimaryDate.Match(html);
         var generalMatch = NeSelectors.GeneralDate.Match(html);
 

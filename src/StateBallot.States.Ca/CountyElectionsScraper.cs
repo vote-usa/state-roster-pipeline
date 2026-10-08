@@ -2,6 +2,7 @@ using System.Globalization;
 using AngleSharp.Dom;
 using AngleSharp.Html.Parser;
 using StateBallot.Core;
+using StateBallot.Core.Raw;
 
 namespace StateBallot.States.Ca;
 
@@ -16,25 +17,27 @@ public sealed record CountyElectionEntry(string CountyName, string? CountyUrl, D
 /// </summary>
 public sealed class CountyElectionsScraper
 {
-    private readonly HttpFetcher _fetcher;
+    public const string Role = "county-elections";
+
     private readonly CaSourceConfig _config;
     private readonly string[] _dateFormats;
     private readonly CaSelectors _selectors;
 
     /// <param name="dateFormats">Accepted date formats, from data/input/ca/date_formats.json.</param>
-    public CountyElectionsScraper(HttpFetcher fetcher, CaSourceConfig config, string[] dateFormats, CaSelectors selectors)
+    public CountyElectionsScraper(CaSourceConfig config, string[] dateFormats, CaSelectors selectors)
     {
-        _fetcher = fetcher;
         _config = config;
         _dateFormats = dateFormats;
         _selectors = selectors;
     }
 
+    public async Task CaptureAsync(HttpFetcher fetcher) =>
+        await fetcher.GetStringAsync(_config.CountyAdministeredElectionsUrl, FetchTag.Of(Role));
+
     /// <param name="expectedCounties">County names from the FIPS data file, used to validate coverage.</param>
-    public async Task<List<CountyElectionEntry>> FetchAsync(ICollection<string> expectedCounties)
+    public List<CountyElectionEntry> Parse(string html, ICollection<string> expectedCounties)
     {
-        var html = await _fetcher.GetStringAsync(_config.CountyAdministeredElectionsUrl);
-        var doc = await new HtmlParser().ParseDocumentAsync(html);
+        var doc = new HtmlParser().ParseDocument(html);
 
         var entries = new List<CountyElectionEntry>();
         var countiesSeen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);

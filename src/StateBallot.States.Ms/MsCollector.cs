@@ -1,4 +1,5 @@
 using StateBallot.Core;
+using StateBallot.Core.Raw;
 
 namespace StateBallot.States.Ms;
 
@@ -18,7 +19,6 @@ namespace StateBallot.States.Ms;
 [StateCode("MS")]
 public sealed class MsCollector : IStateCollector
 {
-    private readonly HttpFetcher _fetcher;
     private readonly MsSourceConfig _config;
     private readonly IPublishSchedule _schedule;
     private readonly int _year;
@@ -30,34 +30,45 @@ public sealed class MsCollector : IStateCollector
     /// <param name="stateDataDir">Per-state output directory (data/output/&lt;xx&gt;/). Inputs are under data/input/&lt;xx&gt;/,
     /// including date_formats.json.</param>
     public MsCollector(
-        HttpFetcher fetcher, int year, string stateDataDir, string? inputDataRoot = null, MsSourceConfig? config = null)
+        int year, string stateDataDir, string? inputDataRoot = null, MsSourceConfig? config = null)
     {
-        _fetcher = fetcher;
         _year = year;
         _stateDataDir = stateDataDir;
         _inputDataRoot = ResolveInputDataRoot(stateDataDir, inputDataRoot);
         _config = config ?? new MsSourceConfig();
         _schedule = new MsPublishSchedule();
+    }
+
+    public const string QualifyingListPageRole = "qualifying-list-page";
+    public const string CandidateExportRole = "candidate-export";
+
+    public async Task CaptureAsync(HttpFetcher fetcher, DateOnly asOf)
+    {
+        Console.WriteLine($"Capturing Mississippi sources for {_year}...");
 
         // The Akamai WAF in front of sos.ms.gov blocks realistic browser UAs
         // (and HttpFetcher's own default) but lets plain HTTP-tool UAs like
         // curl through untouched - see MsSourceConfig. Assumes one HttpFetcher
         // per single-state run (same caveat as TxCollector's header stamping).
         foreach (var (name, value) in MsSourceConfig.ExtraHeaders)
-            _fetcher.AddDefaultHeader(name, value);
+            fetcher.AddDefaultHeader(name, value);
+
+        var url = _config.CandidateQualifyingListUrl;
+        var html = await fetcher.GetStringAsync(url, FetchTag.Of(QualifyingListPageRole));
+        await WebFormsPostback.ClickButtonAsync(
+            fetcher, url, html, MsSourceConfig.DownloadCsvButtonName, tag: FetchTag.Of(CandidateExportRole));
     }
 
-    public async Task<CollectResult> CollectAsync()
+    public CollectResult Normalize(CaptureReader capture)
     {
-        Console.WriteLine($"Collecting Mississippi ballot roster for {_year}...");
+        Console.WriteLine($"Normalizing Mississippi capture {capture.CaptureId} for {_year}...");
 
         var dataRoot = _inputDataRoot;
         var dateFormats = DateFormatConfig.Load(DataPaths.DateFormatsPath(dataRoot, StateCode));
         var fieldMap = LookupTableLoader.Load(DataPaths.CandidateFieldMapPath(dataRoot, StateCode));
 
         var url = _config.CandidateQualifyingListUrl;
-        var html = await _fetcher.GetStringAsync(url);
-        var csvText = await WebFormsPostback.ClickButtonAsync(_fetcher, url, html, MsSourceConfig.DownloadCsvButtonName);
+        var csvText = capture.Require(CandidateExportRole).Text();
 
         var rows = DelimitedTableParser.Parse(csvText)
             .Where(r => r.GetValueOrDefault("Candidate Name", "").Trim().Length > 0) // drop the trailing empty placeholder row
@@ -71,7 +82,7 @@ public sealed class MsCollector : IStateCollector
         var result = new CollectResult();
         result.Elections.AddRange(elections);
 
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = capture.AsOf;
         foreach (var row in rows)
         {
             var election = MsCandidateMapper.DetermineElection(row, elections, today, dateFormats);

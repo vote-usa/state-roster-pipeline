@@ -9,6 +9,10 @@ public static class Runner
     {
         var state = "WA";
         int year = DateTime.UtcNow.Year;
+        var yearGiven = false;
+        string? normalize = null;
+        var captureOnly = false;
+        var keepRaw = 3;
         string? inputRootArg = null;
         string? outputRootArg = null;
         // Legacy: --out sets both roots (pipeline-style data/ with input/ + output/).
@@ -28,6 +32,16 @@ public static class Runner
                     break;
                 case "--year" when i + 1 < args.Length:
                     year = int.Parse(args[++i]);
+                    yearGiven = true;
+                    break;
+                case "--normalize" when i + 1 < args.Length:
+                    normalize = args[++i];
+                    break;
+                case "--capture-only":
+                    captureOnly = true;
+                    break;
+                case "--keep-raw" when i + 1 < args.Length:
+                    keepRaw = int.Parse(args[++i]);
                     break;
                 case "--election" when i + 1 < args.Length:
                     electionDate = args[++i];
@@ -57,16 +71,22 @@ public static class Runner
                     Console.WriteLine($"""
                         StateBallot.Cli - state ballot roster collector
 
-                        Collects a state and year in one pass, then stores one run per election
-                        in the staging database. Files are only written when an output root is given.
+                        Runs in two stages. Capture fetches every source page for a state and year and saves
+                        it as fetched under data/raw/<state>/<capture id>/ with fetch_log.json. Normalize then
+                        builds the roster from that saved capture alone and stores one run per election in the
+                        staging database. Files are only written when an output root is given.
 
                         Options:
                           --state <XX>         Two-letter state code (default: WA; implemented: {ImplementedStates()})
                           --year <yyyy>        Target election year (default: current UTC year)
                           --election <date>    Store only this election (yyyy-MM-dd); default is every one found
                           --dry-run            Fetch and report counts, store nothing
-                          --wayback <ts>       Replay sources via web.archive.org at this timestamp
+                          --wayback <ts>       Capture sources via web.archive.org at this timestamp
                                                (yyyyMMdd or yyyyMMddHHmmss; nearest capture is served)
+                          --capture-only       Stop after the capture stage
+                          --normalize <id>     Skip capture and normalize an existing capture (a capture id, or
+                                               dry-... from a dry run). The year comes from the capture.
+                          --keep-raw <n>       Raw capture directories to keep per state (default: 3, 0 keeps all)
                           --triggered-by <who> Name recorded on the pass (default: current OS user)
                           --input-root <dir>   Pipeline data root for inputs (default: repo data/)
                           --output-root <dir>  Also export files to <dir>/<state>/ (e.g. a state-roster-data checkout)
@@ -83,6 +103,12 @@ public static class Runner
             }
         }
 
+        if (normalize is not null && yearGiven)
+        {
+            Console.Error.WriteLine("--normalize takes the year from the capture. Drop --year.");
+            return 2;
+        }
+
         var db = StagingDb.FromEnvironment();
 
         if (migrate)
@@ -96,6 +122,9 @@ public static class Runner
             ElectionDate = electionDate,
             DryRun = dryRun,
             Wayback = wayback,
+            Normalize = normalize,
+            CaptureOnly = captureOnly,
+            KeepRaw = keepRaw,
             RequestedBy = triggeredBy ?? Environment.UserName,
             Source = "cli",
             CliArgs = string.Join(' ', args),

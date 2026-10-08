@@ -1,4 +1,5 @@
 using StateBallot.Core;
+using StateBallot.Core.Raw;
 
 namespace StateBallot.States.Vt;
 
@@ -9,14 +10,14 @@ namespace StateBallot.States.Vt;
 /// </summary>
 public sealed class VtElectionDateScraper
 {
-    private readonly HttpFetcher _fetcher;
+    public const string Role = "candidates-page";
+
     private readonly VtSourceConfig _config;
     private readonly string[] _dateFormats;
 
     /// <param name="dateFormats">Accepted date formats, from data/input/vt/date_formats.json.</param>
-    public VtElectionDateScraper(HttpFetcher fetcher, VtSourceConfig config, string[] dateFormats)
+    public VtElectionDateScraper(VtSourceConfig config, string[] dateFormats)
     {
-        _fetcher = fetcher;
         _config = config;
         _dateFormats = dateFormats;
     }
@@ -26,10 +27,11 @@ public sealed class VtElectionDateScraper
     /// (it's an evergreen page, always reflecting the current cycle only -
     /// back-filling a past year isn't supported by this source).
     /// </summary>
-    public async Task<(Election Primary, Election General)?> TryFetchAsync(int year)
-    {
-        var html = await _fetcher.GetStringAsync(_config.CandidatesPageUrl);
+    public async Task<(Election Primary, Election General)?> TryCaptureAsync(HttpFetcher fetcher, int year) =>
+        TryParse(await fetcher.GetStringAsync(_config.CandidatesPageUrl, FetchTag.Of(Role)), year);
 
+    public (Election Primary, Election General)? TryParse(string html, int year)
+    {
         var primaryMatch = VtSelectors.PrimaryElectionDateLine.Match(html);
         var generalMatch = VtSelectors.GeneralElectionDateLine.Match(html);
 

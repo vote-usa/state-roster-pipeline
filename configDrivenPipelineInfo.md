@@ -25,20 +25,9 @@ data/output/<xx>/            # generated rosters (gitignored)
 
 ### The collector contract
 
-Every state implements `IStateCollector` (`StateCode`, `CollectAsync()`), marked
-with `[StateCode("XX")]`, and exposes a public constructor callable as
-`(HttpFetcher, int year, string stateDataDir)`. `CollectorDiscovery` finds every
-such type across all loaded `StateBallot.States.*.dll` assemblies via reflection
-— adding a state means writing a new project and referencing it from
-`StateBallot.Cli`, never editing shared dispatch code. A duplicate `StateCode`
-or a collector missing that exact constructor shape fails discovery loudly at
-startup, not silently.
+Every state implements `IStateCollector` (`StateCode`, `CaptureAsync(fetcher, asOf)`, `Normalize(capture)`), marked with `[StateCode("XX")]`, and exposes a public constructor callable as `(int year, string stateDataDir[, string? inputDataRoot])`. `CollectorDiscovery` finds every such type across all loaded `StateBallot.States.*.dll` assemblies via reflection — adding a state means writing a new project and referencing it from `StateBallot.Staging`, never editing shared dispatch code. A duplicate `StateCode` or a collector missing that constructor shape fails discovery loudly at startup, not silently.
 
-`CollectAsync()` returns a `CollectResult` (elections, candidates, measures,
-county directory, county ballots, gaps, sources manifest). Every state also
-supplies an `IPublishSchedule.Recommend(result, year)` — state-specific logic
-for when ballot data is typically published, written into `sources.json`'s
-`next_run` so a scheduler knows when re-running is worthwhile.
+A run is two stages. `CaptureAsync` fetches every payload the state needs through the `HttpFetcher` it is handed, tagging each fetch with a `FetchTag` (a role plus keys, e.g. `candidate-list` {type: Primary}), and parses only what it needs to decide what to fetch next. `Normalize` builds the `CollectResult` (elections, candidates, measures, county directory, county ballots, gaps, sources manifest) from the saved capture alone, looked up by role and keys through `CaptureReader`. It never touches the network or the clock ("today" is `capture.AsOf`), so the same capture always normalizes to the same result and a parser change can be tested with `--normalize <capture>`. Every state also supplies an `IPublishSchedule.Recommend(result, year)` — state-specific logic for when ballot data is typically published, written into `sources.json`'s `next_run` so a scheduler knows when re-running is worthwhile.
 
 ### The canonical model (`StateBallot.Core/Models.cs`)
 

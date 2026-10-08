@@ -19,7 +19,8 @@ public sealed class RunWriter
     public RunWriter(StagingDb db) => _db = db;
 
     /// <summary>Inserts a running pass, or marks the console-queued pass as running.</summary>
-    public async Task<int> BeginPassAsync(RunRequest request, string? gitSha, CancellationToken ct = default)
+    /// <param name="captureId">The capture this pass normalizes.</param>
+    public async Task<int> BeginPassAsync(RunRequest request, int captureId, string? gitSha, CancellationToken ct = default)
     {
         await using var cn = await _db.OpenStagingAsync(ct);
         var args = new
@@ -32,6 +33,7 @@ public sealed class RunWriter
             GitSha = gitSha,
             request.Wayback,
             ElectionFilter = request.ElectionDate,
+            CaptureId = captureId,
         };
 
         if (request.ExistingPassId is { } existing)
@@ -39,10 +41,10 @@ public sealed class RunWriter
             var updated = await cn.ExecuteAsync(new CommandDefinition(
                 """
                 UPDATE CollectionPasses SET Status = 'running', StartedAt = UTC_TIMESTAMP(), CliArgs = @CliArgs,
-                    GitSha = @GitSha, Wayback = @Wayback, ElectionFilter = @ElectionFilter
+                    GitSha = @GitSha, Wayback = @Wayback, ElectionFilter = @ElectionFilter, CaptureId = @CaptureId
                 WHERE PassId = @PassId
                 """,
-                new { PassId = existing, args.CliArgs, args.GitSha, args.Wayback, args.ElectionFilter },
+                new { PassId = existing, args.CliArgs, args.GitSha, args.Wayback, args.ElectionFilter, args.CaptureId },
                 cancellationToken: ct));
             if (updated == 0)
                 throw new InvalidOperationException($"Pass {existing} does not exist in staging.");
@@ -52,9 +54,9 @@ public sealed class RunWriter
         return await cn.ExecuteScalarAsync<int>(new CommandDefinition(
             """
             INSERT INTO CollectionPasses
-                (StateCode, Year, Status, Source, RequestedBy, RequestedAt, StartedAt, CliArgs, GitSha, Wayback, ElectionFilter)
+                (StateCode, Year, Status, Source, RequestedBy, RequestedAt, StartedAt, CliArgs, GitSha, Wayback, ElectionFilter, CaptureId)
             VALUES
-                (@StateCode, @Year, 'running', @Source, @RequestedBy, UTC_TIMESTAMP(), UTC_TIMESTAMP(), @CliArgs, @GitSha, @Wayback, @ElectionFilter);
+                (@StateCode, @Year, 'running', @Source, @RequestedBy, UTC_TIMESTAMP(), UTC_TIMESTAMP(), @CliArgs, @GitSha, @Wayback, @ElectionFilter, @CaptureId);
             SELECT LAST_INSERT_ID();
             """,
             args,
@@ -255,12 +257,12 @@ public sealed class RunWriter
                 OcdDivisionId, CandidateName, Party, Incumbent, SourceUrl, SourceCandidateId, SourceElectionId, FilingDate, Email, Phone,
                 CampaignPhone, Website, Occupation, MailingAddressLine, MailingCity, MailingState, MailingZip,
                 ResidentialCity, ResidentialCounty, SourceOfficeId, SourceOfficeType, LocalJurisdiction,
-                FirstName, MiddleName, LastName, Suffix)
+                FirstName, MiddleName, LastName, Suffix, Status)
             VALUES (@RunId, @State, @ElectionDate, @ElectionType, @Office, @District, @County,
                 @OcdDivisionId, @CandidateName, @Party, @Incumbent, @SourceUrl, @SourceCandidateId, @SourceElectionId, @FilingDate, @Email, @Phone,
                 @CampaignPhone, @Website, @Occupation, @MailingAddressLine, @MailingCity, @MailingState, @MailingZip,
                 @ResidentialCity, @ResidentialCounty, @SourceOfficeId, @SourceOfficeType, @LocalJurisdiction,
-                @FirstName, @MiddleName, @LastName, @Suffix)
+                @FirstName, @MiddleName, @LastName, @Suffix, @Status)
             """,
             rows.Select(c => new
             {
@@ -270,7 +272,7 @@ public sealed class RunWriter
                 c.Email, c.Phone, c.CampaignPhone, c.Website, c.Occupation,
                 c.MailingAddressLine, c.MailingCity, c.MailingState, c.MailingZip,
                 c.ResidentialCity, c.ResidentialCounty, c.SourceOfficeId, c.SourceOfficeType, c.LocalJurisdiction,
-                c.FirstName, c.MiddleName, c.LastName, c.Suffix,
+                c.FirstName, c.MiddleName, c.LastName, c.Suffix, c.Status,
             }).ToList(),
             transaction: tx, cancellationToken: ct));
     }

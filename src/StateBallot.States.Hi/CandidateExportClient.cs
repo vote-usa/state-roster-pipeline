@@ -1,5 +1,6 @@
 using AngleSharp.Html.Parser;
 using StateBallot.Core;
+using StateBallot.Core.Raw;
 
 namespace StateBallot.States.Hi;
 
@@ -16,33 +17,39 @@ namespace StateBallot.States.Hi;
 /// </summary>
 public sealed class CandidateExportClient
 {
-    private readonly HttpFetcher _fetcher;
+    public const string BootstrapPageRole = "candidate-filing-bootstrap";
+    public const string FilingPageRole = "candidate-filing-page";
+    public const string ExportRole = "candidate-export";
+
     private readonly HiSourceConfig _config;
 
-    public CandidateExportClient(HttpFetcher fetcher, HiSourceConfig config)
+    public CandidateExportClient(HiSourceConfig config) => _config = config;
+
+    public async Task CaptureAsync(HttpFetcher fetcher, int year)
     {
-        _fetcher = fetcher;
-        _config = config;
+        var bootstrapUrl = _config.CandidateFilingPageUrl(_config.BootstrapElectionId);
+        var electionId = FindElectionId(await fetcher.GetStringAsync(bootstrapUrl, FetchTag.Of(BootstrapPageRole)), year);
+        var pageUrl = _config.CandidateFilingPageUrl(electionId);
+        var html = await fetcher.GetStringAsync(pageUrl, FetchTag.Of(FilingPageRole));
+        await WebFormsPostback.ClickButtonAsync(
+            fetcher, pageUrl, html, HiSourceConfig.ExportToCsvButtonName, tag: FetchTag.Of(ExportRole));
     }
 
-    public async Task<(List<Dictionary<string, string>> Rows, string PageUrl)> FetchAsync(int year)
+    public (List<Dictionary<string, string>> Rows, string PageUrl) Parse(CaptureReader capture, int year)
     {
-        var electionId = await FindElectionIdAsync(year);
+        var electionId = FindElectionId(capture.Require(BootstrapPageRole).Text(), year);
         var pageUrl = _config.CandidateFilingPageUrl(electionId);
-        var html = await _fetcher.GetStringAsync(pageUrl);
 
-        var csvText = await WebFormsPostback.ClickButtonAsync(_fetcher, pageUrl, html, HiSourceConfig.ExportToCsvButtonName);
-        var rows = DelimitedTableParser.Parse(csvText);
+        var rows = DelimitedTableParser.Parse(capture.Require(ExportRole).Text());
         ScrapeGuard.RequireAny(rows, () => $"No rows parsed from the CSV export at {pageUrl}.");
 
         return (rows, pageUrl);
     }
 
-    private async Task<string> FindElectionIdAsync(int year)
+    private string FindElectionId(string html, int year)
     {
         var bootstrapUrl = _config.CandidateFilingPageUrl(_config.BootstrapElectionId);
-        var html = await _fetcher.GetStringAsync(bootstrapUrl);
-        var doc = await new HtmlParser().ParseDocumentAsync(html);
+        var doc = new HtmlParser().ParseDocument(html);
 
         var options = doc.QuerySelector(HiSelectors.ElectionDropdownSelector)?.QuerySelectorAll("option")
             ?? Enumerable.Empty<AngleSharp.Dom.IElement>();

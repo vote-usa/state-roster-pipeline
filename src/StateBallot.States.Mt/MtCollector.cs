@@ -1,4 +1,5 @@
 using StateBallot.Core;
+using StateBallot.Core.Raw;
 
 namespace StateBallot.States.Mt;
 
@@ -17,7 +18,6 @@ namespace StateBallot.States.Mt;
 [StateCode("MT")]
 public sealed class MtCollector : IStateCollector
 {
-    private readonly HttpFetcher _fetcher;
     private readonly MtSourceConfig _config;
     private readonly IPublishSchedule _schedule;
     private readonly int _year;
@@ -28,9 +28,8 @@ public sealed class MtCollector : IStateCollector
 
     /// <param name="stateDataDir">Per-state output directory (data/output/&lt;xx&gt;/). Inputs are under data/input/&lt;xx&gt;/.</param>
     public MtCollector(
-        HttpFetcher fetcher, int year, string stateDataDir, string? inputDataRoot = null, MtSourceConfig? config = null)
+        int year, string stateDataDir, string? inputDataRoot = null, MtSourceConfig? config = null)
     {
-        _fetcher = fetcher;
         _year = year;
         _stateDataDir = stateDataDir;
         _inputDataRoot = ResolveInputDataRoot(stateDataDir, inputDataRoot);
@@ -38,25 +37,49 @@ public sealed class MtCollector : IStateCollector
         _schedule = new MtPublishSchedule();
     }
 
-    public async Task<CollectResult> CollectAsync()
+    public const string ElectionIndexRole = "election-index";
+    public const string CandidateListPageRole = "candidate-list-page";
+    public const string CandidateExportRole = "candidate-export";
+
+    private static readonly string[] TargetTypes = ["Primary", "General"];
+
+    public async Task CaptureAsync(HttpFetcher fetcher, DateOnly asOf)
     {
-        Console.WriteLine($"Collecting Montana ballot roster for {_year}...");
+        Console.WriteLine($"Capturing Montana sources for {_year}...");
+
+        var options = ParseElectionOptions(
+            await fetcher.GetStringAsync(_config.DefaultCandidateListUrl, FetchTag.Of(ElectionIndexRole)));
+        foreach (var type in TargetTypes)
+        {
+            var found = FindElection(options, type);
+            if (found == default)
+                continue;
+
+            var pageUrl = _config.CandidateListUrl(found.ElectionId);
+            var pageHtml = await fetcher.GetStringAsync(pageUrl, FetchTag.Of(CandidateListPageRole, ("election", found.ElectionId)));
+            await WebFormsPostback.TriggerPostbackAsync(
+                fetcher, pageUrl, pageHtml, MtSelectors.ExportToCsvEventTarget,
+                tag: FetchTag.Of(CandidateExportRole, ("election", found.ElectionId)));
+        }
+    }
+
+    public CollectResult Normalize(CaptureReader capture)
+    {
+        Console.WriteLine($"Normalizing Montana capture {capture.CaptureId} for {_year}...");
 
         var dataRoot = _inputDataRoot;
         var fieldMap = LookupTableLoader.Load(DataPaths.CandidateFieldMapPath(dataRoot, StateCode));
 
-        var indexHtml = await _fetcher.GetStringAsync(_config.DefaultCandidateListUrl);
-        var options = ParseElectionOptions(indexHtml);
+        var options = ParseElectionOptions(capture.Require(ElectionIndexRole).Text());
         ScrapeGuard.RequireAny(options, () =>
             $"No election options parsed from {_config.DefaultCandidateListUrl}'s ddlElection dropdown.");
 
         var result = new CollectResult();
         var candidateSourceUrls = new List<SourceEntry>();
 
-        foreach (var type in new[] { "Primary", "General" })
+        foreach (var type in TargetTypes)
         {
-            var found = options.FirstOrDefault(o =>
-                string.Equals(o.Type, type, StringComparison.OrdinalIgnoreCase) && o.Date.Year == _year);
+            var found = FindElection(options, type);
             if (found == default)
             {
                 result.Gaps.Add(
@@ -70,9 +93,8 @@ public sealed class MtCollector : IStateCollector
             RowHelpers.StampState(election, StateCode);
             result.Elections.Add(election);
 
-            var pageHtml = await _fetcher.GetStringAsync(pageUrl);
-            var csvText = await WebFormsPostback.TriggerPostbackAsync(_fetcher, pageUrl, pageHtml, MtSelectors.ExportToCsvEventTarget);
-            csvText = csvText.TrimStart('﻿'); // the export's own UTF-8 BOM, if HttpFetcher's decoding left it in
+            var csvText = capture.Require(CandidateExportRole, ("election", found.ElectionId)).Text();
+            csvText = csvText.TrimStart('﻿'); // the export's own UTF-8 BOM, if the payload decoding left it in
 
             var rows = DelimitedTableParser.Parse(csvText)
                 .Where(r => !string.IsNullOrWhiteSpace(r.GetValueOrDefault("Race")))
@@ -105,6 +127,10 @@ public sealed class MtCollector : IStateCollector
         BuildSourcesManifest(result, candidateSourceUrls);
         return result;
     }
+
+    private (string ElectionId, string Type, DateOnly Date) FindElection(
+        List<(string ElectionId, string Type, DateOnly Date)> options, string type) =>
+        options.FirstOrDefault(o => string.Equals(o.Type, type, StringComparison.OrdinalIgnoreCase) && o.Date.Year == _year);
 
     /// <summary>Extracts every (electionId, type, date) triple from the page's own "ddlElection" dropdown.</summary>
     private static List<(string ElectionId, string Type, DateOnly Date)> ParseElectionOptions(string html)

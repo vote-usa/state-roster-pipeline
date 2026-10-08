@@ -6,8 +6,6 @@
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
-    <!-- This machine only has the net10.0 runtime installed; roll forward so the
-         net8.0-targeted test host can still execute here. Doesn't change the target. -->
     <RollForward>LatestMajor</RollForward>
   </PropertyGroup>
 

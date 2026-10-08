@@ -74,13 +74,25 @@ public class WaMapperTests
     }
 
     [Fact]
-    public void ToMeasureRow_JurisdictionUsesTrimmedRaceJurisdictionWhenPresent()
+    public void ToMeasureRow_LocalJurisdictionIsKeptTrimmed()
     {
-        var race = new GuideRace { RaceID = "R2", Name = "Prop 1", Jurisdiction = " King County " };
+        var race = new GuideRace { RaceID = "R2", Name = "Prop 1", Jurisdiction = " Local " };
 
         var row = WaMapper.ToMeasureRow("WA", Election(), race, "King", "https://example.com/guide");
 
-        Assert.Equal("King County", row.Jurisdiction);
+        Assert.Equal("Local", row.Jurisdiction);
         Assert.Equal("King", row.County);
+    }
+
+    [Fact]
+    public void ToMeasureRow_AnyOtherJurisdictionIsStatewide()
+    {
+        var race = new GuideRace { RaceID = "R3", Name = "Initiative Measure No. 2124", Jurisdiction = "Initiative To The People" };
+
+        var row = WaMapper.ToMeasureRow("WA", Election(), race, county: null, sourceUrl: "https://example.com/guide");
+
+        Assert.True(WaMapper.IsStatewideMeasure(race));
+        Assert.Equal("state", row.Jurisdiction);
+        Assert.Null(row.County);
     }
 }

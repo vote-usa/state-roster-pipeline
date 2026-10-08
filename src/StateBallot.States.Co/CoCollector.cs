@@ -1,5 +1,6 @@
 using AngleSharp.Html.Parser;
 using StateBallot.Core;
+using StateBallot.Core.Raw;
 
 namespace StateBallot.States.Co;
 
@@ -18,7 +19,6 @@ namespace StateBallot.States.Co;
 [StateCode("CO")]
 public sealed class CoCollector : IStateCollector
 {
-    private readonly HttpFetcher _fetcher;
     private readonly CoSourceConfig _config;
     private readonly IPublishSchedule _schedule;
     private readonly int _year;
@@ -30,9 +30,8 @@ public sealed class CoCollector : IStateCollector
     /// <param name="stateDataDir">Per-state output directory (data/output/&lt;xx&gt;/). Inputs are under data/input/&lt;xx&gt;/,
     /// including date_formats.json.</param>
     public CoCollector(
-        HttpFetcher fetcher, int year, string stateDataDir, string? inputDataRoot = null, CoSourceConfig? config = null)
+        int year, string stateDataDir, string? inputDataRoot = null, CoSourceConfig? config = null)
     {
-        _fetcher = fetcher;
         _year = year;
         _stateDataDir = stateDataDir;
         _inputDataRoot = ResolveInputDataRoot(stateDataDir, inputDataRoot);
@@ -40,18 +39,42 @@ public sealed class CoCollector : IStateCollector
         _schedule = new CoPublishSchedule();
     }
 
-    public async Task<CollectResult> CollectAsync()
+    public const string CandidateListPageRole = "candidate-list-page";
+    public const string CandidateListRole = "candidate-list";
+
+    public async Task CaptureAsync(HttpFetcher fetcher, DateOnly asOf)
     {
-        Console.WriteLine($"Collecting Colorado ballot roster for {_year}...");
+        Console.WriteLine($"Capturing Colorado sources for {_year}...");
+
+        var dateFormats = DateFormatConfig.Load(DataPaths.DateFormatsPath(_inputDataRoot, StateCode));
+        var elections = await new CoElectionDateScraper(_config, dateFormats).TryCaptureAsync(fetcher, _year);
+        if (elections is null)
+            return;
+
+        foreach (var type in elections.Select(e => e.ElectionType).Distinct())
+        {
+            var pageUrl = _config.CandidateListPageUrl(type);
+            var html = await fetcher.GetStringAsync(pageUrl, FetchTag.Of(CandidateListPageRole, ("type", type)));
+            var (xlsxUrl, _) = ResolveXlsxUrl(pageUrl, html);
+            if (xlsxUrl is not null)
+                await fetcher.GetBytesAsync(xlsxUrl, FetchTag.Of(CandidateListRole, ("type", type)));
+        }
+    }
+
+    public CollectResult Normalize(CaptureReader capture)
+    {
+        Console.WriteLine($"Normalizing Colorado capture {capture.CaptureId} for {_year}...");
 
         var dataRoot = _inputDataRoot;
         var dateFormats = DateFormatConfig.Load(DataPaths.DateFormatsPath(dataRoot, StateCode));
         var fieldMap = LookupTableLoader.Load(DataPaths.CandidateFieldMapPath(dataRoot, StateCode));
 
         var calendarUrl = _config.ElectionCalendarPdfUrl(_year);
-        var elections = await new CoElectionDateScraper(_fetcher, _config, dateFormats).TryFetchAsync(_year)
-            ?? throw new InvalidOperationException(
+        var calendar = capture.Require(CoElectionDateScraper.Role);
+        if (!calendar.HasPayload)
+            throw new InvalidOperationException(
                 $"No election calendar published yet for {_year} at {calendarUrl}. Re-run later.");
+        var elections = new CoElectionDateScraper(_config, dateFormats).Parse(calendar.Bytes(), _year);
         Console.WriteLine($"  Elections found: {elections.Count}");
         RowHelpers.StampState(elections, StateCode);
 
@@ -62,12 +85,17 @@ public sealed class CoCollector : IStateCollector
         foreach (var election in elections)
         {
             var pageUrl = _config.CandidateListPageUrl(election.ElectionType);
-            var xlsxUrl = await TryResolveXlsxUrlAsync(pageUrl, election, result);
+            var pageHtml = capture.Require(CandidateListPageRole, ("type", election.ElectionType)).Text();
+            var (xlsxUrl, problem) = ResolveXlsxUrl(pageUrl, pageHtml);
             if (xlsxUrl is null)
+            {
+                result.Gaps.Add($"{election.Name} ({election.ElectionDate:yyyy-MM-dd}): {problem}");
+                result.PendingElections.Add(election);
                 continue;
+            }
 
             candidateListUrls.Add(new SourceEntry(xlsxUrl, "xlsx"));
-            var bytes = await _fetcher.GetBytesAsync(xlsxUrl);
+            var bytes = capture.Require(CandidateListRole, ("type", election.ElectionType)).Bytes();
             // Both files end with a literal "End of Data"/"End of data" sentinel
             // row (blank Office/District/Party) - not a real candidate. Every
             // genuine row has a non-blank Office, so that's the filter.
@@ -105,37 +133,27 @@ public sealed class CoCollector : IStateCollector
     }
 
     /// <summary>
-    /// Fetches a candidate list page, verifies its own heading names the
-    /// requested year (it's the same URL for every cycle), and returns the
-    /// linked XLSX's absolute URL - or null (recording a Gap) if the page
-    /// doesn't match, has no XLSX link, or isn't reachable yet.
+    /// Verifies a candidate list page's own heading names the requested year
+    /// (it's the same URL for every cycle) and returns the linked XLSX's
+    /// absolute URL, or null with the reason when the page doesn't match or
+    /// has no XLSX link.
     /// </summary>
-    private async Task<string?> TryResolveXlsxUrlAsync(string pageUrl, Election election, CollectResult result)
+    private (string? XlsxUrl, string? Problem) ResolveXlsxUrl(string pageUrl, string html)
     {
-        var html = await _fetcher.GetStringAsync(pageUrl);
-        var doc = await new HtmlParser().ParseDocumentAsync(html);
+        var doc = new HtmlParser().ParseDocument(html);
 
         var headingMatch = CoSelectors.CandidateListHeading.Match(doc.Body?.TextContent ?? "");
         if (!headingMatch.Success || headingMatch.Groups["year"].Value != _year.ToString())
-        {
-            result.Gaps.Add(
-                $"{election.Name} ({election.ElectionDate:yyyy-MM-dd}): {pageUrl} does not show a {_year} " +
+            return (null,
+                $"{pageUrl} does not show a {_year} " +
                 $"candidate list (found heading: '{(headingMatch.Success ? headingMatch.Value : "none")}'). " +
                 "This page always reflects the current cycle only; back-filling past years isn't supported by this source.");
-            result.PendingElections.Add(election);
-            return null;
-        }
 
-        var link = doc.QuerySelector(CoSelectors.XlsxLinkCss);
-        var href = link?.GetAttribute("href");
+        var href = doc.QuerySelector(CoSelectors.XlsxLinkCss)?.GetAttribute("href");
         if (string.IsNullOrWhiteSpace(href))
-        {
-            result.Gaps.Add($"{election.Name} ({election.ElectionDate:yyyy-MM-dd}): no XLSX link found on {pageUrl}.");
-            result.PendingElections.Add(election);
-            return null;
-        }
+            return (null, $"no XLSX link found on {pageUrl}.");
 
-        return _config.Resolve(pageUrl, href);
+        return (_config.Resolve(pageUrl, href), null);
     }
 
     private void BuildSourcesManifest(CollectResult result, string calendarUrl, List<SourceEntry> candidateListUrls)
