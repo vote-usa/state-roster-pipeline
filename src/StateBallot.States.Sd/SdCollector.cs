@@ -17,10 +17,9 @@ namespace StateBallot.States.Sd;
 /// submit button (see WebFormsPostback.TriggerPostbackAsync, added for this).
 /// </summary>
 [StateCode("SD")]
-public sealed class SdCollector(int year, string stateDataDir, string? inputDataRoot = null, SdSourceConfig? config = null)
-    : StateCollectorBase<SdSourceConfig>(year, stateDataDir, inputDataRoot, config)
+public sealed class SdCollector(int year, string stateDataDir, string? inputDataRoot = null, SdSourceConfig? config = null, SourceLinkSet? links = null)
+    : StateCollectorBase<SdSourceConfig>(year, stateDataDir, inputDataRoot, config, links)
 {
-    protected override string SourceHomeUrl => Config.PortalBaseUrl;
     protected override IPublishSchedule Schedule { get; } = new SdPublishSchedule();
 
     public const string UpcomingElectionsRole = "upcoming-elections";
@@ -37,10 +36,9 @@ public sealed class SdCollector(int year, string stateDataDir, string? inputData
         var indexHtml = await fetcher.GetStringAsync(Config.UpcomingElectionsPageUrl, FetchTag.Of(UpcomingElectionsRole));
         await fetcher.GetStringAsync(CalendarUrl(indexHtml), FetchTag.Of(CandidateCalendarRole));
 
-        var electionIds = LookupTableLoader.Load(DataPaths.ElectionIdsPath(InputDataRoot, StateCode));
         foreach (var type in TargetTypes)
         {
-            if (!electionIds.TryGetValue(type, out var electionId) || electionId.Length == 0)
+            if (Config.ElectionId(type) is not { } electionId)
                 continue;
 
             var pageUrl = Config.CandidateListUrl(electionId);
@@ -54,7 +52,6 @@ public sealed class SdCollector(int year, string stateDataDir, string? inputData
     {
         Console.WriteLine($"Normalizing South Dakota capture {capture.CaptureId} for {Year}...");
 
-        var electionIds = LookupTableLoader.Load(DataPaths.ElectionIdsPath(InputDataRoot, StateCode));
 
         var (calendarUrl, primaryDate, generalDate) = ParseElectionDates(capture, DateFormats);
 
@@ -63,10 +60,10 @@ public sealed class SdCollector(int year, string stateDataDir, string? inputData
 
         foreach (var (type, date) in new[] { ("Primary", primaryDate), ("General", generalDate) })
         {
-            if (!electionIds.TryGetValue(type, out var electionId) || electionId.Length == 0)
+            if (Config.ElectionId(type) is not { } electionId)
             {
                 result.Gaps.Add(
-                    $"{DataPaths.ElectionIdsPath(InputDataRoot, StateCode)} has no \"{type}\" entry. " +
+                    $"No election-id/{type.ToLowerInvariant()} source parameter in {Config.Links.Origin}. " +
                     "VIP has no discoverable index of its own election ids - this must be re-derived by hand each cycle.");
                 continue;
             }
@@ -145,6 +142,6 @@ public sealed class SdCollector(int year, string stateDataDir, string? inputData
         var sources = result.Sources;
         sources.Elections = [new SourceEntry(calendarUrl, "html")];
         sources.StatewideCandidates = candidateListUrls;
-        sources.VerificationOnly = [new SourceEntry($"https://ballotpedia.org/South_Dakota_elections,_{Year}", "html")];
+        sources.VerificationOnly = Config.VerificationSources(Year);
     }
 }

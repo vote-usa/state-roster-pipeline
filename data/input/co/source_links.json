@@ -1,0 +1,32 @@
+{
+  "state": "CO",
+  "links": [
+    {
+      "key": "home",
+      "url": "https://www.sos.state.co.us/pubs/elections/Candidates/CandidateHome.html",
+      "kind": "home",
+      "notes": "Checked by hand when a run comes back empty."
+    },
+    {
+      "key": "election-calendar",
+      "url": "https://www.sos.state.co.us/pubs/elections/calendars/{year}ElectionCalendar.pdf",
+      "format": "pdf",
+      "notes": "Primary and general dates for the year."
+    },
+    {
+      "key": "candidate-list-page",
+      "variant": "primary",
+      "url": "https://www.sos.state.co.us/pubs/elections/vote/primaryCandidates.html",
+      "format": "html",
+      "notes": "Same URL every cycle. Its heading is checked against the year, and it links the candidate XLSX."
+    },
+    {
+      "key": "candidate-list-page",
+      "variant": "general",
+      "url": "https://www.sos.state.co.us/pubs/elections/vote/generalCandidates.html",
+      "format": "html",
+      "notes": "Same URL every cycle. Its heading is checked against the year, and it links the candidate XLSX."
+    }
+  ],
+  "parameters": []
+}

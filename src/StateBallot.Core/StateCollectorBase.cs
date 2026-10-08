@@ -12,25 +12,32 @@ namespace StateBallot.Core;
 /// <para>
 /// Discovery still needs a public constructor on the subclass, since constructors
 /// aren't inherited. Declare it as a primary constructor that passes straight through:
-/// <c>public sealed class XxCollector(int year, string stateDataDir, string? inputDataRoot = null, XxSourceConfig? config = null)
-/// : StateCollectorBase&lt;XxSourceConfig&gt;(year, stateDataDir, inputDataRoot, config)</c>.
+/// <c>public sealed class XxCollector(int year, string stateDataDir, string? inputDataRoot = null, XxSourceConfig? config = null, SourceLinkSet? links = null)
+/// : StateCollectorBase&lt;XxSourceConfig&gt;(year, stateDataDir, inputDataRoot, config, links)</c>.
+/// </para>
+/// <para>
+/// URLs come from the state's <see cref="SourceLinkSet"/>: the one the runner passes in
+/// (from the staging database, or a capture's snapshot), else data/input/&lt;xx&gt;/source_links.json.
 /// </para>
 /// </summary>
 public abstract class StateCollectorBase<TConfig> : IStateCollector
-    where TConfig : class, new()
+    where TConfig : SourceConfigBase, new()
 {
+    private readonly Lazy<TConfig> _config;
     private readonly Lazy<string[]> _dateFormats;
     private readonly Lazy<Dictionary<string, string>> _fieldMap;
 
     /// <param name="stateDataDir">Per-state output directory (data/output/&lt;xx&gt;/). Only used to infer
     /// the input root when <paramref name="inputDataRoot"/> is not given.</param>
-    protected StateCollectorBase(int year, string stateDataDir, string? inputDataRoot, TConfig? config)
+    /// <param name="config">A ready-made config, for tests. Otherwise one is built over <paramref name="links"/>.</param>
+    /// <param name="links">The state's links; null loads the seed file under the input root.</param>
+    protected StateCollectorBase(int year, string stateDataDir, string? inputDataRoot, TConfig? config, SourceLinkSet? links)
     {
         StateCode = GetType().GetCustomAttribute<StateCodeAttribute>()?.Code
             ?? throw new InvalidOperationException($"{GetType().FullName} is missing [StateCode(\"XX\")].");
         Year = year;
         InputDataRoot = ResolveInputDataRoot(stateDataDir, inputDataRoot);
-        Config = config ?? new TConfig();
+        _config = new(() => config ?? new TConfig { Links = links ?? SourceLinkSet.Load(InputDataRoot, StateCode) });
         _dateFormats = new(() => DateFormatConfig.Load(DataPaths.DateFormatsPath(InputDataRoot, StateCode)));
         _fieldMap = new(() => LookupTableLoader.Load(DataPaths.CandidateFieldMapPath(InputDataRoot, StateCode)));
     }
@@ -44,7 +51,8 @@ public abstract class StateCollectorBase<TConfig> : IStateCollector
     /// <summary>Pipeline data root containing input/&lt;xx&gt;/.</summary>
     protected string InputDataRoot { get; }
 
-    protected TConfig Config { get; }
+    /// <summary>The state's named URLs, built on first use.</summary>
+    protected TConfig Config => _config.Value;
 
     /// <summary>data/input/&lt;xx&gt;/date_formats.json, loaded on first use.</summary>
     protected string[] DateFormats => _dateFormats.Value;
@@ -52,8 +60,8 @@ public abstract class StateCollectorBase<TConfig> : IStateCollector
     /// <summary>data/input/&lt;xx&gt;/candidate_field_map.json, loaded on first use.</summary>
     protected Dictionary<string, string> FieldMap => _fieldMap.Value;
 
-    /// <summary>The source site to check by hand when a run comes back empty.</summary>
-    protected abstract string SourceHomeUrl { get; }
+    /// <summary>The source site to check by hand when a run comes back empty: the state's "home" link.</summary>
+    protected virtual string SourceHomeUrl => Config.HomeUrl(Year);
 
     protected abstract IPublishSchedule Schedule { get; }
 

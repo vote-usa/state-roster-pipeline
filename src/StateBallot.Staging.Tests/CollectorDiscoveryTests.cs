@@ -35,7 +35,7 @@ public class CollectorDiscoveryTests
 
         foreach (var (code, factory) in collectors)
         {
-            var ex = Record.Exception(() => factory(DateTime.UtcNow.Year, dataRoot, dataRoot));
+            var ex = Record.Exception(() => factory(DateTime.UtcNow.Year, dataRoot, dataRoot, null));
             Assert.True(ex is null, $"{code} collector constructor threw: {ex}");
         }
     }

@@ -1,0 +1,18 @@
+{
+  "state": "VA",
+  "links": [
+    {
+      "key": "home",
+      "url": "https://www.elections.virginia.gov/casting-a-ballot/candidate-list/",
+      "kind": "home",
+      "notes": "Checked by hand when a run comes back empty."
+    },
+    {
+      "key": "candidate-list-index",
+      "url": "https://www.elections.virginia.gov/casting-a-ballot/candidate-list/",
+      "format": "html",
+      "notes": "Links each election's own page, which links its candidate XLSX."
+    }
+  ],
+  "parameters": []
+}

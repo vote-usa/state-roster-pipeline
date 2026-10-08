@@ -1,24 +1,22 @@
+using StateBallot.Core;
+
 namespace StateBallot.States.Hi;
 
-/// <summary>All source URLs for the HI Office of Elections sites in one place.</summary>
-public sealed class HiSourceConfig
+/// <summary>
+/// Named accessors over Hawaii's source links (data/input/hi/source_links.json,
+/// or the SourceLinks table when a run has a database). The URLs themselves are data.
+/// </summary>
+public sealed class HiSourceConfig : SourceConfigBase
 {
-    public string ElectionsHomeUrl { get; init; } = "https://elections.hawaii.gov/";
-
-    public string OlvrBaseUrl { get; init; } = "https://olvr.hawaii.gov";
-
-    public string CandidateFilingPageUrl(string electionId) => $"{OlvrBaseUrl}/Controls/CandidateFiling.aspx?elid={electionId}";
+    public string ElectionsHomeUrl => Links.Url("elections-home");
+    public string CandidateFilingPageUrl(string electionId) => Links.Url("candidate-filing-page", electionId: electionId);
 
     /// <summary>
-    /// Any already-known-valid election id, used only to load the page once so
-    /// its "ddlElection" dropdown - which lists every year's report, old and
-    /// new - can be read to find the *target* year's real id (HI's ids are
-    /// opaque and don't follow a formula from the year, unlike every other
-    /// state's URLs so far). New id values get appended to this same dropdown
-    /// over time, so a still-recent id should keep working as an entry point
-    /// for years beyond the one it happens to name.
+    /// Any already-known-valid election id, used only to load the filing page once so its
+    /// "ddlElection" dropdown, which lists every year's report, can be read to find the
+    /// target year's real id. HI's ids are opaque and don't follow from the year.
     /// </summary>
-    public string BootstrapElectionId { get; init; } = "94";
+    public string BootstrapElectionId => Links.Parameter("bootstrap-election-id");
 
     public const string ExportToCsvButtonName = "ctl00$cphFooter$rdgSearch$ctl00$ctl02$ctl00$ExportToCsvButton";
 }

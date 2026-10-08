@@ -28,12 +28,13 @@ public sealed class CaCollector : IStateCollector
         int year,
         string stateDataDir,
         string? inputDataRoot = null,
-        CaSourceConfig? config = null)
+        CaSourceConfig? config = null,
+        SourceLinkSet? links = null)
     {
         _year = year;
         _stateDataDir = stateDataDir;
         _inputDataRoot = ResolveInputDataRoot(stateDataDir, inputDataRoot);
-        _config = config ?? new CaSourceConfig();
+        _config = config ?? new CaSourceConfig { Links = links ?? SourceLinkSet.Load(_inputDataRoot, StateCode) };
         _schedule = new CaPublishSchedule();
         _dateFormats = DateFormatConfig.Load(DataPaths.DateFormatsPath(_inputDataRoot, StateCode));
         _selectors = CaSelectors.Load(DataPaths.SelectorsPath(_inputDataRoot, StateCode));
@@ -267,10 +268,7 @@ public sealed class CaCollector : IStateCollector
                     .DistinctBy(e => e.Url)
                     .ToList(),
                 StringComparer.Ordinal);
-        sources.VerificationOnly =
-        [
-            new SourceEntry($"https://ballotpedia.org/California_elections,_{_year}", "html"),
-        ];
+        sources.VerificationOnly = _config.VerificationSources(_year);
         sources.NextRun = _schedule.Recommend(result, _year);
     }
 

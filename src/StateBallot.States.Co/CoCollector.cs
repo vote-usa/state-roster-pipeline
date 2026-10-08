@@ -17,10 +17,9 @@ namespace StateBallot.States.Co;
 /// filing date, address, or contact info at all.
 /// </summary>
 [StateCode("CO")]
-public sealed class CoCollector(int year, string stateDataDir, string? inputDataRoot = null, CoSourceConfig? config = null)
-    : StateCollectorBase<CoSourceConfig>(year, stateDataDir, inputDataRoot, config)
+public sealed class CoCollector(int year, string stateDataDir, string? inputDataRoot = null, CoSourceConfig? config = null, SourceLinkSet? links = null)
+    : StateCollectorBase<CoSourceConfig>(year, stateDataDir, inputDataRoot, config, links)
 {
-    protected override string SourceHomeUrl => "https://www.sos.state.co.us/pubs/elections/Candidates/CandidateHome.html";
     protected override IPublishSchedule Schedule { get; } = new CoPublishSchedule();
 
     public const string CandidateListPageRole = "candidate-list-page";
@@ -134,6 +133,6 @@ public sealed class CoCollector(int year, string stateDataDir, string? inputData
         var sources = result.Sources;
         sources.Elections = [new SourceEntry(calendarUrl, "pdf")];
         sources.StatewideCandidates = candidateListUrls;
-        sources.VerificationOnly = [new SourceEntry($"https://ballotpedia.org/Colorado_elections,_{Year}", "html")];
+        sources.VerificationOnly = Config.VerificationSources(Year);
     }
 }

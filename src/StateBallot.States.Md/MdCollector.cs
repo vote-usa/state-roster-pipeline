@@ -14,10 +14,9 @@ namespace StateBallot.States.Md;
 /// measures (no MD ballot-measure source was found), and a county directory.
 /// </summary>
 [StateCode("MD")]
-public sealed class MdCollector(int year, string stateDataDir, string? inputDataRoot = null, MdSourceConfig? config = null)
-    : StateCollectorBase<MdSourceConfig>(year, stateDataDir, inputDataRoot, config)
+public sealed class MdCollector(int year, string stateDataDir, string? inputDataRoot = null, MdSourceConfig? config = null, SourceLinkSet? links = null)
+    : StateCollectorBase<MdSourceConfig>(year, stateDataDir, inputDataRoot, config, links)
 {
-    protected override string SourceHomeUrl => Config.BaseUrl;
     protected override IPublishSchedule Schedule { get; } = new MdPublishSchedule();
 
     public const string CandidateListRole = "candidate-list";
@@ -79,6 +78,6 @@ public sealed class MdCollector(int year, string stateDataDir, string? inputData
         sources.StatewideCandidates = elections
             .Select(e => new SourceEntry(Config.StatewideCandidateListUrl(Year, e.ElectionType), "csv"))
             .ToList();
-        sources.VerificationOnly = [new SourceEntry($"https://ballotpedia.org/Maryland_elections,_{Year}", "html")];
+        sources.VerificationOnly = Config.VerificationSources(Year);
     }
 }

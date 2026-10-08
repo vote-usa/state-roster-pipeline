@@ -1,4 +1,5 @@
 using System.Text;
+using StateBallot.Core;
 using StateBallot.Core.Raw;
 
 namespace StateBallot.States.Wv.Tests;
@@ -7,6 +8,12 @@ public sealed class WvNormalizeTests : IDisposable
 {
     private readonly string _dir = Path.Combine(Path.GetTempPath(), "wv-capture-" + Guid.NewGuid().ToString("N"));
     private readonly string _inputRoot = Path.Combine(Path.GetTempPath(), "wv-input-" + Guid.NewGuid().ToString("N"));
+
+    private static readonly SourceLinkSet Links = new(
+        "WV",
+        [new SourceLink { Key = "candidates-page", Url = "https://candidates.wvsos.gov/candidate-web-api/candidates" }],
+        [],
+        "test");
 
     public WvNormalizeTests()
     {
@@ -30,7 +37,7 @@ public sealed class WvNormalizeTests : IDisposable
         RecordPage(sink, 0, Candidate(101, 42, "2026-05-12", "PRIMARY", "JANE Q. PUBLIC"), Candidate(102, 42, "2026-05-12", "PRIMARY", "JOHN DOE"));
         RecordPage(sink, 1, Candidate(201, 43, "2026-11-03", "GENERAL", "ANN ROE"));
 
-        var result = new WvCollector(2026, _dir, _inputRoot).Normalize(new CaptureReader(_dir));
+        var result = new WvCollector(2026, _dir, _inputRoot, links: Links).Normalize(new CaptureReader(_dir));
 
         Assert.Equal(["42", "43"], result.Elections.Select(e => e.ElectionId));
         Assert.Equal(["ANN ROE", "JANE Q. PUBLIC", "JOHN DOE"], result.Candidates.Select(c => c.CandidateName).Order());
@@ -43,7 +50,7 @@ public sealed class WvNormalizeTests : IDisposable
         var sink = new RawSink(_dir, "1", "WV", 2026);
         RecordPage(sink, 0);
 
-        Assert.Throws<InvalidOperationException>(() => new WvCollector(2026, _dir, _inputRoot).Normalize(new CaptureReader(_dir)));
+        Assert.Throws<InvalidOperationException>(() => new WvCollector(2026, _dir, _inputRoot, links: Links).Normalize(new CaptureReader(_dir)));
     }
 
     private static void RecordPage(RawSink sink, int page, params string[] candidates) =>

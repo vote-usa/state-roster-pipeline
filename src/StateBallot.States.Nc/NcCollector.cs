@@ -14,10 +14,9 @@ namespace StateBallot.States.Nc;
 /// published as PDF, not attempted here) and no county directory.
 /// </summary>
 [StateCode("NC")]
-public sealed class NcCollector(int year, string stateDataDir, string? inputDataRoot = null, NcSourceConfig? config = null)
-    : StateCollectorBase<NcSourceConfig>(year, stateDataDir, inputDataRoot, config)
+public sealed class NcCollector(int year, string stateDataDir, string? inputDataRoot = null, NcSourceConfig? config = null, SourceLinkSet? links = null)
+    : StateCollectorBase<NcSourceConfig>(year, stateDataDir, inputDataRoot, config, links)
 {
-    protected override string SourceHomeUrl => "https://www.ncsbe.gov";
     protected override IPublishSchedule Schedule { get; } = new NcPublishSchedule();
 
     public const string CandidateListingRole = "candidate-listing";
@@ -138,6 +137,6 @@ public sealed class NcCollector(int year, string stateDataDir, string? inputData
             .Select(b => b.CountyName)
             .Distinct()
             .ToDictionary(c => c, _ => new List<SourceEntry> { new(url, "csv") }, StringComparer.Ordinal);
-        sources.VerificationOnly = [new SourceEntry($"https://ballotpedia.org/North_Carolina_elections,_{Year}", "html")];
+        sources.VerificationOnly = Config.VerificationSources(Year);
     }
 }

@@ -1,0 +1,31 @@
+{
+  "state": "NM",
+  "links": [
+    {
+      "key": "home",
+      "url": "https://candidateportal.servis.sos.state.nm.us",
+      "kind": "home",
+      "notes": "Checked by hand when a run comes back empty."
+    },
+    {
+      "key": "upcoming-elections",
+      "url": "https://www.sos.nm.gov/voting-and-elections/view-all-elections/",
+      "format": "html",
+      "notes": "Only states the next election's date. Past elections disappear from it."
+    },
+    {
+      "key": "candidate-list-page",
+      "url": "https://candidateportal.servis.sos.state.nm.us/CandidateList.aspx?eid={electionId}&cty=99",
+      "format": "html",
+      "notes": "Candidate list for one election. The CSV comes from a WebForms export postback."
+    }
+  ],
+  "parameters": [
+    {
+      "key": "election-id",
+      "variant": "general",
+      "value": "2917",
+      "notes": "The portal has no index of its election ids. Re-derive by hand each cycle: check candidate pages' <title> on the portal, or web-search \"candidateportal.servis.sos.state.nm.us CandidateList eid <year>\"."
+    }
+  ]
+}

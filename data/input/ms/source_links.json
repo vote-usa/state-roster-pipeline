@@ -1,0 +1,18 @@
+{
+  "state": "MS",
+  "links": [
+    {
+      "key": "home",
+      "url": "https://sos.ms.gov",
+      "kind": "home",
+      "notes": "Checked by hand when a run comes back empty."
+    },
+    {
+      "key": "qualifying-list-page",
+      "url": "https://sos.ms.gov/content/CandidateQualifying/default.aspx",
+      "format": "html",
+      "notes": "Candidate qualifying list. The CSV comes from a WebForms download postback, fetched with a tool-like User-Agent."
+    }
+  ],
+  "parameters": []
+}

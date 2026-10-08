@@ -1,33 +1,25 @@
+using StateBallot.Core;
+
 namespace StateBallot.States.Nm;
 
-/// <summary>All source URLs for the NM SOS candidate portal in one place.</summary>
-public sealed class NmSourceConfig
+/// <summary>
+/// Named accessors over New Mexico's source links (data/input/nm/source_links.json,
+/// or the SourceLinks table when a run has a database). The URLs themselves are data.
+/// </summary>
+public sealed class NmSourceConfig : SourceConfigBase
 {
-    public string PortalBaseUrl { get; init; } = "https://candidateportal.servis.sos.state.nm.us";
+    /// <summary>
+    /// The candidate list page for one election. The portal exposes no discoverable index
+    /// of its own election ids, so they are hand-maintained source parameters (see <see cref="ElectionId"/>).
+    /// </summary>
+    public string CandidateListUrl(string electionId) => Links.Url("candidate-list-page", electionId: electionId);
 
     /// <summary>
-    /// The candidate list page for one election. The portal exposes no
-    /// discoverable index of its own current election ids - no election
-    /// dropdown, no other election's id linked anywhere on the page, and the
-    /// one nominally "current" link on sos.nm.gov's own site is a stale link
-    /// to a 2021 election. The id must be re-derived by a human each cycle
-    /// (visit <see cref="PortalBaseUrl"/> and check candidate pages'
-    /// <c>&lt;title&gt;</c>, or web-search "candidateportal.servis.sos.state.nm.us
-    /// CandidateList eid &lt;year&gt;") and stored in
-    /// data/input/nm/election_ids.json - see NmCollector.
+    /// The evergreen "upcoming statewide elections" page. It only ever states the *next*
+    /// election's date; once an election passes, its date disappears from this page.
     /// </summary>
-    public string CandidateListUrl(string electionId) =>
-        $"{PortalBaseUrl}/CandidateList.aspx?eid={electionId}&cty=99";
+    public string UpcomingElectionsPageUrl => Links.Url("upcoming-elections");
 
-    /// <summary>
-    /// The evergreen "upcoming statewide elections" page. Only ever states
-    /// the *next* election's date in plain text (e.g. "2026 General Election:
-    /// Tuesday, November 3, 2026") - once an election passes, its date
-    /// disappears from this page entirely (confirmed: the SOS site also
-    /// removes its own per-election date/results pages once they're no
-    /// longer current, unlike every other state onboarded so far) - so this
-    /// only ever works for whichever election is presently upcoming.
-    /// </summary>
-    public string UpcomingElectionsPageUrl { get; init; } =
-        "https://www.sos.nm.gov/voting-and-elections/view-all-elections/";
+    /// <summary>The hand-maintained portal election id for "Primary" or "General", or null when none is set.</summary>
+    public string? ElectionId(string electionType) => Links.FindParameter("election-id", electionType);
 }

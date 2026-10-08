@@ -1,0 +1,30 @@
+{
+  "state": "HI",
+  "links": [
+    {
+      "key": "home",
+      "url": "https://olvr.hawaii.gov",
+      "kind": "home",
+      "notes": "Checked by hand when a run comes back empty."
+    },
+    {
+      "key": "elections-home",
+      "url": "https://elections.hawaii.gov/",
+      "format": "html",
+      "notes": "Primary and general dates."
+    },
+    {
+      "key": "candidate-filing-page",
+      "url": "https://olvr.hawaii.gov/Controls/CandidateFiling.aspx?elid={electionId}",
+      "format": "html",
+      "notes": "Candidate filing report. The CSV comes from a WebForms export postback on this page."
+    }
+  ],
+  "parameters": [
+    {
+      "key": "bootstrap-election-id",
+      "value": "94",
+      "notes": "Any known-valid election id. Only used to load the filing page once and read its election dropdown, which lists every year's real id. Ids are opaque, so a recent one keeps working for later years."
+    }
+  ]
+}

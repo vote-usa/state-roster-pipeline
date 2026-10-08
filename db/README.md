@@ -21,7 +21,7 @@ Two schemas live in the one local MySQL:
 | Schema | Created by | Contents |
 | --- | --- | --- |
 | `vote` | `schema.sql` + `smoke.sql` at container init | VoteUSA-shaped roster tables, `Security` (console sign-in), `LocalDistricts`, `RosterProvenance` |
-| `roster_staging` | `dotnet run --project src/StateBallot.Cli -- --migrate` | Captures and their fetch logs, collection passes, per-election runs, and their rows (FluentMigrator, `src/StateBallot.Staging/Migrations/`) |
+| `roster_staging` | `dotnet run --project src/StateBallot.Cli -- --migrate` | Source links, captures and their fetch logs, collection passes, per-election runs, and their rows (FluentMigrator, `src/StateBallot.Staging/Migrations/`) |
 
 ## Run
 
@@ -55,7 +55,9 @@ A run has two stages. The **capture** fetches every source page for a state and 
 
 | Table | Grain | Holds |
 | --- | --- | --- |
-| `Captures` | one fetch of a state and year | who ran it, args, git sha, Wayback stamp, status, raw directory, fetch count, bytes, fetch log hash, log |
+| `SourceLinks` | one URL per state, key and variant | the URL template a collector fetches (or its home page), format, notes, active flag, who last edited it. See "Source links" below |
+| `SourceParameters` | one value per state, key and variant | hand-maintained values beside the links, e.g. NM/SD election ids and HI's bootstrap election id |
+| `Captures` | one fetch of a state and year | who ran it, args, git sha, Wayback stamp, status, raw directory, fetch count, bytes, fetch log hash, log, and a snapshot of the source links it used (`LinksJson`) |
 | `CaptureFetches` | one HTTP request | role and keys the collector tagged it with (e.g. `county-guide` {election, county}), method, URL, request body hash, status, content type, size, payload hash, file name, duration, error |
 | `CollectionPasses` | one normalization of a capture | `CaptureId`, who ran it, args, git sha, log, gaps, source manifest with payload hashes, counts |
 | `Runs` | one election | the election's own fields, pending flag, counts, resolution columns |
@@ -95,6 +97,38 @@ dotnet run --project src/StateBallot.Cli -- --state WV --output-root ../state-ro
 
 Without an output root no roster files are written, only the raw capture: the database is the store of record. `--dry-run` captures under `data/raw/<xx>/dry-<utc stamp>/` and normalizes it, but stores nothing in the database.
 
+## Source links
+
+Every URL a collector fetches lives in `SourceLinks`, so the console can view and edit it,
+along with each state's `home` page (named in the error when a run comes back empty). Hand-maintained
+values such as election ids live in `SourceParameters`. A link's `LinkKey` is the fetch role
+the collector tags that download with, so it joins to the `CaptureFetches` rows it produced.
+`Variant` splits a key by election type (`primary` / `general`). `UrlTemplate` may hold
+`{year}`, `{electionId}`, `{countyCode}` or `{raceId}`. An unknown placeholder fails on load,
+and a missing value fails when the URL is built.
+
+The seed is one file per state in git, `data/input/<xx>/source_links.json`. It survives
+every database wipe.
+
+- `--migrate` inserts any seed row the database is missing and **never overwrites an
+  existing row**, so console edits survive. Rows that differ from the seed, or that only
+  the database has, are listed in its output.
+- `--export-links [XX]` writes the database rows back to the seed files. Run it before
+  wiping a database whose edits you want to keep, then commit the files.
+- `--reseed-links [XX]` replaces the database rows with the seed files. Rows only in the
+  database are deleted.
+
+The dev loop: `docker compose down -v && docker compose up -d mysql`, `--migrate` (every
+link is seeded), edit in the console or SQL, `--export-links`, commit.
+
+Which links a run uses:
+
+| Run | Links come from |
+| --- | --- |
+| Stored capture | `SourceLinks`. Fails with "run --migrate" when the state has no rows. |
+| `--dry-run` capture | `SourceLinks` when the database is reachable and has the state's rows, otherwise the seed file. The run log says which. |
+| Normalize (including `--normalize <id>`) | The capture's own snapshot (`fetch_log.json` `links`, mirrored in `Captures.LinksJson`), so a later edit never changes what an old capture's rows say they came from. Captures made before migration 5 have no snapshot and use the current links. |
+
 ## Migrations
 
 [FluentMigrator](https://fluentmigrator.github.io/) classes under
@@ -110,6 +144,7 @@ Adding one: a new class `M00n_<Name>` with `[Migration(n, "<description>")]`, im
 | 2 | `M002_RawCapture` | `Captures`, `CaptureFetches`, `CollectionPasses.CaptureId` |
 | 3 | `M003_CountyListText` | `County` on `RunCandidates`, `RunMeasures`, `PassProposedMeasures` becomes TEXT |
 | 4 | `M004_CandidateStatus` | `RunCandidates.Status`, the candidate's filing status as the source publishes it |
+| 5 | `M005_SourceLinks` | `SourceLinks`, `SourceParameters`, `Captures.LinksJson` |
 
 ## Tests
 

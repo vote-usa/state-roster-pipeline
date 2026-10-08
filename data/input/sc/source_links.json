@@ -1,0 +1,24 @@
+{
+  "state": "SC",
+  "links": [
+    {
+      "key": "home",
+      "url": "https://vrems.scvotes.sc.gov/Candidate/GetElections?electionType=General&year={year}",
+      "kind": "home",
+      "notes": "Checked by hand when a run comes back empty."
+    },
+    {
+      "key": "elections",
+      "url": "https://vrems.scvotes.sc.gov/Candidate/GetElections?electionType=General&year={year}",
+      "format": "json",
+      "notes": "Elections for the year, with their dates."
+    },
+    {
+      "key": "candidate-search",
+      "url": "https://vrems.scvotes.sc.gov/Candidate/CandidateSearch/",
+      "format": "csv",
+      "notes": "Form POST per election, returning that election's candidate export."
+    }
+  ],
+  "parameters": []
+}

@@ -44,6 +44,10 @@ public sealed class FetchLog
     public string State { get; set; } = "";
     public int Year { get; set; }
     public DateTime StartedAt { get; set; }
+
+    /// <summary>The source links and parameters the capture used. Null for captures made before links were data.</summary>
+    public SourceLinkFile? Links { get; set; }
+
     public List<FetchLogEntry> Fetches { get; set; } = [];
 }
 
@@ -59,7 +63,7 @@ public sealed class RawSink
 
     private readonly FetchLog _log;
 
-    public RawSink(string directory, string captureId, string state, int year)
+    public RawSink(string directory, string captureId, string state, int year, SourceLinkFile? links = null)
     {
         Directory = directory;
         System.IO.Directory.CreateDirectory(directory);
@@ -69,6 +73,7 @@ public sealed class RawSink
             State = state.ToUpperInvariant(),
             Year = year,
             StartedAt = DateTime.UtcNow,
+            Links = links,
         };
         WriteLog();
     }

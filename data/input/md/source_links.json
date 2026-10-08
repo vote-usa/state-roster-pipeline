@@ -1,0 +1,32 @@
+{
+  "state": "MD",
+  "links": [
+    {
+      "key": "home",
+      "url": "https://elections.maryland.gov",
+      "kind": "home",
+      "notes": "Checked by hand when a run comes back empty."
+    },
+    {
+      "key": "elections-page",
+      "url": "https://elections.maryland.gov/elections/{year}/index.html",
+      "format": "html",
+      "notes": "Yearly page listing Primary/General Election Day. Past elections are commented out once held."
+    },
+    {
+      "key": "candidate-list",
+      "variant": "primary",
+      "url": "https://elections.maryland.gov/elections/{year}/primary_candidates/{year}_GP_statewide_candidatelist.csv",
+      "format": "csv",
+      "notes": "Statewide candidates only. Local races are in a separate all_counties export, not collected."
+    },
+    {
+      "key": "candidate-list",
+      "variant": "general",
+      "url": "https://elections.maryland.gov/elections/{year}/general_candidates/{year}_GG_statewide_candidatelist.csv",
+      "format": "csv",
+      "notes": "Statewide candidates only. Local races are in a separate all_counties export, not collected."
+    }
+  ],
+  "parameters": []
+}

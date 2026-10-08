@@ -86,8 +86,9 @@ Layout:
   county_ballots.json|csv
 ```
 
-Inputs (`state_catalog.json`, `county_fips.json`, `sources.json`) stay in the
-pipeline repo under `data/input/`. The pipeline records the published commit in
+Each state folder also has `sources.json`: the URLs, formats and payload hashes
+the run used. Inputs (`state_catalog.json`, `source_links.json`, `county_fips.json`)
+stay in the pipeline repo under `data/input/`. The pipeline records the published commit in
 `data/input/snapshot.json`.
 EOF
   fi

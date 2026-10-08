@@ -1,18 +1,17 @@
+using StateBallot.Core;
+
 namespace StateBallot.States.Tx;
 
 /// <summary>
-/// All source URLs and the browser-like headers this source needs in one place.
-/// The CivixApps API sits behind Cloudflare and rejects requests that don't look
+/// Named accessors over Texas's source links (data/input/tx/source_links.json, or the
+/// SourceLinks table when a run has a database), plus the browser-like headers this source
+/// needs. The CivixApps API sits behind Cloudflare and rejects requests that don't look
 /// like they came from a browser tab on goelect.txelections.civixapps.com.
 /// </summary>
-public sealed class TxSourceConfig
+public sealed class TxSourceConfig : SourceConfigBase
 {
-    public string BaseUrl { get; init; } = "https://goelect.txelections.civixapps.com";
-    public string CandidatesEndpoint { get; init; } = "/api-ivis-cbp/api/cbp/findQualifiedCandidates";
-    public string ElectionsEndpoint { get; init; } = "/api-ivis-cbp/api/cbp/getElectionsByYear";
-
-    public string ElectionsUrl(int year) => $"{BaseUrl}{ElectionsEndpoint}/{year}";
-    public string CandidatesUrl => $"{BaseUrl}{CandidatesEndpoint}";
+    public string ElectionsUrl(int year) => Links.Url("elections", year: year);
+    public string CandidatesUrl => Links.Url("candidates");
 
     /// <summary>Headers HttpFetcher must carry for every request to this source.</summary>
     public static readonly IReadOnlyDictionary<string, string> ExtraHeaders = new Dictionary<string, string>

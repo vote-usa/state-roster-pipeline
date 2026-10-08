@@ -5,33 +5,17 @@ namespace StateBallot.Core;
 
 /// <summary>
 /// Writes the state-agnostic JSON + CSV outputs and the sources.json provenance
-/// manifest for a collector run. Output shapes are shared across all states.
+/// manifest for a collector run, all into the per-state output directory. Output
+/// shapes are shared across all states.
 /// </summary>
 public sealed class ResultWriter
 {
     private readonly string _outDir;
-    private readonly string _sourcesPath;
 
     /// <param name="outDir">Per-state output directory (data/output/&lt;xx&gt;/ or data-repo/&lt;xx&gt;/).</param>
-    /// <param name="sourcesPath">
-    /// Path for sources.json. Required when <paramref name="outDir"/> is not under
-    /// data/output/&lt;xx&gt;/ (sources always stay in the pipeline input tree).
-    /// </param>
-    public ResultWriter(string outDir, string? sourcesPath = null)
+    public ResultWriter(string outDir)
     {
         _outDir = outDir;
-        if (sourcesPath is not null)
-        {
-            _sourcesPath = sourcesPath;
-        }
-        else
-        {
-            var dataRoot = DataPaths.TryInferPipelineDataRoot(outDir)
-                ?? throw new InvalidOperationException(
-                    $"Cannot infer sources path from '{outDir}'. Pass an explicit sourcesPath.");
-            var stateCode = new DirectoryInfo(Path.GetFullPath(outDir)).Name;
-            _sourcesPath = DataPaths.SourcesPath(dataRoot, stateCode);
-        }
     }
 
     public void WriteAll(CollectResult result)
@@ -58,7 +42,7 @@ public sealed class ResultWriter
         var flatBallotRows = result.CountyBallots.SelectMany(FlattenBallot).ToList();
         OutputWriter.WriteCsv(Path.Combine(_outDir, "county_ballots.csv"), flatBallotRows);
 
-        OutputWriter.WriteJson(_sourcesPath, result.Sources.ToJsonObject(result.Gaps));
+        OutputWriter.WriteJson(Path.Combine(_outDir, "sources.json"), result.Sources.ToJsonObject(result.Gaps));
     }
 
     public static ElectionOut ToElectionOut(Election e) => new()

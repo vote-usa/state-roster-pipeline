@@ -16,10 +16,9 @@ namespace StateBallot.States.Mt;
 /// offices at all (filed with county clerks separately, not the SOS).
 /// </summary>
 [StateCode("MT")]
-public sealed class MtCollector(int year, string stateDataDir, string? inputDataRoot = null, MtSourceConfig? config = null)
-    : StateCollectorBase<MtSourceConfig>(year, stateDataDir, inputDataRoot, config)
+public sealed class MtCollector(int year, string stateDataDir, string? inputDataRoot = null, MtSourceConfig? config = null, SourceLinkSet? links = null)
+    : StateCollectorBase<MtSourceConfig>(year, stateDataDir, inputDataRoot, config, links)
 {
-    protected override string SourceHomeUrl => Config.DefaultCandidateListUrl;
     protected override IPublishSchedule Schedule { get; } = new MtPublishSchedule();
 
     public const string ElectionIndexRole = "election-index";
@@ -137,6 +136,6 @@ public sealed class MtCollector(int year, string stateDataDir, string? inputData
         var sources = result.Sources;
         sources.Elections = [new SourceEntry(Config.DefaultCandidateListUrl, "html")];
         sources.StatewideCandidates = candidateListUrls;
-        sources.VerificationOnly = [new SourceEntry($"https://ballotpedia.org/Montana_elections,_{Year}", "html")];
+        sources.VerificationOnly = Config.VerificationSources(Year);
     }
 }

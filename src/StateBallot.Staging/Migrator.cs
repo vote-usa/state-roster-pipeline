@@ -9,18 +9,23 @@ namespace StateBallot.Staging;
 /// Applies the FluentMigrator migrations in this assembly to the staging schema.
 /// Migration classes live in Migrations/ and carry a [Migration(n)] version. The runner
 /// applies the ones VersionInfo does not already record. Creates the schema itself when
-/// it does not exist yet, which FluentMigrator does not do.
+/// it does not exist yet, which FluentMigrator does not do. Then seeds source links from
+/// data/input/&lt;xx&gt;/source_links.json (see <see cref="LinkStore.SeedAsync"/>), so a freshly
+/// created dev database has every state's links after one migrate.
 /// </summary>
 public sealed class Migrator
 {
     private readonly string _connectionString;
+    private readonly string _seedDataRoot;
 
-    public Migrator(string stagingConnectionString)
+    /// <param name="seedDataRoot">Pipeline data root holding input/&lt;xx&gt;/source_links.json. Defaults to the repo's data/.</param>
+    public Migrator(string stagingConnectionString, string? seedDataRoot = null)
     {
         _connectionString = stagingConnectionString;
+        _seedDataRoot = seedDataRoot ?? CollectorRunner.FindDataRoot();
     }
 
-    public sealed record Report(long Applied, long AlreadyApplied, long CurrentVersion);
+    public sealed record Report(long Applied, long AlreadyApplied, long CurrentVersion, LinkStore.SeedReport Links);
 
     public async Task<Report> ApplyAsync(CancellationToken ct = default)
     {
@@ -36,8 +41,9 @@ public sealed class Migrator
             runner.MigrateUp();
 
         var after = await AppliedVersionsAsync(ct);
+        var links = await new LinkStore(_connectionString).SeedAsync(_seedDataRoot, ct);
 
-        return new Report(after.Count - before.Count, before.Count, after.Count == 0 ? 0 : after.Max());
+        return new Report(after.Count - before.Count, before.Count, after.Count == 0 ? 0 : after.Max(), links);
     }
 
     private ServiceProvider BuildServiceProvider() => new ServiceCollection()

@@ -1,29 +1,24 @@
+using StateBallot.Core;
+
 namespace StateBallot.States.Ms;
 
 /// <summary>
-/// All source URLs and the headers this source needs in one place. The MS SOS
-/// site (www.sos.ms.gov and this content host alike) sits behind an Akamai bot
-/// rule that - unlike TX's Cloudflare case - blocks realistic *browser* User-
-/// Agent strings (Chrome/Firefox/Safari, and any unrecognized custom string,
-/// including HttpFetcher's own default "StateBallotRoster/1.0 (...)") while
-/// letting plain HTTP-tool User-Agents (curl, python-requests, Wget) straight
-/// through untouched - confirmed live via direct requests with each. The fix
-/// here is the mirror image of TX's: instead of adding browser-like headers to
-/// get past a "you don't look like a browser" check, this state overrides the
-/// UA to a bare tool-like string to get past a "you look like an impersonated
-/// browser" check.
+/// Named accessors over Mississippi's source links (data/input/ms/source_links.json, or the
+/// SourceLinks table when a run has a database), plus the headers this source needs. The MS
+/// SOS site sits behind an Akamai bot rule that - unlike TX's Cloudflare case - blocks
+/// realistic *browser* User-Agent strings (and any unrecognized custom string, including
+/// HttpFetcher's own default) while letting plain HTTP-tool User-Agents (curl,
+/// python-requests, Wget) straight through - confirmed live via direct requests with each.
+/// So this state overrides the UA to a bare tool-like string, the mirror image of TX.
 /// </summary>
-public sealed class MsSourceConfig
+public sealed class MsSourceConfig : SourceConfigBase
 {
     /// <summary>
-    /// The SOS's "Candidate Qualifying List" page - an ASP.NET WebForms page
-    /// whose "Download CSV" button (see WebFormsPostback) returns the state's
-    /// full current candidate roster in one response. Embedded via iframe in
-    /// the public-facing www.sos.ms.gov/elections-voting/candidate-qualifying-list
-    /// page; fetched directly here since the iframe target is the actual data
-    /// source and the wrapper page adds nothing.
+    /// The SOS's "Candidate Qualifying List" page - an ASP.NET WebForms page whose
+    /// "Download CSV" button (see WebFormsPostback) returns the state's full current
+    /// candidate roster in one response.
     /// </summary>
-    public string CandidateQualifyingListUrl { get; init; } = "https://sos.ms.gov/content/CandidateQualifying/default.aspx";
+    public string CandidateQualifyingListUrl => Links.Url("qualifying-list-page");
 
     public const string DownloadCsvButtonName = "btnDownloadExcel";
 

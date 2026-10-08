@@ -16,10 +16,9 @@ namespace StateBallot.States.Ne;
 /// published in this workbook).
 /// </summary>
 [StateCode("NE")]
-public sealed class NeCollector(int year, string stateDataDir, string? inputDataRoot = null, NeSourceConfig? config = null)
-    : StateCollectorBase<NeSourceConfig>(year, stateDataDir, inputDataRoot, config)
+public sealed class NeCollector(int year, string stateDataDir, string? inputDataRoot = null, NeSourceConfig? config = null, SourceLinkSet? links = null)
+    : StateCollectorBase<NeSourceConfig>(year, stateDataDir, inputDataRoot, config, links)
 {
-    protected override string SourceHomeUrl => Config.ElectionsPageUrl;
     protected override IPublishSchedule Schedule { get; } = new NePublishSchedule();
 
     public const string CandidateFilingListRole = "candidate-filing-list";
@@ -94,6 +93,6 @@ public sealed class NeCollector(int year, string stateDataDir, string? inputData
         sources.Elections = [new SourceEntry(Config.ElectionsPageUrl, "html")];
         sources.StatewideCandidates = [new SourceEntry(candidateListUrl, "xlsx")];
         sources.StatewideMeasures = [new SourceEntry(candidateListUrl, "xlsx")];
-        sources.VerificationOnly = [new SourceEntry($"https://ballotpedia.org/Nebraska_elections,_{Year}", "html")];
+        sources.VerificationOnly = Config.VerificationSources(Year);
     }
 }

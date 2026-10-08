@@ -14,10 +14,9 @@ namespace StateBallot.States.Vt;
 /// are ever available even though past years' candidate rosters are.
 /// </summary>
 [StateCode("VT")]
-public sealed class VtCollector(int year, string stateDataDir, string? inputDataRoot = null, VtSourceConfig? config = null)
-    : StateCollectorBase<VtSourceConfig>(year, stateDataDir, inputDataRoot, config)
+public sealed class VtCollector(int year, string stateDataDir, string? inputDataRoot = null, VtSourceConfig? config = null, SourceLinkSet? links = null)
+    : StateCollectorBase<VtSourceConfig>(year, stateDataDir, inputDataRoot, config, links)
 {
-    protected override string SourceHomeUrl => Config.CandidatesPageUrl;
     protected override IPublishSchedule Schedule { get; } = new VtPublishSchedule();
 
     public const string CandidateListRole = "candidate-list";
@@ -99,6 +98,6 @@ public sealed class VtCollector(int year, string stateDataDir, string? inputData
         var sources = result.Sources;
         sources.Elections = [new SourceEntry(Config.CandidatesPageUrl, "html")];
         sources.StatewideCandidates = candidateListUrls;
-        sources.VerificationOnly = [new SourceEntry($"https://ballotpedia.org/Vermont_elections,_{Year}", "html")];
+        sources.VerificationOnly = Config.VerificationSources(Year);
     }
 }

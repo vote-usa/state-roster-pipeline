@@ -1,0 +1,30 @@
+{
+  "state": "VT",
+  "links": [
+    {
+      "key": "home",
+      "url": "https://sos.vermont.gov/elections/election-info-resources/candidates",
+      "kind": "home",
+      "notes": "Checked by hand when a run comes back empty."
+    },
+    {
+      "key": "candidates-page",
+      "url": "https://sos.vermont.gov/elections/election-info-resources/candidates",
+      "format": "html",
+      "notes": "Evergreen page; primary and general dates."
+    },
+    {
+      "key": "candidate-list",
+      "variant": "primary",
+      "url": "https://outside.vermont.gov/dept/sos/Elections_Division/election_info_resources/candidates/{year}_statewide_primary_qualified_candidates.xlsx",
+      "format": "xlsx"
+    },
+    {
+      "key": "candidate-list",
+      "variant": "general",
+      "url": "https://outside.vermont.gov/dept/sos/Elections_Division/election_info_resources/candidates/{year}_general_election_qualified_candidates.xlsx",
+      "format": "xlsx"
+    }
+  ],
+  "parameters": []
+}

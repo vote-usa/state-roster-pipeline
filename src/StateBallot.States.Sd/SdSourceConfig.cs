@@ -1,30 +1,25 @@
+using StateBallot.Core;
+
 namespace StateBallot.States.Sd;
 
-/// <summary>All source URLs for the SD SOS Voter Information Portal (VIP) in one place.</summary>
-public sealed class SdSourceConfig
+/// <summary>
+/// Named accessors over South Dakota's source links (data/input/sd/source_links.json,
+/// or the SourceLinks table when a run has a database). The URLs themselves are data.
+/// </summary>
+public sealed class SdSourceConfig : SourceConfigBase
 {
-    public string PortalBaseUrl { get; init; } = "https://vip.sdsos.gov";
+    /// <summary>
+    /// The candidate list page for one election. VIP exposes no discoverable index of its
+    /// own election ids either, so they are hand-maintained source parameters (see <see cref="ElectionId"/>).
+    /// </summary>
+    public string CandidateListUrl(string electionId) => Links.Url("candidate-list-page", electionId: electionId);
 
     /// <summary>
-    /// The candidate list page for one election. VIP exposes no discoverable
-    /// index of its own current election ids either (no dropdown; the one
-    /// live link to it - see <see cref="UpcomingElectionsPageUrl"/> - only
-    /// ever points at whichever election is presently upcoming, same
-    /// limitation NM's portal has), so these are hand-maintained in
-    /// data/input/sd/election_ids.json rather than derived from the year.
+    /// The evergreen election information landing page. Its election-calendar page keeps both
+    /// the primary's and the general's date even after the primary, so dates are scraped fresh.
     /// </summary>
-    public string CandidateListUrl(string electionId) =>
-        $"{PortalBaseUrl}/candidatelist.aspx?eid={electionId}";
+    public string UpcomingElectionsPageUrl => Links.Url("upcoming-elections");
 
-    /// <summary>
-    /// The evergreen "2026 Election Information" landing page. Unlike NM's
-    /// equivalent problem, this one's own election-calendar page keeps both
-    /// the primary's and the general's real date in plain text even after
-    /// the primary has passed - the SOS site doesn't remove past-election
-    /// info the way NM's does - so dates are still scraped fresh here (not
-    /// hand-maintained) via SdCollector following whichever
-    /// "*-candidate-calendar.aspx" link this page currently has.
-    /// </summary>
-    public string UpcomingElectionsPageUrl { get; init; } =
-        "https://sdsos.gov/elections-voting/upcoming-elections/general-information/default.aspx";
+    /// <summary>The hand-maintained VIP election id for "Primary" or "General", or null when none is set.</summary>
+    public string? ElectionId(string electionType) => Links.FindParameter("election-id", electionType);
 }

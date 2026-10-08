@@ -17,13 +17,14 @@ public sealed class WvCollector : IStateCollector
 
     /// <param name="stateDataDir">Per-state output directory (data/output/&lt;xx&gt;/). Inputs are under data/input/&lt;xx&gt;/,
     /// including date_formats.json.</param>
-    public WvCollector(int year, string stateDataDir, string? inputDataRoot = null, WvSourceConfig? config = null)
+    public WvCollector(
+        int year, string stateDataDir, string? inputDataRoot = null, WvSourceConfig? config = null, SourceLinkSet? links = null)
     {
         _year = year;
-        _config = config ?? new WvSourceConfig();
         _schedule = new WvPublishSchedule();
 
         var dataRoot = ResolveInputDataRoot(stateDataDir, inputDataRoot);
+        _config = config ?? new WvSourceConfig { Links = links ?? SourceLinkSet.Load(dataRoot, StateCode) };
         _dateFormats = DateFormatConfig.Load(DataPaths.DateFormatsPath(dataRoot, StateCode));
     }
 
@@ -80,7 +81,7 @@ public sealed class WvCollector : IStateCollector
     {
         var sources = result.Sources;
         sources.StatewideCandidates = [new SourceEntry(_config.CandidatesUrl, "json (POST, paginated)")];
-        sources.VerificationOnly = [new SourceEntry("https://ballotpedia.org/West_Virginia_elections," + _year, "html")];
+        sources.VerificationOnly = _config.VerificationSources(_year);
         sources.NextRun = _schedule.Recommend(result, _year);
     }
 

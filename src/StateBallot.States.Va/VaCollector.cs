@@ -21,10 +21,9 @@ namespace StateBallot.States.Va;
 /// collapses that back to one row per real candidacy.
 /// </summary>
 [StateCode("VA")]
-public sealed class VaCollector(int year, string stateDataDir, string? inputDataRoot = null, VaSourceConfig? config = null)
-    : StateCollectorBase<VaSourceConfig>(year, stateDataDir, inputDataRoot, config)
+public sealed class VaCollector(int year, string stateDataDir, string? inputDataRoot = null, VaSourceConfig? config = null, SourceLinkSet? links = null)
+    : StateCollectorBase<VaSourceConfig>(year, stateDataDir, inputDataRoot, config, links)
 {
-    protected override string SourceHomeUrl => Config.CandidateListIndexUrl;
     protected override IPublishSchedule Schedule { get; } = new VaPublishSchedule();
 
     public const string CandidateListIndexRole = "candidate-list-index";
@@ -129,6 +128,6 @@ public sealed class VaCollector(int year, string stateDataDir, string? inputData
         var sources = result.Sources;
         sources.Elections = [new SourceEntry(electionPageUrl, "html")];
         sources.StatewideCandidates = [new SourceEntry(xlsxUrl, "xlsx")];
-        sources.VerificationOnly = [new SourceEntry($"https://ballotpedia.org/Virginia_elections,_{Year}", "html")];
+        sources.VerificationOnly = Config.VerificationSources(Year);
     }
 }

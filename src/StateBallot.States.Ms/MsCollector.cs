@@ -17,10 +17,9 @@ namespace StateBallot.States.Ms;
 /// source attempted.
 /// </summary>
 [StateCode("MS")]
-public sealed class MsCollector(int year, string stateDataDir, string? inputDataRoot = null, MsSourceConfig? config = null)
-    : StateCollectorBase<MsSourceConfig>(year, stateDataDir, inputDataRoot, config)
+public sealed class MsCollector(int year, string stateDataDir, string? inputDataRoot = null, MsSourceConfig? config = null, SourceLinkSet? links = null)
+    : StateCollectorBase<MsSourceConfig>(year, stateDataDir, inputDataRoot, config, links)
 {
-    protected override string SourceHomeUrl => "https://sos.ms.gov";
     protected override IPublishSchedule Schedule { get; } = new MsPublishSchedule();
 
     public const string QualifyingListPageRole = "qualifying-list-page";
@@ -127,6 +126,6 @@ public sealed class MsCollector(int year, string stateDataDir, string? inputData
         var sources = result.Sources;
         sources.Elections = [new SourceEntry(url, "csv (via WebForms POST)")];
         sources.StatewideCandidates = [new SourceEntry(url, "csv (via WebForms POST)")];
-        sources.VerificationOnly = [new SourceEntry($"https://ballotpedia.org/Mississippi_elections,_{Year}", "html")];
+        sources.VerificationOnly = Config.VerificationSources(Year);
     }
 }

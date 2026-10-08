@@ -13,10 +13,9 @@ namespace StateBallot.States.Hi;
 /// office), and no ballot-measure source was found for HI.
 /// </summary>
 [StateCode("HI")]
-public sealed class HiCollector(int year, string stateDataDir, string? inputDataRoot = null, HiSourceConfig? config = null)
-    : StateCollectorBase<HiSourceConfig>(year, stateDataDir, inputDataRoot, config)
+public sealed class HiCollector(int year, string stateDataDir, string? inputDataRoot = null, HiSourceConfig? config = null, SourceLinkSet? links = null)
+    : StateCollectorBase<HiSourceConfig>(year, stateDataDir, inputDataRoot, config, links)
 {
-    protected override string SourceHomeUrl => Config.OlvrBaseUrl;
     protected override IPublishSchedule Schedule { get; } = new HiPublishSchedule();
 
     public override async Task CaptureAsync(HttpFetcher fetcher, DateOnly asOf)
@@ -58,6 +57,6 @@ public sealed class HiCollector(int year, string stateDataDir, string? inputData
         var sources = result.Sources;
         sources.Elections = [new SourceEntry(Config.ElectionsHomeUrl, "html")];
         sources.StatewideCandidates = [new SourceEntry(pageUrl, "csv")];
-        sources.VerificationOnly = [new SourceEntry($"https://ballotpedia.org/Hawaii_elections,_{Year}", "html")];
+        sources.VerificationOnly = Config.VerificationSources(Year);
     }
 }

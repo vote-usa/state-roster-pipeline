@@ -20,10 +20,9 @@ namespace StateBallot.States.Nm;
 /// commas in some fields shift every later column on that row.
 /// </summary>
 [StateCode("NM")]
-public sealed class NmCollector(int year, string stateDataDir, string? inputDataRoot = null, NmSourceConfig? config = null)
-    : StateCollectorBase<NmSourceConfig>(year, stateDataDir, inputDataRoot, config)
+public sealed class NmCollector(int year, string stateDataDir, string? inputDataRoot = null, NmSourceConfig? config = null, SourceLinkSet? links = null)
+    : StateCollectorBase<NmSourceConfig>(year, stateDataDir, inputDataRoot, config, links)
 {
-    protected override string SourceHomeUrl => Config.PortalBaseUrl;
     protected override IPublishSchedule Schedule { get; } = new NmPublishSchedule();
 
     public const string UpcomingElectionsRole = "upcoming-elections";
@@ -104,14 +103,10 @@ public sealed class NmCollector(int year, string stateDataDir, string? inputData
 
     private string RequireGeneralElectionId()
     {
-        var path = DataPaths.ElectionIdsPath(InputDataRoot, StateCode);
-        var electionIds = LookupTableLoader.Load(path);
-        if (!electionIds.TryGetValue("General", out var electionId) || electionId.Length == 0)
-            throw new InvalidOperationException(
-                $"{path} has no \"General\" entry. NM's candidate " +
-                "portal has no discoverable index of its own election ids - this must be re-derived by hand " +
-                "each cycle (see NmSourceConfig's doc comment).");
-        return electionId;
+        return Config.ElectionId("General") ?? throw new InvalidOperationException(
+            $"No election-id/general source parameter in {Config.Links.Origin}. NM's candidate " +
+            "portal has no discoverable index of its own election ids - this must be re-derived by hand " +
+            "each cycle (see the parameter's notes).");
     }
 
     private void BuildSourcesManifest(CollectResult result, string candidateListUrl)
@@ -120,6 +115,6 @@ public sealed class NmCollector(int year, string stateDataDir, string? inputData
         sources.Elections = [new SourceEntry(Config.UpcomingElectionsPageUrl, "html")];
         sources.StatewideCandidates = [new SourceEntry(candidateListUrl, "html")];
         sources.StatewideMeasures = [new SourceEntry(candidateListUrl, "html")];
-        sources.VerificationOnly = [new SourceEntry($"https://ballotpedia.org/New_Mexico_elections,_{Year}", "html")];
+        sources.VerificationOnly = Config.VerificationSources(Year);
     }
 }

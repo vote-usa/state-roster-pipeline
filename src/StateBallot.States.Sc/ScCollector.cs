@@ -21,10 +21,9 @@ namespace StateBallot.States.Sc;
 /// attempted, nor is the parallel referendum search the same portal offers.
 /// </summary>
 [StateCode("SC")]
-public sealed class ScCollector(int year, string stateDataDir, string? inputDataRoot = null, ScSourceConfig? config = null)
-    : StateCollectorBase<ScSourceConfig>(year, stateDataDir, inputDataRoot, config)
+public sealed class ScCollector(int year, string stateDataDir, string? inputDataRoot = null, ScSourceConfig? config = null, SourceLinkSet? links = null)
+    : StateCollectorBase<ScSourceConfig>(year, stateDataDir, inputDataRoot, config, links)
 {
-    protected override string SourceHomeUrl => Config.ElectionsByYearUrl(Year);
     protected override IPublishSchedule Schedule { get; } = new ScPublishSchedule();
 
     public const string ElectionsRole = "elections";
@@ -112,6 +111,6 @@ public sealed class ScCollector(int year, string stateDataDir, string? inputData
         var sources = result.Sources;
         sources.Elections = [new SourceEntry(electionsUrl, "json")];
         sources.StatewideCandidates = candidateListUrls;
-        sources.VerificationOnly = [new SourceEntry($"https://ballotpedia.org/South_Carolina_elections,_{Year}", "html")];
+        sources.VerificationOnly = Config.VerificationSources(Year);
     }
 }

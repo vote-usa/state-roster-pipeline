@@ -1,0 +1,18 @@
+{
+  "state": "NC",
+  "links": [
+    {
+      "key": "home",
+      "url": "https://www.ncsbe.gov",
+      "kind": "home",
+      "notes": "Checked by hand when a run comes back empty."
+    },
+    {
+      "key": "candidate-listing",
+      "url": "https://s3.amazonaws.com/dl.ncsbe.gov/Elections/{year}/Candidate%20Filing/Candidate_Listing_{year}.csv",
+      "format": "csv",
+      "notes": "Every candidate for the year, statewide and county. Election dates come from the file itself."
+    }
+  ],
+  "parameters": []
+}

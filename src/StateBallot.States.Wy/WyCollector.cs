@@ -13,10 +13,9 @@ namespace StateBallot.States.Wy;
 /// (not attempted here).
 /// </summary>
 [StateCode("WY")]
-public sealed class WyCollector(int year, string stateDataDir, string? inputDataRoot = null, WySourceConfig? config = null)
-    : StateCollectorBase<WySourceConfig>(year, stateDataDir, inputDataRoot, config)
+public sealed class WyCollector(int year, string stateDataDir, string? inputDataRoot = null, WySourceConfig? config = null, SourceLinkSet? links = null)
+    : StateCollectorBase<WySourceConfig>(year, stateDataDir, inputDataRoot, config, links)
 {
-    protected override string SourceHomeUrl => Config.BaseUrl;
     protected override IPublishSchedule Schedule { get; } = new WyPublishSchedule();
 
     public const string CandidateListRole = "candidate-list";
@@ -77,6 +76,6 @@ public sealed class WyCollector(int year, string stateDataDir, string? inputData
         sources.StatewideCandidates = elections
             .Select(e => new SourceEntry(Config.CandidateListUrl(Year, e.ElectionType), "csv"))
             .ToList();
-        sources.VerificationOnly = [new SourceEntry($"https://ballotpedia.org/Wyoming_elections,_{Year}", "html")];
+        sources.VerificationOnly = Config.VerificationSources(Year);
     }
 }

@@ -4,18 +4,20 @@ namespace StateBallot.Core;
 
 /// <summary>
 /// Discovers IStateCollector implementations via [StateCode("XX")] and a
-/// constructor invokable as (int, string[, string? inputDataRoot, ...]).
+/// constructor invokable as (int, string[, string? inputDataRoot, ...]). A
+/// <see cref="SourceLinkSet"/> parameter, when the constructor has one, receives
+/// the links the caller passes; every other optional parameter gets its default.
 /// Loads any StateBallot.States.*.dll beside the entry assembly so collectors are found
 /// even before their types are otherwise referenced.
 /// </summary>
 public static class CollectorDiscovery
 {
-    public static Dictionary<string, Func<int, string, string?, IStateCollector>> Discover(
+    public static Dictionary<string, Func<int, string, string?, SourceLinkSet?, IStateCollector>> Discover(
         IEnumerable<Assembly>? assemblies = null)
     {
         EnsureStateAssembliesLoaded();
 
-        var map = new Dictionary<string, Func<int, string, string?, IStateCollector>>(
+        var map = new Dictionary<string, Func<int, string, string?, SourceLinkSet?, IStateCollector>>(
             StringComparer.OrdinalIgnoreCase);
 
         foreach (var assembly in assemblies ?? AppDomain.CurrentDomain.GetAssemblies())
@@ -48,8 +50,8 @@ public static class CollectorDiscovery
                     throw new InvalidOperationException(
                         $"Duplicate [StateCode(\"{attr.Code}\")] on {type.FullName} and another collector.");
 
-                map[attr.Code] = (year, dir, inputRoot) =>
-                    (IStateCollector)ctor.Invoke(BuildCtorArgs(ctor, year, dir, inputRoot))!;
+                map[attr.Code] = (year, dir, inputRoot, links) =>
+                    (IStateCollector)ctor.Invoke(BuildCtorArgs(ctor, year, dir, inputRoot, links))!;
             }
         }
 
@@ -107,7 +109,7 @@ public static class CollectorDiscovery
     }
 
     private static object?[] BuildCtorArgs(
-        ConstructorInfo ctor, int year, string dir, string? inputRoot)
+        ConstructorInfo ctor, int year, string dir, string? inputRoot, SourceLinkSet? links)
     {
         var parms = ctor.GetParameters();
         var args = new object?[parms.Length];
@@ -117,7 +119,11 @@ public static class CollectorDiscovery
         var assignedInput = false;
         for (var i = 2; i < parms.Length; i++)
         {
-            if (!assignedInput && parms[i].ParameterType == typeof(string))
+            if (parms[i].ParameterType == typeof(SourceLinkSet))
+            {
+                args[i] = links;
+            }
+            else if (!assignedInput && parms[i].ParameterType == typeof(string))
             {
                 args[i] = inputRoot ?? (parms[i].HasDefaultValue ? parms[i].DefaultValue : null);
                 assignedInput = true;
