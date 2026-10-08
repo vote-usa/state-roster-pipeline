@@ -137,13 +137,23 @@ to the service.
 
 A web view of the staging database: every state's captures, normalizations and per-election runs, with the candidates, measures, county ballots, gaps, sources and logs of each run. It is read-only for now. Its "Start a run" dialog builds the CLI command for the run you describe.
 
+With Docker, one command builds and starts the console, its API and the database:
+
+```bash
+docker compose up -d --build web              # then open http://localhost:5173
+```
+
+Or run the two halves on the host, which reloads as you edit:
+
 ```bash
 docker compose up -d --wait mysql
 dotnet run --project src/StateBallot.Api      # http://localhost:5080, reads ROSTER_STAGING_CONNECTION
 cd web && npm install && npm run dev          # http://localhost:5173
 ```
 
-The API has no authentication and listens on localhost only. Do not expose it.
+Both ways use ports 5080 and 5173, so stop one before starting the other (`docker compose stop web api`).
+
+The API has no authentication. It listens on localhost only, and the compose services publish their ports to this machine only. Do not expose it.
 
 ## Tests
 
