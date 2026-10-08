@@ -1,9 +1,10 @@
-# Collector CLI plus the MySQL it stores runs in.
+# Collector CLI, the MySQL it stores runs in, and the run console (api + web) that reads it.
 #
 #   docker compose up -d mysql                          start the database
 #   docker compose run --rm collector --migrate         create the staging schema
 #   docker compose run --rm collector --state WV        collect, storing per-election runs
 #   docker compose run --rm --no-deps collector --state TX --dry-run
+#   docker compose up -d --build web                    run console at http://localhost:5173 (starts api and mysql)
 #
 # The database also listens on localhost:3307 so a host-side `dotnet run` works
 # against the same data. Pass an --output-root under /app/data to export files.
@@ -45,6 +46,33 @@ services:
       VOTE_CONNECTION: "Server=mysql;Port=3306;Database=vote;User ID=roster;Password=roster;"
     volumes:
       - ./data:/app/data
+
+  # No authentication, so both console ports are published to this machine only.
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    image: state-roster-api:local
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      ROSTER_STAGING_CONNECTION: "Server=mysql;Port=3306;Database=roster_staging;User ID=roster;Password=roster;"
+      VOTE_CONNECTION: "Server=mysql;Port=3306;Database=vote;User ID=roster;Password=roster;"
+    ports:
+      - "127.0.0.1:5080:5080"
+    volumes:
+      - ./data:/app/data
+
+  web:
+    build: ./web
+    image: state-roster-web:local
+    depends_on:
+      - api
+    environment:
+      API_URL: "http://api:5080"
+    ports:
+      - "127.0.0.1:5173:5173"
 
 volumes:
   roster-vote-data:

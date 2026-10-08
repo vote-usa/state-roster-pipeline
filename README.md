@@ -45,6 +45,8 @@ state-roster-pipeline/
                              # schedule - one project per implemented state
     StateBallot.States.{Xx}.Tests/  # mapper/parsing tests - one project per state
     StateBallot.Cli/         # args + catalog/discovery runner
+    StateBallot.Api/         # API for the run console: reads staging, queues and runs jobs
+  web/                       # run console (React), talks to StateBallot.Api
   data/
     input/
       state_catalog.json     # all 50 states + DC (implemented | unimplemented)
@@ -130,6 +132,30 @@ Everything after `collector` is passed to the CLI unchanged.
 The container runs as the image's non-root `app` user. On Linux hosts make
 sure `data/` is writable by that uid (1654), or add `user: "${UID}:${GID}"`
 to the service.
+
+## Run console
+
+A web view of the staging database: every state's captures, normalizations and per-election runs, with the candidates, measures, county ballots, gaps, sources and logs of each run. The console calls a capture a "retrieve". "Start a run" queues a retrieve, a normalization of an existing retrieve, or both, and the API runs queued jobs one at a time through the same code as the CLI. Runs made from the CLI show up too.
+
+With Docker, one command builds and starts the console, its API and the database:
+
+```bash
+docker compose up -d --build web              # then open http://localhost:5173
+```
+
+Or run the two halves on the host, which reloads as you edit:
+
+```bash
+docker compose up -d --wait mysql
+dotnet run --project src/StateBallot.Api      # http://localhost:5080, reads ROSTER_STAGING_CONNECTION
+cd web && npm install && npm run dev          # http://localhost:5173
+```
+
+Both ways use ports 5080 and 5173, so stop one before starting the other (`docker compose stop web api`).
+
+The staging schema must be at version 5 (`--migrate`) for the job queue.
+
+The API has no authentication. It listens on localhost only, and the compose services publish their ports to this machine only. Do not expose it.
 
 ## Tests
 
