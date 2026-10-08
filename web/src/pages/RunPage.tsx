@@ -9,7 +9,9 @@ const PAGE = 100;
 export function RunPage() {
   const { id = "" } = useParams();
   const [tab, setTab] = useState<Tab>("candidates");
+  const [county, setCounty] = useState("");
   const detail = useApi<RunDetail>(`/runs/${id}`);
+  const ballots = useApi<CountyBallot[]>(`/runs/${id}/county-ballots`);
   if (!detail.data) return <Pending query={detail} />;
 
   const { run: r, pass: p } = detail.data;
@@ -39,9 +41,18 @@ export function RunPage() {
         {tabs.map(([key, label]) => <button key={key} className={tab === key ? "on" : ""} onClick={() => setTab(key)}>{label}</button>)}
       </div>
 
-      {tab === "candidates" && <Candidates runId={r.runId} />}
-      {tab === "measures" && <Measures runId={r.runId} />}
-      {tab === "ballots" && <Ballots runId={r.runId} />}
+      {(tab === "candidates" || tab === "measures") && (ballots.data?.length ?? 0) > 0 && (
+        <div className="toolbar">
+          <select value={county} onChange={e => setCounty(e.target.value)}>
+            <option value="">All counties</option>
+            {ballots.data!.map(b => <option key={b.county} value={b.county}>{b.county}</option>)}
+          </select>
+          {county && <span className="muted">The {county} ballot as the source published it, statewide races included.</span>}
+        </div>
+      )}
+      {tab === "candidates" && <Candidates key={county} runId={r.runId} county={county} />}
+      {tab === "measures" && <Measures key={county} runId={r.runId} county={county} />}
+      {tab === "ballots" && (!ballots.data ? <Pending query={ballots} /> : <Ballots ballots={ballots.data} onPick={c => { setCounty(c); setTab("candidates"); }} />)}
 
       {tab === "sources" && (
         <>
@@ -65,10 +76,10 @@ export function RunPage() {
   );
 }
 
-function Candidates({ runId }: { runId: number }) {
+function Candidates({ runId, county }: { runId: number; county: string }) {
   const [filter, setFilter] = useState("");
   const [offset, setOffset] = useState(0);
-  const page = useApi<Page<Candidate>>(`/runs/${runId}/candidates?q=${encodeURIComponent(filter.trim())}&offset=${offset}&limit=${PAGE}`);
+  const page = useApi<Page<Candidate>>(`/runs/${runId}/candidates?q=${encodeURIComponent(filter.trim())}&county=${encodeURIComponent(county)}&offset=${offset}&limit=${PAGE}`);
 
   return (
     <>
@@ -76,7 +87,7 @@ function Candidates({ runId }: { runId: number }) {
         <input placeholder="Filter by office, name, county, party" value={filter} onChange={e => { setFilter(e.target.value); setOffset(0); }} />
         {page.data && <span className="muted">{count(page.data.total)} {filter.trim() ? "matching" : "candidates"}</span>}
       </div>
-      {!page.data ? <Pending query={page} /> : page.data.total === 0 ? <Empty>{filter.trim() ? "Nothing matches." : "This run has no candidates."}</Empty> : (
+      {!page.data ? <Pending query={page} /> : page.data.total === 0 ? <Empty>{filter.trim() ? "Nothing matches." : county ? `No candidates on the ${county} ballot.` : "This run has no candidates."}</Empty> : (
         <>
           <table>
             <thead><tr><th>Office</th><th>District</th><th>County</th><th>Candidate</th><th>Party</th><th>Filing status</th><th>OCD division</th></tr></thead>
@@ -96,11 +107,11 @@ function Candidates({ runId }: { runId: number }) {
   );
 }
 
-function Measures({ runId }: { runId: number }) {
+function Measures({ runId, county }: { runId: number; county: string }) {
   const [offset, setOffset] = useState(0);
-  const page = useApi<Page<Measure>>(`/runs/${runId}/measures?offset=${offset}&limit=${PAGE}`);
+  const page = useApi<Page<Measure>>(`/runs/${runId}/measures?county=${encodeURIComponent(county)}&offset=${offset}&limit=${PAGE}`);
   if (!page.data) return <Pending query={page} />;
-  if (page.data.total === 0) return <Empty>This run has no measures.</Empty>;
+  if (page.data.total === 0) return <Empty>{county ? `No measures on the ${county} ballot.` : "This run has no measures."}</Empty>;
 
   return (
     <>
@@ -113,15 +124,20 @@ function Measures({ runId }: { runId: number }) {
   );
 }
 
-function Ballots({ runId }: { runId: number }) {
-  const ballots = useApi<CountyBallot[]>(`/runs/${runId}/county-ballots`);
-  if (!ballots.data) return <Pending query={ballots} />;
-  if (ballots.data.length === 0) return <Empty>This source does not publish county ballots.</Empty>;
+function Ballots({ ballots, onPick }: { ballots: CountyBallot[]; onPick: (county: string) => void }) {
+  if (ballots.length === 0) return <Empty>This source does not publish county ballots.</Empty>;
 
   return (
     <table className="narrow">
       <thead><tr><th>County</th><th className="num">Candidates</th><th className="num">Measures</th></tr></thead>
-      <tbody>{ballots.data.map(b => <tr key={b.county}><td>{b.county}</td><td className="num">{count(b.candidateCount)}</td><td className="num">{count(b.measureCount)}</td></tr>)}</tbody>
+      <tbody>
+        {ballots.map(b => (
+          <tr key={b.county}>
+            <td><button className="link" onClick={() => onPick(b.county)}>{b.county}</button></td>
+            <td className="num">{count(b.candidateCount)}</td><td className="num">{count(b.measureCount)}</td>
+          </tr>
+        ))}
+      </tbody>
     </table>
   );
 }

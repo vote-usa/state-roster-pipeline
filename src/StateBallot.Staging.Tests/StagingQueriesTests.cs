@@ -91,6 +91,12 @@ public sealed class StagingQueriesIntegrationTests : IAsyncLifetime
                 (4, 'TX', '2026-11-03', 'Governor', 'Ann Able', 'R'),
                 (4, 'TX', '2026-11-03', 'Governor', 'Bo_b Baker', 'D'),
                 (4, 'TX', '2026-11-03', 'Land Commissioner', 'Cy Cole', 'D');
+            INSERT INTO RunCountyBallots (RunCountyBallotId, RunId, StateCode, County) VALUES
+                (1, 4, 'TX', 'Bexar'), (2, 4, 'TX', 'Travis');
+            INSERT INTO RunCountyBallotCandidates (RunCountyBallotId, RunId, Office, CandidateName) VALUES
+                (1, 4, 'Governor', 'Ann Able'), (1, 4, 'County Judge', 'Dee Diaz'), (2, 4, 'Governor', 'Ann Able');
+            INSERT INTO RunCountyBallotMeasures (RunCountyBallotId, RunId, MeasureId, Title, Jurisdiction) VALUES
+                (2, 4, 'Prop A', 'Transit bond', 'City of Austin');
             """);
     }
 
@@ -134,6 +140,18 @@ public sealed class StagingQueriesIntegrationTests : IAsyncLifetime
 
         Assert.Equal(new[] { 2, 1 }, (await _queries.PassesForCaptureAsync(1)).Select(p => p.PassId).ToArray());
         Assert.Equal(new[] { 4, 3, 2, 1 }, (await _queries.RunsForCaptureAsync(1)).Select(r => r.RunId).ToArray());
+    }
+
+    [Fact]
+    public async Task County_ShowsThatCountysBallotInsteadOfTheRunsRows()
+    {
+        var bexar = await _queries.CandidatesAsync(4, null, offset: 0, limit: 10, county: "Bexar");
+        Assert.Equal(new[] { ("Ann Able", "Bexar"), ("Dee Diaz", "Bexar") }, bexar.Rows.Select(c => (c.Name, c.County!)).ToArray());
+        Assert.Equal(1, (await _queries.CandidatesAsync(4, "judge", offset: 0, limit: 10, county: "Bexar")).Total);
+
+        Assert.Equal(0, (await _queries.MeasuresAsync(4, offset: 0, limit: 10, county: "Bexar")).Total);
+        Assert.Equal("Prop A", (await _queries.MeasuresAsync(4, offset: 0, limit: 10, county: "Travis")).Rows.Single().MeasureId);
+        Assert.Equal(0, (await _queries.MeasuresAsync(4, offset: 0, limit: 10)).Total);
     }
 
     [Fact]

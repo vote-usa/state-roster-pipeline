@@ -303,38 +303,57 @@ public sealed class StagingQueries
     public async Task<RunView?> RunAsync(int runId, CancellationToken ct = default) =>
         (await RunsWhereAsync("r.RunId = @RunId", new { RunId = runId }, ct)).SingleOrDefault();
 
-    /// <summary>One page of a run's candidates. A search matches any of office, district, county, name, party or filing status.</summary>
+    /// <summary>
+    /// One page of a run's candidates. A search matches any of office, district, county, name, party
+    /// or filing status. With a county, the rows are that county's ballot as the source published it
+    /// (statewide races included), which carries no filing status.
+    /// </summary>
     public async Task<Page<CandidateView>> CandidatesAsync(
-        int runId, string? search, int offset, int limit, CancellationToken ct = default)
+        int runId, string? search, int offset, int limit, string? county = null, CancellationToken ct = default)
     {
-        var where = "RunId = @RunId";
+        var byCounty = !string.IsNullOrWhiteSpace(county);
+        var from = byCounty
+            ? "RunCountyBallotCandidates c JOIN RunCountyBallots b ON b.RunCountyBallotId = c.RunCountyBallotId"
+            : "RunCandidates c";
+        var where = byCounty ? "c.RunId = @RunId AND b.County = @County" : "c.RunId = @RunId";
+        var searched = byCounty
+            ? "CONCAT_WS(' ', c.Office, c.District, c.CandidateName, c.Party)"
+            : "CONCAT_WS(' ', c.Office, c.District, c.County, c.CandidateName, c.Party, c.Status)";
         if (!string.IsNullOrWhiteSpace(search))
-            where += " AND CONCAT_WS(' ', Office, District, County, CandidateName, Party, Status) LIKE @Search";
-        var args = new { RunId = runId, Search = $"%{EscapeLike(search)}%", Offset = offset, Limit = limit };
+            where += $" AND {searched} LIKE @Search";
+        var columns = byCounty
+            ? "c.Office, c.District, b.County, c.CandidateName AS Name, c.Party, NULL AS Status, c.OcdDivisionId, c.SourceOfficeType"
+            : "c.Office, c.District, c.County, c.CandidateName AS Name, c.Party, c.Status, c.OcdDivisionId, c.SourceOfficeType";
+        var order = byCounty ? "c.Id" : "c.RunCandidateId";
+        var args = new { RunId = runId, County = county, Search = $"%{EscapeLike(search)}%", Offset = offset, Limit = limit };
 
         await using var cn = await _db.OpenStagingAsync(ct);
         var total = await cn.ExecuteScalarAsync<long>(new CommandDefinition(
-            $"SELECT COUNT(*) FROM RunCandidates WHERE {where}", args, cancellationToken: ct));
+            $"SELECT COUNT(*) FROM {from} WHERE {where}", args, cancellationToken: ct));
         var rows = await cn.QueryAsync<CandidateView>(new CommandDefinition(
-            $"""
-            SELECT Office, District, County, CandidateName AS Name, Party, Status, OcdDivisionId, SourceOfficeType
-            FROM RunCandidates WHERE {where} ORDER BY RunCandidateId LIMIT @Limit OFFSET @Offset
-            """,
+            $"SELECT {columns} FROM {from} WHERE {where} ORDER BY {order} LIMIT @Limit OFFSET @Offset",
             args, cancellationToken: ct));
         return new Page<CandidateView>(total, rows.AsList());
     }
 
-    public async Task<Page<MeasureView>> MeasuresAsync(int runId, int offset, int limit, CancellationToken ct = default)
+    /// <summary>One page of a run's measures, or of one county's ballot measures when a county is given.</summary>
+    public async Task<Page<MeasureView>> MeasuresAsync(
+        int runId, int offset, int limit, string? county = null, CancellationToken ct = default)
     {
-        var args = new { RunId = runId, Offset = offset, Limit = limit };
+        var byCounty = !string.IsNullOrWhiteSpace(county);
+        var from = byCounty
+            ? "RunCountyBallotMeasures m JOIN RunCountyBallots b ON b.RunCountyBallotId = m.RunCountyBallotId"
+            : "RunMeasures m";
+        var where = byCounty ? "m.RunId = @RunId AND b.County = @County" : "m.RunId = @RunId";
+        var columns = byCounty ? "m.MeasureId, m.Title, m.Jurisdiction, b.County" : "m.MeasureId, m.Title, m.Jurisdiction, m.County";
+        var order = byCounty ? "m.Id" : "m.RunMeasureId";
+        var args = new { RunId = runId, County = county, Offset = offset, Limit = limit };
+
         await using var cn = await _db.OpenStagingAsync(ct);
         var total = await cn.ExecuteScalarAsync<long>(new CommandDefinition(
-            "SELECT COUNT(*) FROM RunMeasures WHERE RunId = @RunId", args, cancellationToken: ct));
+            $"SELECT COUNT(*) FROM {from} WHERE {where}", args, cancellationToken: ct));
         var rows = await cn.QueryAsync<MeasureView>(new CommandDefinition(
-            """
-            SELECT MeasureId, Title, Jurisdiction, County
-            FROM RunMeasures WHERE RunId = @RunId ORDER BY RunMeasureId LIMIT @Limit OFFSET @Offset
-            """,
+            $"SELECT {columns} FROM {from} WHERE {where} ORDER BY {order} LIMIT @Limit OFFSET @Offset",
             args, cancellationToken: ct));
         return new Page<MeasureView>(total, rows.AsList());
     }

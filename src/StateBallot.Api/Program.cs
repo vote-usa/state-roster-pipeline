@@ -104,11 +104,12 @@ api.MapGet("/runs/{id:int}", async (int id, CancellationToken ct) =>
         ? Results.Ok(new { run, pass = await queries.PassAsync(run.PassId, ct) })
         : Results.NotFound(new { error = $"No run {id}." }));
 
-api.MapGet("/runs/{id:int}/candidates", (int id, string? q, int? offset, int? limit, CancellationToken ct) =>
-    queries.CandidatesAsync(id, q, Math.Max(0, offset ?? 0), Math.Clamp(limit ?? 100, 1, 500), ct));
+// With county, both return that county's ballot as the source published it instead of the run's own rows.
+api.MapGet("/runs/{id:int}/candidates", (int id, string? q, string? county, int? offset, int? limit, CancellationToken ct) =>
+    queries.CandidatesAsync(id, q, Math.Max(0, offset ?? 0), Math.Clamp(limit ?? 100, 1, 500), county, ct));
 
-api.MapGet("/runs/{id:int}/measures", (int id, int? offset, int? limit, CancellationToken ct) =>
-    queries.MeasuresAsync(id, Math.Max(0, offset ?? 0), Math.Clamp(limit ?? 100, 1, 500), ct));
+api.MapGet("/runs/{id:int}/measures", (int id, string? county, int? offset, int? limit, CancellationToken ct) =>
+    queries.MeasuresAsync(id, Math.Max(0, offset ?? 0), Math.Clamp(limit ?? 100, 1, 500), county, ct));
 
 api.MapGet("/runs/{id:int}/county-ballots", (int id, CancellationToken ct) => queries.CountyBallotsAsync(id, ct));
 
