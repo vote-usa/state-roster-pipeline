@@ -21,60 +21,40 @@ namespace StateBallot.States.Va;
 /// collapses that back to one row per real candidacy.
 /// </summary>
 [StateCode("VA")]
-public sealed class VaCollector : IStateCollector
+public sealed class VaCollector(int year, string stateDataDir, string? inputDataRoot = null, VaSourceConfig? config = null)
+    : StateCollectorBase<VaSourceConfig>(year, stateDataDir, inputDataRoot, config)
 {
-    private readonly VaSourceConfig _config;
-    private readonly IPublishSchedule _schedule;
-    private readonly int _year;
-    private readonly string _stateDataDir;
-    private readonly string _inputDataRoot;
-
-    public string StateCode => "VA";
-
-    /// <param name="stateDataDir">Per-state output directory (data/output/&lt;xx&gt;/). Inputs are under data/input/&lt;xx&gt;/,
-    /// including date_formats.json.</param>
-    public VaCollector(
-        int year, string stateDataDir, string? inputDataRoot = null, VaSourceConfig? config = null)
-    {
-        _year = year;
-        _stateDataDir = stateDataDir;
-        _inputDataRoot = ResolveInputDataRoot(stateDataDir, inputDataRoot);
-        _config = config ?? new VaSourceConfig();
-        _schedule = new VaPublishSchedule();
-    }
+    protected override string SourceHomeUrl => Config.CandidateListIndexUrl;
+    protected override IPublishSchedule Schedule { get; } = new VaPublishSchedule();
 
     public const string CandidateListIndexRole = "candidate-list-index";
     public const string ElectionPageRole = "election-page";
     public const string CandidateListRole = "candidate-list";
 
-    public async Task CaptureAsync(HttpFetcher fetcher, DateOnly asOf)
+    public override async Task CaptureAsync(HttpFetcher fetcher, DateOnly asOf)
     {
-        Console.WriteLine($"Capturing Virginia sources for {_year}...");
+        Console.WriteLine($"Capturing Virginia sources for {Year}...");
 
         var electionPageUrl = FindElectionPageUrl(
-            await fetcher.GetStringAsync(_config.CandidateListIndexUrl, FetchTag.Of(CandidateListIndexRole)));
+            await fetcher.GetStringAsync(Config.CandidateListIndexUrl, FetchTag.Of(CandidateListIndexRole)));
         var pageHtml = await fetcher.GetStringAsync(electionPageUrl, FetchTag.Of(ElectionPageRole));
         await fetcher.GetBytesAsync(
             XlsxUrl(electionPageUrl, new HtmlParser().ParseDocument(pageHtml)), FetchTag.Of(CandidateListRole));
     }
 
-    public CollectResult Normalize(CaptureReader capture)
+    protected override CollectResult NormalizeCore(CaptureReader capture)
     {
-        Console.WriteLine($"Normalizing Virginia capture {capture.CaptureId} for {_year}...");
-
-        var dataRoot = _inputDataRoot;
-        var dateFormats = DateFormatConfig.Load(DataPaths.DateFormatsPath(dataRoot, StateCode));
-        var fieldMap = LookupTableLoader.Load(DataPaths.CandidateFieldMapPath(dataRoot, StateCode));
+        Console.WriteLine($"Normalizing Virginia capture {capture.CaptureId} for {Year}...");
 
         var electionPageUrl = FindElectionPageUrl(capture.Require(CandidateListIndexRole).Text());
         var electionPage = new HtmlParser().ParseDocument(capture.Require(ElectionPageRole).Text());
 
         var titleMatch = VaSelectors.TitleDate.Match(electionPage.Title ?? "");
-        if (!titleMatch.Success || !DateParsing.TryParseAny(titleMatch.Groups["date"].Value, dateFormats, out var electionDate))
+        if (!titleMatch.Success || !DateParsing.TryParseAny(titleMatch.Groups["date"].Value, DateFormats, out var electionDate))
             throw new InvalidOperationException($"No election date parsed from {electionPageUrl}'s <title>.");
-        if (electionDate.Year != _year)
+        if (electionDate.Year != Year)
             throw new InvalidOperationException(
-                $"{electionPageUrl} shows a {electionDate.Year} date, not {_year}. The index page may not have been updated for this year yet.");
+                $"{electionPageUrl} shows a {electionDate.Year} date, not {Year}. The index page may not have been updated for this year yet.");
 
         var election = VaCandidateMapper.ToElection("General", electionDate, electionPageUrl);
         RowHelpers.StampState(election, StateCode);
@@ -88,7 +68,7 @@ public sealed class VaCollector : IStateCollector
         var bytes = capture.Require(CandidateListRole).Bytes();
         var rawRows = XlsxTableParser.Parse(bytes)
             .Where(r => !string.IsNullOrWhiteSpace(r.GetValueOrDefault("Office Title")))
-            .Select(row => VaCandidateMapper.ToCandidateRow(row, election, xlsxUrl, fieldMap))
+            .Select(row => VaCandidateMapper.ToCandidateRow(row, election, xlsxUrl, FieldMap))
             .ToList();
         var candidates = VaCandidateMapper.MergeDuplicateLocalities(rawRows);
 
@@ -105,7 +85,6 @@ public sealed class VaCollector : IStateCollector
         Console.WriteLine($"  {election.Name} ({election.ElectionDate:yyyy-MM-dd}): {candidates.Count} candidates " +
             $"({rawRows.Count} rows before locality dedup) ({xlsxUrl})");
 
-        CollectResultSorter.Sort(result);
         BuildSourcesManifest(result, electionPageUrl, xlsxUrl);
         return result;
     }
@@ -123,18 +102,18 @@ public sealed class VaCollector : IStateCollector
         {
             var text = TextNormalization.CollapseWhitespace(link.TextContent);
             var match = VaSelectors.AllOfficesLinkText.Match(text);
-            if (!match.Success || match.Groups["year"].Value != _year.ToString())
+            if (!match.Success || match.Groups["year"].Value != Year.ToString())
                 continue;
 
             var href = link.GetAttribute("href");
             if (string.IsNullOrWhiteSpace(href))
                 continue;
 
-            return new Uri(new Uri(_config.CandidateListIndexUrl), href).ToString();
+            return new Uri(new Uri(Config.CandidateListIndexUrl), href).ToString();
         }
 
         throw new InvalidOperationException(
-            $"{_config.CandidateListIndexUrl} has no '{_year} ... All Offices Candidate List' link. " +
+            $"{Config.CandidateListIndexUrl} has no '{Year} ... All Offices Candidate List' link. " +
             "This index only ever shows the current cycle - back-filling a past year isn't supported by this source.");
     }
 
@@ -150,17 +129,6 @@ public sealed class VaCollector : IStateCollector
         var sources = result.Sources;
         sources.Elections = [new SourceEntry(electionPageUrl, "html")];
         sources.StatewideCandidates = [new SourceEntry(xlsxUrl, "xlsx")];
-        sources.VerificationOnly = [new SourceEntry($"https://ballotpedia.org/Virginia_elections,_{_year}", "html")];
-        sources.NextRun = _schedule.Recommend(result, _year);
-    }
-
-    private static string ResolveInputDataRoot(string stateDataDir, string? inputDataRoot)
-    {
-        if (!string.IsNullOrWhiteSpace(inputDataRoot))
-            return Path.GetFullPath(inputDataRoot);
-        return DataPaths.TryInferPipelineDataRoot(stateDataDir)
-            ?? throw new InvalidOperationException(
-                $"Cannot infer input data root from output dir '{stateDataDir}'. " +
-                "Pass inputDataRoot (CLI --input-root) when writing outside data/output/<xx>.");
+        sources.VerificationOnly = [new SourceEntry($"https://ballotpedia.org/Virginia_elections,_{Year}", "html")];
     }
 }

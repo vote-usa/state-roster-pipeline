@@ -13,48 +13,28 @@ namespace StateBallot.States.Hi;
 /// office), and no ballot-measure source was found for HI.
 /// </summary>
 [StateCode("HI")]
-public sealed class HiCollector : IStateCollector
+public sealed class HiCollector(int year, string stateDataDir, string? inputDataRoot = null, HiSourceConfig? config = null)
+    : StateCollectorBase<HiSourceConfig>(year, stateDataDir, inputDataRoot, config)
 {
-    private readonly HiSourceConfig _config;
-    private readonly IPublishSchedule _schedule;
-    private readonly int _year;
-    private readonly string _stateDataDir;
-    private readonly string _inputDataRoot;
+    protected override string SourceHomeUrl => Config.OlvrBaseUrl;
+    protected override IPublishSchedule Schedule { get; } = new HiPublishSchedule();
 
-    public string StateCode => "HI";
-
-    /// <param name="stateDataDir">Per-state output directory (data/output/&lt;xx&gt;/). Inputs are under data/input/&lt;xx&gt;/,
-    /// including date_formats.json.</param>
-    public HiCollector(
-        int year, string stateDataDir, string? inputDataRoot = null, HiSourceConfig? config = null)
+    public override async Task CaptureAsync(HttpFetcher fetcher, DateOnly asOf)
     {
-        _year = year;
-        _stateDataDir = stateDataDir;
-        _inputDataRoot = ResolveInputDataRoot(stateDataDir, inputDataRoot);
-        _config = config ?? new HiSourceConfig();
-        _schedule = new HiPublishSchedule();
+        Console.WriteLine($"Capturing Hawaii sources for {Year}...");
+        await ElectionDateScraper.CaptureAsync(fetcher, Config);
+        await new CandidateExportClient(Config).CaptureAsync(fetcher, Year);
     }
 
-    public async Task CaptureAsync(HttpFetcher fetcher, DateOnly asOf)
+    protected override CollectResult NormalizeCore(CaptureReader capture)
     {
-        Console.WriteLine($"Capturing Hawaii sources for {_year}...");
-        await ElectionDateScraper.CaptureAsync(fetcher, _config);
-        await new CandidateExportClient(_config).CaptureAsync(fetcher, _year);
-    }
+        Console.WriteLine($"Normalizing Hawaii capture {capture.CaptureId} for {Year}...");
 
-    public CollectResult Normalize(CaptureReader capture)
-    {
-        Console.WriteLine($"Normalizing Hawaii capture {capture.CaptureId} for {_year}...");
-
-        var dataRoot = _inputDataRoot;
-        var dateFormats = DateFormatConfig.Load(DataPaths.DateFormatsPath(dataRoot, StateCode));
-        var fieldMap = LookupTableLoader.Load(DataPaths.CandidateFieldMapPath(dataRoot, StateCode));
-
-        var (primary, general) = new ElectionDateScraper(_config, dateFormats).Parse(capture.Require(ElectionDateScraper.Role).Text(), _year);
+        var (primary, general) = new ElectionDateScraper(Config, DateFormats).Parse(capture.Require(ElectionDateScraper.Role).Text(), Year);
         Console.WriteLine($"  {primary.Name} ({primary.ElectionDate:yyyy-MM-dd}), {general.Name} ({general.ElectionDate:yyyy-MM-dd})");
         RowHelpers.StampState([primary, general], StateCode);
 
-        var (rows, pageUrl) = new CandidateExportClient(_config).Parse(capture, _year);
+        var (rows, pageUrl) = new CandidateExportClient(Config).Parse(capture, Year);
         Console.WriteLine($"  {rows.Count} candidate rows exported from {pageUrl}");
 
         var result = new CollectResult();
@@ -64,16 +44,11 @@ public sealed class HiCollector : IStateCollector
         foreach (var row in rows)
         {
             var election = HiCandidateMapper.DetermineElection(row.GetValueOrDefault("Status", ""), primary, general);
-            var candidate = HiCandidateMapper.ToCandidateRow(row, election, pageUrl, fieldMap);
+            var candidate = HiCandidateMapper.ToCandidateRow(row, election, pageUrl, FieldMap);
             RowHelpers.StampState(candidate, StateCode);
             result.Candidates.Add(candidate);
         }
 
-        if (result.Candidates.Count == 0)
-            throw new InvalidOperationException(
-                "No candidates collected; refusing to write hollow outputs. Check https://olvr.hawaii.gov manually.");
-
-        CollectResultSorter.Sort(result);
         BuildSourcesManifest(result, pageUrl);
         return result;
     }
@@ -81,19 +56,8 @@ public sealed class HiCollector : IStateCollector
     private void BuildSourcesManifest(CollectResult result, string pageUrl)
     {
         var sources = result.Sources;
-        sources.Elections = [new SourceEntry(_config.ElectionsHomeUrl, "html")];
+        sources.Elections = [new SourceEntry(Config.ElectionsHomeUrl, "html")];
         sources.StatewideCandidates = [new SourceEntry(pageUrl, "csv")];
-        sources.VerificationOnly = [new SourceEntry($"https://ballotpedia.org/Hawaii_elections,_{_year}", "html")];
-        sources.NextRun = _schedule.Recommend(result, _year);
-    }
-
-    private static string ResolveInputDataRoot(string stateDataDir, string? inputDataRoot)
-    {
-        if (!string.IsNullOrWhiteSpace(inputDataRoot))
-            return Path.GetFullPath(inputDataRoot);
-        return DataPaths.TryInferPipelineDataRoot(stateDataDir)
-            ?? throw new InvalidOperationException(
-                $"Cannot infer input data root from output dir '{stateDataDir}'. " +
-                "Pass inputDataRoot (CLI --input-root) when writing outside data/output/<xx>.");
+        sources.VerificationOnly = [new SourceEntry($"https://ballotpedia.org/Hawaii_elections,_{Year}", "html")];
     }
 }

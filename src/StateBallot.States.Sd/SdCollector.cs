@@ -17,27 +17,11 @@ namespace StateBallot.States.Sd;
 /// submit button (see WebFormsPostback.TriggerPostbackAsync, added for this).
 /// </summary>
 [StateCode("SD")]
-public sealed class SdCollector : IStateCollector
+public sealed class SdCollector(int year, string stateDataDir, string? inputDataRoot = null, SdSourceConfig? config = null)
+    : StateCollectorBase<SdSourceConfig>(year, stateDataDir, inputDataRoot, config)
 {
-    private readonly SdSourceConfig _config;
-    private readonly IPublishSchedule _schedule;
-    private readonly int _year;
-    private readonly string _stateDataDir;
-    private readonly string _inputDataRoot;
-
-    public string StateCode => "SD";
-
-    /// <param name="stateDataDir">Per-state output directory (data/output/&lt;xx&gt;/). Inputs are under data/input/&lt;xx&gt;/,
-    /// including date_formats.json and election_ids.json.</param>
-    public SdCollector(
-        int year, string stateDataDir, string? inputDataRoot = null, SdSourceConfig? config = null)
-    {
-        _year = year;
-        _stateDataDir = stateDataDir;
-        _inputDataRoot = ResolveInputDataRoot(stateDataDir, inputDataRoot);
-        _config = config ?? new SdSourceConfig();
-        _schedule = new SdPublishSchedule();
-    }
+    protected override string SourceHomeUrl => Config.PortalBaseUrl;
+    protected override IPublishSchedule Schedule { get; } = new SdPublishSchedule();
 
     public const string UpcomingElectionsRole = "upcoming-elections";
     public const string CandidateCalendarRole = "candidate-calendar";
@@ -46,36 +30,33 @@ public sealed class SdCollector : IStateCollector
 
     private static readonly string[] TargetTypes = ["Primary", "General"];
 
-    public async Task CaptureAsync(HttpFetcher fetcher, DateOnly asOf)
+    public override async Task CaptureAsync(HttpFetcher fetcher, DateOnly asOf)
     {
-        Console.WriteLine($"Capturing South Dakota sources for {_year}...");
+        Console.WriteLine($"Capturing South Dakota sources for {Year}...");
 
-        var indexHtml = await fetcher.GetStringAsync(_config.UpcomingElectionsPageUrl, FetchTag.Of(UpcomingElectionsRole));
+        var indexHtml = await fetcher.GetStringAsync(Config.UpcomingElectionsPageUrl, FetchTag.Of(UpcomingElectionsRole));
         await fetcher.GetStringAsync(CalendarUrl(indexHtml), FetchTag.Of(CandidateCalendarRole));
 
-        var electionIds = LookupTableLoader.Load(DataPaths.ElectionIdsPath(_inputDataRoot, StateCode));
+        var electionIds = LookupTableLoader.Load(DataPaths.ElectionIdsPath(InputDataRoot, StateCode));
         foreach (var type in TargetTypes)
         {
             if (!electionIds.TryGetValue(type, out var electionId) || electionId.Length == 0)
                 continue;
 
-            var pageUrl = _config.CandidateListUrl(electionId);
+            var pageUrl = Config.CandidateListUrl(electionId);
             var pageHtml = await fetcher.GetStringAsync(pageUrl, FetchTag.Of(CandidateListPageRole, ("type", type)));
             await WebFormsPostback.TriggerPostbackAsync(
                 fetcher, pageUrl, pageHtml, SdSelectors.ExportToCsvEventTarget, tag: FetchTag.Of(CandidateExportRole, ("type", type)));
         }
     }
 
-    public CollectResult Normalize(CaptureReader capture)
+    protected override CollectResult NormalizeCore(CaptureReader capture)
     {
-        Console.WriteLine($"Normalizing South Dakota capture {capture.CaptureId} for {_year}...");
+        Console.WriteLine($"Normalizing South Dakota capture {capture.CaptureId} for {Year}...");
 
-        var dataRoot = _inputDataRoot;
-        var dateFormats = DateFormatConfig.Load(DataPaths.DateFormatsPath(dataRoot, StateCode));
-        var fieldMap = LookupTableLoader.Load(DataPaths.CandidateFieldMapPath(dataRoot, StateCode));
-        var electionIds = LookupTableLoader.Load(DataPaths.ElectionIdsPath(dataRoot, StateCode));
+        var electionIds = LookupTableLoader.Load(DataPaths.ElectionIdsPath(InputDataRoot, StateCode));
 
-        var (calendarUrl, primaryDate, generalDate) = ParseElectionDates(capture, dateFormats);
+        var (calendarUrl, primaryDate, generalDate) = ParseElectionDates(capture, DateFormats);
 
         var result = new CollectResult();
         var candidateSourceUrls = new List<SourceEntry>();
@@ -85,7 +66,7 @@ public sealed class SdCollector : IStateCollector
             if (!electionIds.TryGetValue(type, out var electionId) || electionId.Length == 0)
             {
                 result.Gaps.Add(
-                    $"{DataPaths.ElectionIdsPath(dataRoot, StateCode)} has no \"{type}\" entry. " +
+                    $"{DataPaths.ElectionIdsPath(InputDataRoot, StateCode)} has no \"{type}\" entry. " +
                     "VIP has no discoverable index of its own election ids - this must be re-derived by hand each cycle.");
                 continue;
             }
@@ -94,7 +75,7 @@ public sealed class SdCollector : IStateCollector
             RowHelpers.StampState(election, StateCode);
             result.Elections.Add(election);
 
-            var pageUrl = _config.CandidateListUrl(electionId);
+            var pageUrl = Config.CandidateListUrl(electionId);
             var csvText = capture.Require(CandidateExportRole, ("type", type)).Text();
             // Strip the export's own UTF-8 BOM (U+FEFF), if the payload decoding left it in verbatim.
             csvText = csvText.TrimStart('﻿');
@@ -113,7 +94,7 @@ public sealed class SdCollector : IStateCollector
             candidateSourceUrls.Add(new SourceEntry(pageUrl, "csv"));
             foreach (var row in rows)
             {
-                var candidate = SdCandidateMapper.ToCandidateRow(row, election, pageUrl, fieldMap);
+                var candidate = SdCandidateMapper.ToCandidateRow(row, election, pageUrl, FieldMap);
                 RowHelpers.StampState(candidate, StateCode);
                 result.Candidates.Add(candidate);
             }
@@ -121,12 +102,6 @@ public sealed class SdCollector : IStateCollector
             Console.WriteLine($"  {election.Name} ({date:yyyy-MM-dd}): {rows.Count} candidates ({pageUrl})");
         }
 
-        if (result.Candidates.Count == 0)
-            throw new InvalidOperationException(
-                "No candidates collected for any discovered election; refusing to write hollow outputs. " +
-                "Check https://vip.sdsos.gov manually.");
-
-        CollectResultSorter.Sort(result);
         BuildSourcesManifest(result, calendarUrl, candidateSourceUrls);
         return result;
     }
@@ -140,8 +115,8 @@ public sealed class SdCollector : IStateCollector
     {
         var linkMatch = SdSelectors.CandidateCalendarLink.Match(indexHtml);
         if (!linkMatch.Success)
-            throw new InvalidOperationException($"No '*-candidate-calendar.aspx' link found on {_config.UpcomingElectionsPageUrl}.");
-        return new Uri(new Uri(_config.UpcomingElectionsPageUrl), linkMatch.Groups["href"].Value).ToString();
+            throw new InvalidOperationException($"No '*-candidate-calendar.aspx' link found on {Config.UpcomingElectionsPageUrl}.");
+        return new Uri(new Uri(Config.UpcomingElectionsPageUrl), linkMatch.Groups["href"].Value).ToString();
     }
 
     private (string CalendarUrl, DateOnly Primary, DateOnly General) ParseElectionDates(CaptureReader capture, string[] dateFormats)
@@ -157,9 +132,9 @@ public sealed class SdCollector : IStateCollector
             throw new InvalidOperationException($"No Primary election date parsed from {calendarUrl}.");
         if (!generalMatch.Success || !DateParsing.TryParseAny(generalMatch.Groups["date"].Value, dateFormats, out var generalDate))
             throw new InvalidOperationException($"No General election date parsed from {calendarUrl}.");
-        if (primaryDate.Year != _year || generalDate.Year != _year)
+        if (primaryDate.Year != Year || generalDate.Year != Year)
             throw new InvalidOperationException(
-                $"{calendarUrl} currently shows {primaryDate.Year}/{generalDate.Year} election dates, not {_year}. " +
+                $"{calendarUrl} currently shows {primaryDate.Year}/{generalDate.Year} election dates, not {Year}. " +
                 "The page may not have been updated for this year yet.");
 
         return (calendarUrl, primaryDate, generalDate);
@@ -170,17 +145,6 @@ public sealed class SdCollector : IStateCollector
         var sources = result.Sources;
         sources.Elections = [new SourceEntry(calendarUrl, "html")];
         sources.StatewideCandidates = candidateListUrls;
-        sources.VerificationOnly = [new SourceEntry($"https://ballotpedia.org/South_Dakota_elections,_{_year}", "html")];
-        sources.NextRun = _schedule.Recommend(result, _year);
-    }
-
-    private static string ResolveInputDataRoot(string stateDataDir, string? inputDataRoot)
-    {
-        if (!string.IsNullOrWhiteSpace(inputDataRoot))
-            return Path.GetFullPath(inputDataRoot);
-        return DataPaths.TryInferPipelineDataRoot(stateDataDir)
-            ?? throw new InvalidOperationException(
-                $"Cannot infer input data root from output dir '{stateDataDir}'. " +
-                "Pass inputDataRoot (CLI --input-root) when writing outside data/output/<xx>.");
+        sources.VerificationOnly = [new SourceEntry($"https://ballotpedia.org/South_Dakota_elections,_{Year}", "html")];
     }
 }

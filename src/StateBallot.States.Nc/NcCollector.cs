@@ -14,50 +14,30 @@ namespace StateBallot.States.Nc;
 /// published as PDF, not attempted here) and no county directory.
 /// </summary>
 [StateCode("NC")]
-public sealed class NcCollector : IStateCollector
+public sealed class NcCollector(int year, string stateDataDir, string? inputDataRoot = null, NcSourceConfig? config = null)
+    : StateCollectorBase<NcSourceConfig>(year, stateDataDir, inputDataRoot, config)
 {
-    private readonly NcSourceConfig _config;
-    private readonly IPublishSchedule _schedule;
-    private readonly int _year;
-    private readonly string _stateDataDir;
-    private readonly string _inputDataRoot;
-
-    public string StateCode => "NC";
-
-    /// <param name="stateDataDir">Per-state output directory (data/output/&lt;xx&gt;/). Inputs are under data/input/&lt;xx&gt;/,
-    /// including date_formats.json.</param>
-    public NcCollector(
-        int year, string stateDataDir, string? inputDataRoot = null, NcSourceConfig? config = null)
-    {
-        _year = year;
-        _stateDataDir = stateDataDir;
-        _inputDataRoot = ResolveInputDataRoot(stateDataDir, inputDataRoot);
-        _config = config ?? new NcSourceConfig();
-        _schedule = new NcPublishSchedule();
-    }
+    protected override string SourceHomeUrl => "https://www.ncsbe.gov";
+    protected override IPublishSchedule Schedule { get; } = new NcPublishSchedule();
 
     public const string CandidateListingRole = "candidate-listing";
 
-    public async Task CaptureAsync(HttpFetcher fetcher, DateOnly asOf)
+    public override async Task CaptureAsync(HttpFetcher fetcher, DateOnly asOf)
     {
-        Console.WriteLine($"Capturing North Carolina sources for {_year}...");
-        await fetcher.GetStringAsync(_config.CandidateListingUrl(_year), FetchTag.Of(CandidateListingRole));
+        Console.WriteLine($"Capturing North Carolina sources for {Year}...");
+        await fetcher.GetStringAsync(Config.CandidateListingUrl(Year), FetchTag.Of(CandidateListingRole));
     }
 
-    public CollectResult Normalize(CaptureReader capture)
+    protected override CollectResult NormalizeCore(CaptureReader capture)
     {
-        Console.WriteLine($"Normalizing North Carolina capture {capture.CaptureId} for {_year}...");
+        Console.WriteLine($"Normalizing North Carolina capture {capture.CaptureId} for {Year}...");
 
-        var dataRoot = _inputDataRoot;
-        var dateFormats = DateFormatConfig.Load(DataPaths.DateFormatsPath(dataRoot, StateCode));
-        var fieldMap = LookupTableLoader.Load(DataPaths.CandidateFieldMapPath(dataRoot, StateCode));
-
-        var url = _config.CandidateListingUrl(_year);
+        var url = Config.CandidateListingUrl(Year);
         var csvText = capture.Require(CandidateListingRole).Text();
         var rows = DelimitedTableParser.Parse(csvText);
         ScrapeGuard.RequireAny(rows, () => $"No rows parsed from {url}. The file may be empty or malformed.");
 
-        var elections = DiscoverElections(rows, dateFormats, url);
+        var elections = DiscoverElections(rows, DateFormats, url);
         Console.WriteLine($"  Elections found in the file: {elections.Count}");
         RowHelpers.StampState(elections, StateCode);
 
@@ -66,19 +46,13 @@ public sealed class NcCollector : IStateCollector
 
         foreach (var election in elections)
         {
-            var electionRows = rows.Where(r => MatchesElectionDate(r, election, dateFormats)).ToList();
+            var electionRows = rows.Where(r => MatchesElectionDate(r, election, DateFormats)).ToList();
             Console.WriteLine($"  {election.Name} ({election.ElectionDate:yyyy-MM-dd}): {electionRows.Count} ballot lines");
 
-            CollectStatewideCandidates(electionRows, election, url, result, fieldMap);
-            CollectCountyBallots(electionRows, election, url, result, fieldMap);
+            CollectStatewideCandidates(electionRows, election, url, result, FieldMap);
+            CollectCountyBallots(electionRows, election, url, result, FieldMap);
         }
 
-        if (result.Candidates.Count == 0)
-            throw new InvalidOperationException(
-                "No statewide/district candidates collected; refusing to write hollow outputs. " +
-                "Check https://www.ncsbe.gov manually.");
-
-        CollectResultSorter.Sort(result);
         BuildSourcesManifest(result, url);
         return result;
     }
@@ -164,17 +138,6 @@ public sealed class NcCollector : IStateCollector
             .Select(b => b.CountyName)
             .Distinct()
             .ToDictionary(c => c, _ => new List<SourceEntry> { new(url, "csv") }, StringComparer.Ordinal);
-        sources.VerificationOnly = [new SourceEntry($"https://ballotpedia.org/North_Carolina_elections,_{_year}", "html")];
-        sources.NextRun = _schedule.Recommend(result, _year);
-    }
-
-    private static string ResolveInputDataRoot(string stateDataDir, string? inputDataRoot)
-    {
-        if (!string.IsNullOrWhiteSpace(inputDataRoot))
-            return Path.GetFullPath(inputDataRoot);
-        return DataPaths.TryInferPipelineDataRoot(stateDataDir)
-            ?? throw new InvalidOperationException(
-                $"Cannot infer input data root from output dir '{stateDataDir}'. " +
-                "Pass inputDataRoot (CLI --input-root) when writing outside data/output/<xx>.");
+        sources.VerificationOnly = [new SourceEntry($"https://ballotpedia.org/North_Carolina_elections,_{Year}", "html")];
     }
 }

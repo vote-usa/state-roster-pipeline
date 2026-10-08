@@ -17,34 +17,18 @@ namespace StateBallot.States.Ms;
 /// source attempted.
 /// </summary>
 [StateCode("MS")]
-public sealed class MsCollector : IStateCollector
+public sealed class MsCollector(int year, string stateDataDir, string? inputDataRoot = null, MsSourceConfig? config = null)
+    : StateCollectorBase<MsSourceConfig>(year, stateDataDir, inputDataRoot, config)
 {
-    private readonly MsSourceConfig _config;
-    private readonly IPublishSchedule _schedule;
-    private readonly int _year;
-    private readonly string _stateDataDir;
-    private readonly string _inputDataRoot;
-
-    public string StateCode => "MS";
-
-    /// <param name="stateDataDir">Per-state output directory (data/output/&lt;xx&gt;/). Inputs are under data/input/&lt;xx&gt;/,
-    /// including date_formats.json.</param>
-    public MsCollector(
-        int year, string stateDataDir, string? inputDataRoot = null, MsSourceConfig? config = null)
-    {
-        _year = year;
-        _stateDataDir = stateDataDir;
-        _inputDataRoot = ResolveInputDataRoot(stateDataDir, inputDataRoot);
-        _config = config ?? new MsSourceConfig();
-        _schedule = new MsPublishSchedule();
-    }
+    protected override string SourceHomeUrl => "https://sos.ms.gov";
+    protected override IPublishSchedule Schedule { get; } = new MsPublishSchedule();
 
     public const string QualifyingListPageRole = "qualifying-list-page";
     public const string CandidateExportRole = "candidate-export";
 
-    public async Task CaptureAsync(HttpFetcher fetcher, DateOnly asOf)
+    public override async Task CaptureAsync(HttpFetcher fetcher, DateOnly asOf)
     {
-        Console.WriteLine($"Capturing Mississippi sources for {_year}...");
+        Console.WriteLine($"Capturing Mississippi sources for {Year}...");
 
         // The Akamai WAF in front of sos.ms.gov blocks realistic browser UAs
         // (and HttpFetcher's own default) but lets plain HTTP-tool UAs like
@@ -53,21 +37,17 @@ public sealed class MsCollector : IStateCollector
         foreach (var (name, value) in MsSourceConfig.ExtraHeaders)
             fetcher.AddDefaultHeader(name, value);
 
-        var url = _config.CandidateQualifyingListUrl;
+        var url = Config.CandidateQualifyingListUrl;
         var html = await fetcher.GetStringAsync(url, FetchTag.Of(QualifyingListPageRole));
         await WebFormsPostback.ClickButtonAsync(
             fetcher, url, html, MsSourceConfig.DownloadCsvButtonName, tag: FetchTag.Of(CandidateExportRole));
     }
 
-    public CollectResult Normalize(CaptureReader capture)
+    protected override CollectResult NormalizeCore(CaptureReader capture)
     {
-        Console.WriteLine($"Normalizing Mississippi capture {capture.CaptureId} for {_year}...");
+        Console.WriteLine($"Normalizing Mississippi capture {capture.CaptureId} for {Year}...");
 
-        var dataRoot = _inputDataRoot;
-        var dateFormats = DateFormatConfig.Load(DataPaths.DateFormatsPath(dataRoot, StateCode));
-        var fieldMap = LookupTableLoader.Load(DataPaths.CandidateFieldMapPath(dataRoot, StateCode));
-
-        var url = _config.CandidateQualifyingListUrl;
+        var url = Config.CandidateQualifyingListUrl;
         var csvText = capture.Require(CandidateExportRole).Text();
 
         var rows = DelimitedTableParser.Parse(csvText)
@@ -75,7 +55,7 @@ public sealed class MsCollector : IStateCollector
             .ToList();
         ScrapeGuard.RequireAny(rows, () => $"No candidate rows parsed from the CSV export at {url}.");
 
-        var elections = DiscoverElections(rows, dateFormats, url);
+        var elections = DiscoverElections(rows, DateFormats, url);
         Console.WriteLine($"  Elections found in the file: {elections.Count}");
         RowHelpers.StampState(elections, StateCode);
 
@@ -85,8 +65,8 @@ public sealed class MsCollector : IStateCollector
         var today = capture.AsOf;
         foreach (var row in rows)
         {
-            var election = MsCandidateMapper.DetermineElection(row, elections, today, dateFormats);
-            var candidate = MsCandidateMapper.ToCandidateRow(row, election, url, fieldMap);
+            var election = MsCandidateMapper.DetermineElection(row, elections, today, DateFormats);
+            var candidate = MsCandidateMapper.ToCandidateRow(row, election, url, FieldMap);
             RowHelpers.StampState(candidate, StateCode);
             result.Candidates.Add(candidate);
         }
@@ -97,11 +77,6 @@ public sealed class MsCollector : IStateCollector
             Console.WriteLine($"  {election.Name} ({election.ElectionDate:yyyy-MM-dd}): {count} candidates");
         }
 
-        if (result.Candidates.Count == 0)
-            throw new InvalidOperationException(
-                "No candidates collected; refusing to write hollow outputs. Check https://sos.ms.gov manually.");
-
-        CollectResultSorter.Sort(result);
         BuildSourcesManifest(result, url);
         return result;
     }
@@ -152,17 +127,6 @@ public sealed class MsCollector : IStateCollector
         var sources = result.Sources;
         sources.Elections = [new SourceEntry(url, "csv (via WebForms POST)")];
         sources.StatewideCandidates = [new SourceEntry(url, "csv (via WebForms POST)")];
-        sources.VerificationOnly = [new SourceEntry($"https://ballotpedia.org/Mississippi_elections,_{_year}", "html")];
-        sources.NextRun = _schedule.Recommend(result, _year);
-    }
-
-    private static string ResolveInputDataRoot(string stateDataDir, string? inputDataRoot)
-    {
-        if (!string.IsNullOrWhiteSpace(inputDataRoot))
-            return Path.GetFullPath(inputDataRoot);
-        return DataPaths.TryInferPipelineDataRoot(stateDataDir)
-            ?? throw new InvalidOperationException(
-                $"Cannot infer input data root from output dir '{stateDataDir}'. " +
-                "Pass inputDataRoot (CLI --input-root) when writing outside data/output/<xx>.");
+        sources.VerificationOnly = [new SourceEntry($"https://ballotpedia.org/Mississippi_elections,_{Year}", "html")];
     }
 }

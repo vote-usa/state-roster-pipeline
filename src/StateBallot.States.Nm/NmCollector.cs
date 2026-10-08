@@ -20,38 +20,22 @@ namespace StateBallot.States.Nm;
 /// commas in some fields shift every later column on that row.
 /// </summary>
 [StateCode("NM")]
-public sealed class NmCollector : IStateCollector
+public sealed class NmCollector(int year, string stateDataDir, string? inputDataRoot = null, NmSourceConfig? config = null)
+    : StateCollectorBase<NmSourceConfig>(year, stateDataDir, inputDataRoot, config)
 {
-    private readonly NmSourceConfig _config;
-    private readonly IPublishSchedule _schedule;
-    private readonly int _year;
-    private readonly string _stateDataDir;
-    private readonly string _inputDataRoot;
-
-    public string StateCode => "NM";
-
-    /// <param name="stateDataDir">Per-state output directory (data/output/&lt;xx&gt;/). Inputs are under data/input/&lt;xx&gt;/,
-    /// including date_formats.json and election_ids.json.</param>
-    public NmCollector(
-        int year, string stateDataDir, string? inputDataRoot = null, NmSourceConfig? config = null)
-    {
-        _year = year;
-        _stateDataDir = stateDataDir;
-        _inputDataRoot = ResolveInputDataRoot(stateDataDir, inputDataRoot);
-        _config = config ?? new NmSourceConfig();
-        _schedule = new NmPublishSchedule();
-    }
+    protected override string SourceHomeUrl => Config.PortalBaseUrl;
+    protected override IPublishSchedule Schedule { get; } = new NmPublishSchedule();
 
     public const string UpcomingElectionsRole = "upcoming-elections";
     public const string CandidateListPageRole = "candidate-list-page";
     public const string CandidateExportRole = "candidate-export";
 
-    public async Task CaptureAsync(HttpFetcher fetcher, DateOnly asOf)
+    public override async Task CaptureAsync(HttpFetcher fetcher, DateOnly asOf)
     {
-        Console.WriteLine($"Capturing New Mexico sources for {_year}...");
+        Console.WriteLine($"Capturing New Mexico sources for {Year}...");
 
-        var pageUrl = _config.CandidateListUrl(RequireGeneralElectionId());
-        await fetcher.GetStringAsync(_config.UpcomingElectionsPageUrl, FetchTag.Of(UpcomingElectionsRole));
+        var pageUrl = Config.CandidateListUrl(RequireGeneralElectionId());
+        await fetcher.GetStringAsync(Config.UpcomingElectionsPageUrl, FetchTag.Of(UpcomingElectionsRole));
         var pageHtml = await fetcher.GetStringAsync(pageUrl, FetchTag.Of(CandidateListPageRole));
 
         var exportFields = new Dictionary<string, string>
@@ -64,30 +48,27 @@ public sealed class NmCollector : IStateCollector
             fetcher, pageUrl, pageHtml, NmSelectors.ExportButtonField, exportFields, FetchTag.Of(CandidateExportRole));
     }
 
-    public CollectResult Normalize(CaptureReader capture)
+    protected override CollectResult NormalizeCore(CaptureReader capture)
     {
-        Console.WriteLine($"Normalizing New Mexico capture {capture.CaptureId} for {_year}...");
+        Console.WriteLine($"Normalizing New Mexico capture {capture.CaptureId} for {Year}...");
 
-        var dataRoot = _inputDataRoot;
-        var dateFormats = DateFormatConfig.Load(DataPaths.DateFormatsPath(dataRoot, StateCode));
-        var fieldMap = LookupTableLoader.Load(DataPaths.CandidateFieldMapPath(dataRoot, StateCode));
         var electionId = RequireGeneralElectionId();
 
         var electionsPageHtml = capture.Require(UpcomingElectionsRole).Text();
         var dateMatch = NmSelectors.GeneralElectionDateLine.Match(electionsPageHtml);
-        if (!dateMatch.Success || !DateParsing.TryParseAny(dateMatch.Groups["date"].Value, dateFormats, out var electionDate))
+        if (!dateMatch.Success || !DateParsing.TryParseAny(dateMatch.Groups["date"].Value, DateFormats, out var electionDate))
             throw new InvalidOperationException(
-                $"No General election date parsed from {_config.UpcomingElectionsPageUrl}.");
-        if (electionDate.Year != _year)
+                $"No General election date parsed from {Config.UpcomingElectionsPageUrl}.");
+        if (electionDate.Year != Year)
             throw new InvalidOperationException(
-                $"{_config.UpcomingElectionsPageUrl} currently shows a {electionDate.Year} date, not {_year}. " +
+                $"{Config.UpcomingElectionsPageUrl} currently shows a {electionDate.Year} date, not {Year}. " +
                 "This page only ever lists the next upcoming election - back-filling a past year isn't supported by this source.");
 
-        var election = NmCandidateMapper.ToElection("General", electionDate, _config.UpcomingElectionsPageUrl);
+        var election = NmCandidateMapper.ToElection("General", electionDate, Config.UpcomingElectionsPageUrl);
         RowHelpers.StampState(election, StateCode);
         Console.WriteLine("  Elections found: 1");
 
-        var pageUrl = _config.CandidateListUrl(electionId);
+        var pageUrl = Config.CandidateListUrl(electionId);
         var rows = HtmlTableParser.Parse(capture.Require(CandidateExportRole).Text());
         ScrapeGuard.RequireAny(rows, () => $"No rows parsed from the export at {pageUrl} (button '{NmSelectors.ExportButtonField}').");
 
@@ -104,7 +85,7 @@ public sealed class NmCollector : IStateCollector
                 continue;
             }
 
-            var candidate = NmCandidateMapper.ToCandidateRow(row, election, pageUrl, fieldMap);
+            var candidate = NmCandidateMapper.ToCandidateRow(row, election, pageUrl, FieldMap);
             RowHelpers.StampState(candidate, StateCode);
             result.Candidates.Add(candidate);
         }
@@ -117,14 +98,13 @@ public sealed class NmCollector : IStateCollector
             $"  {election.Name} ({election.ElectionDate:yyyy-MM-dd}): {result.Candidates.Count} candidates, " +
             $"{result.StatewideProposedMeasures.Count} judicial retention questions ({pageUrl})");
 
-        CollectResultSorter.Sort(result);
         BuildSourcesManifest(result, pageUrl);
         return result;
     }
 
     private string RequireGeneralElectionId()
     {
-        var path = DataPaths.ElectionIdsPath(_inputDataRoot, StateCode);
+        var path = DataPaths.ElectionIdsPath(InputDataRoot, StateCode);
         var electionIds = LookupTableLoader.Load(path);
         if (!electionIds.TryGetValue("General", out var electionId) || electionId.Length == 0)
             throw new InvalidOperationException(
@@ -137,20 +117,9 @@ public sealed class NmCollector : IStateCollector
     private void BuildSourcesManifest(CollectResult result, string candidateListUrl)
     {
         var sources = result.Sources;
-        sources.Elections = [new SourceEntry(_config.UpcomingElectionsPageUrl, "html")];
+        sources.Elections = [new SourceEntry(Config.UpcomingElectionsPageUrl, "html")];
         sources.StatewideCandidates = [new SourceEntry(candidateListUrl, "html")];
         sources.StatewideMeasures = [new SourceEntry(candidateListUrl, "html")];
-        sources.VerificationOnly = [new SourceEntry($"https://ballotpedia.org/New_Mexico_elections,_{_year}", "html")];
-        sources.NextRun = _schedule.Recommend(result, _year);
-    }
-
-    private static string ResolveInputDataRoot(string stateDataDir, string? inputDataRoot)
-    {
-        if (!string.IsNullOrWhiteSpace(inputDataRoot))
-            return Path.GetFullPath(inputDataRoot);
-        return DataPaths.TryInferPipelineDataRoot(stateDataDir)
-            ?? throw new InvalidOperationException(
-                $"Cannot infer input data root from output dir '{stateDataDir}'. " +
-                "Pass inputDataRoot (CLI --input-root) when writing outside data/output/<xx>.");
+        sources.VerificationOnly = [new SourceEntry($"https://ballotpedia.org/New_Mexico_elections,_{Year}", "html")];
     }
 }

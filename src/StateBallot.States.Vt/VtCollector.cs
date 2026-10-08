@@ -14,55 +14,34 @@ namespace StateBallot.States.Vt;
 /// are ever available even though past years' candidate rosters are.
 /// </summary>
 [StateCode("VT")]
-public sealed class VtCollector : IStateCollector
+public sealed class VtCollector(int year, string stateDataDir, string? inputDataRoot = null, VtSourceConfig? config = null)
+    : StateCollectorBase<VtSourceConfig>(year, stateDataDir, inputDataRoot, config)
 {
-    private readonly VtSourceConfig _config;
-    private readonly IPublishSchedule _schedule;
-    private readonly int _year;
-    private readonly string _stateDataDir;
-    private readonly string _inputDataRoot;
-
-    public string StateCode => "VT";
-
-    /// <param name="stateDataDir">Per-state output directory (data/output/&lt;xx&gt;/). Inputs are under data/input/&lt;xx&gt;/,
-    /// including date_formats.json.</param>
-    public VtCollector(
-        int year, string stateDataDir, string? inputDataRoot = null, VtSourceConfig? config = null)
-    {
-        _year = year;
-        _stateDataDir = stateDataDir;
-        _inputDataRoot = ResolveInputDataRoot(stateDataDir, inputDataRoot);
-        _config = config ?? new VtSourceConfig();
-        _schedule = new VtPublishSchedule();
-    }
+    protected override string SourceHomeUrl => Config.CandidatesPageUrl;
+    protected override IPublishSchedule Schedule { get; } = new VtPublishSchedule();
 
     public const string CandidateListRole = "candidate-list";
 
-    public async Task CaptureAsync(HttpFetcher fetcher, DateOnly asOf)
+    public override async Task CaptureAsync(HttpFetcher fetcher, DateOnly asOf)
     {
-        Console.WriteLine($"Capturing Vermont sources for {_year}...");
+        Console.WriteLine($"Capturing Vermont sources for {Year}...");
 
-        var dateFormats = DateFormatConfig.Load(DataPaths.DateFormatsPath(_inputDataRoot, StateCode));
-        var found = await new VtElectionDateScraper(_config, dateFormats).TryCaptureAsync(fetcher, _year);
+        var found = await new VtElectionDateScraper(Config, DateFormats).TryCaptureAsync(fetcher, Year);
         if (found is null)
             return;
 
         foreach (var election in new[] { found.Value.Primary, found.Value.General })
             await fetcher.TryGetBytesAsync(
-                _config.CandidateListUrl(_year, election.ElectionType), FetchTag.Of(CandidateListRole, ("type", election.ElectionType)));
+                Config.CandidateListUrl(Year, election.ElectionType), FetchTag.Of(CandidateListRole, ("type", election.ElectionType)));
     }
 
-    public CollectResult Normalize(CaptureReader capture)
+    protected override CollectResult NormalizeCore(CaptureReader capture)
     {
-        Console.WriteLine($"Normalizing Vermont capture {capture.CaptureId} for {_year}...");
+        Console.WriteLine($"Normalizing Vermont capture {capture.CaptureId} for {Year}...");
 
-        var dataRoot = _inputDataRoot;
-        var dateFormats = DateFormatConfig.Load(DataPaths.DateFormatsPath(dataRoot, StateCode));
-        var fieldMap = LookupTableLoader.Load(DataPaths.CandidateFieldMapPath(dataRoot, StateCode));
-
-        var found = new VtElectionDateScraper(_config, dateFormats).TryParse(capture.Require(VtElectionDateScraper.Role).Text(), _year)
+        var found = new VtElectionDateScraper(Config, DateFormats).TryParse(capture.Require(VtElectionDateScraper.Role).Text(), Year)
             ?? throw new InvalidOperationException(
-                $"{_config.CandidatesPageUrl} doesn't currently show {_year}'s election dates (it's an evergreen " +
+                $"{Config.CandidatesPageUrl} doesn't currently show {Year}'s election dates (it's an evergreen " +
                 "page that only ever reflects the current cycle). Back-filling a past year's dates isn't supported by this source.");
         List<Election> elections = [found.Primary, found.General];
         Console.WriteLine($"  Elections found: {elections.Count}");
@@ -74,7 +53,7 @@ public sealed class VtCollector : IStateCollector
 
         foreach (var election in elections)
         {
-            var xlsxUrl = _config.CandidateListUrl(_year, election.ElectionType);
+            var xlsxUrl = Config.CandidateListUrl(Year, election.ElectionType);
             candidateListUrls.Add(new SourceEntry(xlsxUrl, "xlsx"));
             var captured = capture.Require(CandidateListRole, ("type", election.ElectionType));
 
@@ -103,7 +82,7 @@ public sealed class VtCollector : IStateCollector
 
             foreach (var row in rows)
             {
-                var candidate = VtCandidateMapper.ToCandidateRow(row, election, xlsxUrl, fieldMap);
+                var candidate = VtCandidateMapper.ToCandidateRow(row, election, xlsxUrl, FieldMap);
                 RowHelpers.StampState(candidate, StateCode);
                 result.Candidates.Add(candidate);
             }
@@ -111,12 +90,6 @@ public sealed class VtCollector : IStateCollector
             Console.WriteLine($"  {election.Name} ({election.ElectionDate:yyyy-MM-dd}): {rows.Count} candidates ({xlsxUrl})");
         }
 
-        if (result.Candidates.Count == 0)
-            throw new InvalidOperationException(
-                "No candidates collected for any discovered election; refusing to write hollow outputs. " +
-                "Check https://sos.vermont.gov/elections/election-info-resources/candidates manually.");
-
-        CollectResultSorter.Sort(result);
         BuildSourcesManifest(result, candidateListUrls);
         return result;
     }
@@ -124,19 +97,8 @@ public sealed class VtCollector : IStateCollector
     private void BuildSourcesManifest(CollectResult result, List<SourceEntry> candidateListUrls)
     {
         var sources = result.Sources;
-        sources.Elections = [new SourceEntry(_config.CandidatesPageUrl, "html")];
+        sources.Elections = [new SourceEntry(Config.CandidatesPageUrl, "html")];
         sources.StatewideCandidates = candidateListUrls;
-        sources.VerificationOnly = [new SourceEntry($"https://ballotpedia.org/Vermont_elections,_{_year}", "html")];
-        sources.NextRun = _schedule.Recommend(result, _year);
-    }
-
-    private static string ResolveInputDataRoot(string stateDataDir, string? inputDataRoot)
-    {
-        if (!string.IsNullOrWhiteSpace(inputDataRoot))
-            return Path.GetFullPath(inputDataRoot);
-        return DataPaths.TryInferPipelineDataRoot(stateDataDir)
-            ?? throw new InvalidOperationException(
-                $"Cannot infer input data root from output dir '{stateDataDir}'. " +
-                "Pass inputDataRoot (CLI --input-root) when writing outside data/output/<xx>.");
+        sources.VerificationOnly = [new SourceEntry($"https://ballotpedia.org/Vermont_elections,_{Year}", "html")];
     }
 }

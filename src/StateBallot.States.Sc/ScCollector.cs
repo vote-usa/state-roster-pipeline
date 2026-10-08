@@ -21,26 +21,11 @@ namespace StateBallot.States.Sc;
 /// attempted, nor is the parallel referendum search the same portal offers.
 /// </summary>
 [StateCode("SC")]
-public sealed class ScCollector : IStateCollector
+public sealed class ScCollector(int year, string stateDataDir, string? inputDataRoot = null, ScSourceConfig? config = null)
+    : StateCollectorBase<ScSourceConfig>(year, stateDataDir, inputDataRoot, config)
 {
-    private readonly ScSourceConfig _config;
-    private readonly IPublishSchedule _schedule;
-    private readonly int _year;
-    private readonly string _stateDataDir;
-    private readonly string _inputDataRoot;
-
-    public string StateCode => "SC";
-
-    /// <param name="stateDataDir">Per-state output directory (data/output/&lt;xx&gt;/). Inputs are under data/input/&lt;xx&gt;/.</param>
-    public ScCollector(
-        int year, string stateDataDir, string? inputDataRoot = null, ScSourceConfig? config = null)
-    {
-        _year = year;
-        _stateDataDir = stateDataDir;
-        _inputDataRoot = ResolveInputDataRoot(stateDataDir, inputDataRoot);
-        _config = config ?? new ScSourceConfig();
-        _schedule = new ScPublishSchedule();
-    }
+    protected override string SourceHomeUrl => Config.ElectionsByYearUrl(Year);
+    protected override IPublishSchedule Schedule { get; } = new ScPublishSchedule();
 
     public const string ElectionsRole = "elections";
     public const string CandidateSearchRole = "candidate-search";
@@ -48,32 +33,29 @@ public sealed class ScCollector : IStateCollector
     private static readonly (string Type, string Name)[] TargetElections =
         [("Primary", ScSelectors.PrimaryElectionName), ("General", ScSelectors.GeneralElectionName)];
 
-    public async Task CaptureAsync(HttpFetcher fetcher, DateOnly asOf)
+    public override async Task CaptureAsync(HttpFetcher fetcher, DateOnly asOf)
     {
-        Console.WriteLine($"Capturing South Carolina sources for {_year}...");
+        Console.WriteLine($"Capturing South Carolina sources for {Year}...");
 
-        var available = ParseElections(await fetcher.GetStringAsync(_config.ElectionsByYearUrl(_year), FetchTag.Of(ElectionsRole)));
+        var available = ParseElections(await fetcher.GetStringAsync(Config.ElectionsByYearUrl(Year), FetchTag.Of(ElectionsRole)));
         foreach (var (_, name) in TargetElections)
         {
             var found = FindElection(available, name);
             if (found is not null)
                 await fetcher.PostFormAsync(
-                    _config.CandidateSearchUrl,
+                    Config.CandidateSearchUrl,
                     new Dictionary<string, string> { ["ElectionId"] = found.ElectionId },
                     FetchTag.Of(CandidateSearchRole, ("election", found.ElectionId)));
         }
     }
 
-    public CollectResult Normalize(CaptureReader capture)
+    protected override CollectResult NormalizeCore(CaptureReader capture)
     {
-        Console.WriteLine($"Normalizing South Carolina capture {capture.CaptureId} for {_year}...");
+        Console.WriteLine($"Normalizing South Carolina capture {capture.CaptureId} for {Year}...");
 
-        var dataRoot = _inputDataRoot;
-        var fieldMap = LookupTableLoader.Load(DataPaths.CandidateFieldMapPath(dataRoot, StateCode));
-
-        var electionsUrl = _config.ElectionsByYearUrl(_year);
+        var electionsUrl = Config.ElectionsByYearUrl(Year);
         var available = ParseElections(capture.Require(ElectionsRole).Text());
-        ScrapeGuard.RequireAny(available, () => $"No elections at all returned from {electionsUrl} for {_year}.");
+        ScrapeGuard.RequireAny(available, () => $"No elections at all returned from {electionsUrl} for {Year}.");
 
         var result = new CollectResult();
         var candidateSourceUrls = new List<SourceEntry>();
@@ -83,7 +65,7 @@ public sealed class ScCollector : IStateCollector
             var found = FindElection(available, name);
             if (found is null)
             {
-                result.Gaps.Add($"'{name}' not found among {_year}'s elections at {electionsUrl}. Re-run later or check the source manually.");
+                result.Gaps.Add($"'{name}' not found among {Year}'s elections at {electionsUrl}. Re-run later or check the source manually.");
                 continue;
             }
 
@@ -94,7 +76,7 @@ public sealed class ScCollector : IStateCollector
 
             var html = capture.Require(CandidateSearchRole, ("election", found.ElectionId)).Text();
             var rows = HtmlTableParser.Parse(html);
-            var sourceUrl = $"{_config.CandidateSearchUrl}?ElectionId={found.ElectionId}";
+            var sourceUrl = $"{Config.CandidateSearchUrl}?ElectionId={found.ElectionId}";
 
             if (rows.Count == 0)
             {
@@ -107,7 +89,7 @@ public sealed class ScCollector : IStateCollector
             candidateSourceUrls.Add(new SourceEntry(sourceUrl, "html"));
             foreach (var row in rows)
             {
-                var candidate = ScCandidateMapper.ToCandidateRow(row, election, sourceUrl, fieldMap);
+                var candidate = ScCandidateMapper.ToCandidateRow(row, election, sourceUrl, FieldMap);
                 RowHelpers.StampState(candidate, StateCode);
                 result.Candidates.Add(candidate);
             }
@@ -115,11 +97,6 @@ public sealed class ScCollector : IStateCollector
             Console.WriteLine($"  {election.Name} ({electionDate:yyyy-MM-dd}): {rows.Count} candidates ({sourceUrl})");
         }
 
-        if (result.Candidates.Count == 0)
-            throw new InvalidOperationException(
-                $"No candidates collected for any discovered election; refusing to write hollow outputs. Check {electionsUrl} manually.");
-
-        CollectResultSorter.Sort(result);
         BuildSourcesManifest(result, electionsUrl, candidateSourceUrls);
         return result;
     }
@@ -135,17 +112,6 @@ public sealed class ScCollector : IStateCollector
         var sources = result.Sources;
         sources.Elections = [new SourceEntry(electionsUrl, "json")];
         sources.StatewideCandidates = candidateListUrls;
-        sources.VerificationOnly = [new SourceEntry($"https://ballotpedia.org/South_Carolina_elections,_{_year}", "html")];
-        sources.NextRun = _schedule.Recommend(result, _year);
-    }
-
-    private static string ResolveInputDataRoot(string stateDataDir, string? inputDataRoot)
-    {
-        if (!string.IsNullOrWhiteSpace(inputDataRoot))
-            return Path.GetFullPath(inputDataRoot);
-        return DataPaths.TryInferPipelineDataRoot(stateDataDir)
-            ?? throw new InvalidOperationException(
-                $"Cannot infer input data root from output dir '{stateDataDir}'. " +
-                "Pass inputDataRoot (CLI --input-root) when writing outside data/output/<xx>.");
+        sources.VerificationOnly = [new SourceEntry($"https://ballotpedia.org/South_Carolina_elections,_{Year}", "html")];
     }
 }

@@ -16,50 +16,30 @@ namespace StateBallot.States.Ne;
 /// published in this workbook).
 /// </summary>
 [StateCode("NE")]
-public sealed class NeCollector : IStateCollector
+public sealed class NeCollector(int year, string stateDataDir, string? inputDataRoot = null, NeSourceConfig? config = null)
+    : StateCollectorBase<NeSourceConfig>(year, stateDataDir, inputDataRoot, config)
 {
-    private readonly NeSourceConfig _config;
-    private readonly IPublishSchedule _schedule;
-    private readonly int _year;
-    private readonly string _stateDataDir;
-    private readonly string _inputDataRoot;
-
-    public string StateCode => "NE";
-
-    /// <param name="stateDataDir">Per-state output directory (data/output/&lt;xx&gt;/). Inputs are under data/input/&lt;xx&gt;/,
-    /// including date_formats.json.</param>
-    public NeCollector(
-        int year, string stateDataDir, string? inputDataRoot = null, NeSourceConfig? config = null)
-    {
-        _year = year;
-        _stateDataDir = stateDataDir;
-        _inputDataRoot = ResolveInputDataRoot(stateDataDir, inputDataRoot);
-        _config = config ?? new NeSourceConfig();
-        _schedule = new NePublishSchedule();
-    }
+    protected override string SourceHomeUrl => Config.ElectionsPageUrl;
+    protected override IPublishSchedule Schedule { get; } = new NePublishSchedule();
 
     public const string CandidateFilingListRole = "candidate-filing-list";
 
-    public async Task CaptureAsync(HttpFetcher fetcher, DateOnly asOf)
+    public override async Task CaptureAsync(HttpFetcher fetcher, DateOnly asOf)
     {
-        Console.WriteLine($"Capturing Nebraska sources for {_year}...");
-        await ElectionDateScraper.CaptureAsync(fetcher, _config);
-        await fetcher.GetBytesAsync(_config.StatewideCandidateFilingListUrl(_year), FetchTag.Of(CandidateFilingListRole));
+        Console.WriteLine($"Capturing Nebraska sources for {Year}...");
+        await ElectionDateScraper.CaptureAsync(fetcher, Config);
+        await fetcher.GetBytesAsync(Config.StatewideCandidateFilingListUrl(Year), FetchTag.Of(CandidateFilingListRole));
     }
 
-    public CollectResult Normalize(CaptureReader capture)
+    protected override CollectResult NormalizeCore(CaptureReader capture)
     {
-        Console.WriteLine($"Normalizing Nebraska capture {capture.CaptureId} for {_year}...");
+        Console.WriteLine($"Normalizing Nebraska capture {capture.CaptureId} for {Year}...");
 
-        var dataRoot = _inputDataRoot;
-        var dateFormats = DateFormatConfig.Load(DataPaths.DateFormatsPath(dataRoot, StateCode));
-        var fieldMap = LookupTableLoader.Load(DataPaths.CandidateFieldMapPath(dataRoot, StateCode));
-
-        var (primary, general) = new ElectionDateScraper(_config, dateFormats).Parse(capture.Require(ElectionDateScraper.Role).Text(), _year);
+        var (primary, general) = new ElectionDateScraper(Config, DateFormats).Parse(capture.Require(ElectionDateScraper.Role).Text(), Year);
         Console.WriteLine($"  {primary.Name} ({primary.ElectionDate:yyyy-MM-dd}), {general.Name} ({general.ElectionDate:yyyy-MM-dd})");
         RowHelpers.StampState([primary, general], StateCode);
 
-        var url = _config.StatewideCandidateFilingListUrl(_year);
+        var url = Config.StatewideCandidateFilingListUrl(Year);
         var xlsxBytes = capture.Require(CandidateFilingListRole).Bytes();
 
         // The workbook is a live "currently filed" snapshot, not a fixed
@@ -90,7 +70,7 @@ public sealed class NeCollector : IStateCollector
 
         foreach (var row in candidateRows)
         {
-            var candidate = NeCandidateMapper.ToCandidateRow(row, candidateElection, url, fieldMap);
+            var candidate = NeCandidateMapper.ToCandidateRow(row, candidateElection, url, FieldMap);
             RowHelpers.StampState(candidate, StateCode);
             result.Candidates.Add(candidate);
         }
@@ -104,11 +84,6 @@ public sealed class NeCollector : IStateCollector
         }
         Console.WriteLine($"  {general.Name}: {result.StatewideProposedMeasures.Count} judicial retention questions ({url})");
 
-        if (result.Candidates.Count == 0)
-            throw new InvalidOperationException(
-                "No candidates collected; refusing to write hollow outputs. Check https://sos.nebraska.gov/elections manually.");
-
-        CollectResultSorter.Sort(result);
         BuildSourcesManifest(result, url);
         return result;
     }
@@ -116,20 +91,9 @@ public sealed class NeCollector : IStateCollector
     private void BuildSourcesManifest(CollectResult result, string candidateListUrl)
     {
         var sources = result.Sources;
-        sources.Elections = [new SourceEntry(_config.ElectionsPageUrl, "html")];
+        sources.Elections = [new SourceEntry(Config.ElectionsPageUrl, "html")];
         sources.StatewideCandidates = [new SourceEntry(candidateListUrl, "xlsx")];
         sources.StatewideMeasures = [new SourceEntry(candidateListUrl, "xlsx")];
-        sources.VerificationOnly = [new SourceEntry($"https://ballotpedia.org/Nebraska_elections,_{_year}", "html")];
-        sources.NextRun = _schedule.Recommend(result, _year);
-    }
-
-    private static string ResolveInputDataRoot(string stateDataDir, string? inputDataRoot)
-    {
-        if (!string.IsNullOrWhiteSpace(inputDataRoot))
-            return Path.GetFullPath(inputDataRoot);
-        return DataPaths.TryInferPipelineDataRoot(stateDataDir)
-            ?? throw new InvalidOperationException(
-                $"Cannot infer input data root from output dir '{stateDataDir}'. " +
-                "Pass inputDataRoot (CLI --input-root) when writing outside data/output/<xx>.");
+        sources.VerificationOnly = [new SourceEntry($"https://ballotpedia.org/Nebraska_elections,_{Year}", "html")];
     }
 }

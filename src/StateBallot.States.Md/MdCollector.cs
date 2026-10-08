@@ -14,49 +14,28 @@ namespace StateBallot.States.Md;
 /// measures (no MD ballot-measure source was found), and a county directory.
 /// </summary>
 [StateCode("MD")]
-public sealed class MdCollector : IStateCollector
+public sealed class MdCollector(int year, string stateDataDir, string? inputDataRoot = null, MdSourceConfig? config = null)
+    : StateCollectorBase<MdSourceConfig>(year, stateDataDir, inputDataRoot, config)
 {
-    private readonly MdSourceConfig _config;
-    private readonly IPublishSchedule _schedule;
-    private readonly int _year;
-    private readonly string _stateDataDir;
-    private readonly string _inputDataRoot;
-
-    public string StateCode => "MD";
-
-    /// <param name="stateDataDir">Per-state output directory (data/output/&lt;xx&gt;/). Inputs are under data/input/&lt;xx&gt;/,
-    /// including date_formats.json.</param>
-    public MdCollector(
-        int year, string stateDataDir, string? inputDataRoot = null, MdSourceConfig? config = null)
-    {
-        _year = year;
-        _stateDataDir = stateDataDir;
-        _inputDataRoot = ResolveInputDataRoot(stateDataDir, inputDataRoot);
-        _config = config ?? new MdSourceConfig();
-        _schedule = new MdPublishSchedule();
-    }
+    protected override string SourceHomeUrl => Config.BaseUrl;
+    protected override IPublishSchedule Schedule { get; } = new MdPublishSchedule();
 
     public const string CandidateListRole = "candidate-list";
 
-    public async Task CaptureAsync(HttpFetcher fetcher, DateOnly asOf)
+    public override async Task CaptureAsync(HttpFetcher fetcher, DateOnly asOf)
     {
-        Console.WriteLine($"Capturing Maryland sources for {_year}...");
+        Console.WriteLine($"Capturing Maryland sources for {Year}...");
 
-        var dateFormats = DateFormatConfig.Load(DataPaths.DateFormatsPath(_inputDataRoot, StateCode));
-        var elections = await new ElectionDayScraper(_config, dateFormats).CaptureAsync(fetcher, _year);
+        var elections = await new ElectionDayScraper(Config, DateFormats).CaptureAsync(fetcher, Year);
         foreach (var type in elections.Select(e => e.ElectionType).Distinct())
-            await fetcher.GetStringAsync(_config.StatewideCandidateListUrl(_year, type), FetchTag.Of(CandidateListRole, ("type", type)));
+            await fetcher.GetStringAsync(Config.StatewideCandidateListUrl(Year, type), FetchTag.Of(CandidateListRole, ("type", type)));
     }
 
-    public CollectResult Normalize(CaptureReader capture)
+    protected override CollectResult NormalizeCore(CaptureReader capture)
     {
-        Console.WriteLine($"Normalizing Maryland capture {capture.CaptureId} for {_year}...");
+        Console.WriteLine($"Normalizing Maryland capture {capture.CaptureId} for {Year}...");
 
-        var dataRoot = _inputDataRoot;
-        var dateFormats = DateFormatConfig.Load(DataPaths.DateFormatsPath(dataRoot, StateCode));
-        var fieldMap = LookupTableLoader.Load(DataPaths.CandidateFieldMapPath(dataRoot, StateCode));
-
-        var elections = new ElectionDayScraper(_config, dateFormats).Parse(capture.Require(ElectionDayScraper.Role).Text(), _year);
+        var elections = new ElectionDayScraper(Config, DateFormats).Parse(capture.Require(ElectionDayScraper.Role).Text(), Year);
         Console.WriteLine($"  Election day entries found: {elections.Count}");
         RowHelpers.StampState(elections, StateCode);
 
@@ -66,7 +45,7 @@ public sealed class MdCollector : IStateCollector
         foreach (var election in elections)
         {
             Console.WriteLine($"  {election.Name} ({election.ElectionDate:yyyy-MM-dd})...");
-            var url = _config.StatewideCandidateListUrl(_year, election.ElectionType);
+            var url = Config.StatewideCandidateListUrl(Year, election.ElectionType);
             var csvText = capture.Require(CandidateListRole, ("type", election.ElectionType)).Text();
             var rows = DelimitedTableParser.Parse(csvText);
 
@@ -81,7 +60,7 @@ public sealed class MdCollector : IStateCollector
 
             foreach (var row in rows)
             {
-                var candidate = MdCandidateMapper.ToCandidateRow(row, election, url, fieldMap);
+                var candidate = MdCandidateMapper.ToCandidateRow(row, election, url, FieldMap);
                 RowHelpers.StampState(candidate, StateCode);
                 result.Candidates.Add(candidate);
             }
@@ -89,12 +68,6 @@ public sealed class MdCollector : IStateCollector
             Console.WriteLine($"    {rows.Count} candidates from statewide list ({url})");
         }
 
-        if (result.Candidates.Count == 0)
-            throw new InvalidOperationException(
-                "No candidates collected for any discovered election; refusing to write hollow outputs. " +
-                "Check https://elections.maryland.gov manually.");
-
-        CollectResultSorter.Sort(result);
         BuildSourcesManifest(result, elections);
         return result;
     }
@@ -102,21 +75,10 @@ public sealed class MdCollector : IStateCollector
     private void BuildSourcesManifest(CollectResult result, List<Election> elections)
     {
         var sources = result.Sources;
-        sources.Elections = [new SourceEntry(_config.ElectionsPageUrl(_year), "html")];
+        sources.Elections = [new SourceEntry(Config.ElectionsPageUrl(Year), "html")];
         sources.StatewideCandidates = elections
-            .Select(e => new SourceEntry(_config.StatewideCandidateListUrl(_year, e.ElectionType), "csv"))
+            .Select(e => new SourceEntry(Config.StatewideCandidateListUrl(Year, e.ElectionType), "csv"))
             .ToList();
-        sources.VerificationOnly = [new SourceEntry($"https://ballotpedia.org/Maryland_elections,_{_year}", "html")];
-        sources.NextRun = _schedule.Recommend(result, _year);
-    }
-
-    private static string ResolveInputDataRoot(string stateDataDir, string? inputDataRoot)
-    {
-        if (!string.IsNullOrWhiteSpace(inputDataRoot))
-            return Path.GetFullPath(inputDataRoot);
-        return DataPaths.TryInferPipelineDataRoot(stateDataDir)
-            ?? throw new InvalidOperationException(
-                $"Cannot infer input data root from output dir '{stateDataDir}'. " +
-                "Pass inputDataRoot (CLI --input-root) when writing outside data/output/<xx>.");
+        sources.VerificationOnly = [new SourceEntry($"https://ballotpedia.org/Maryland_elections,_{Year}", "html")];
     }
 }

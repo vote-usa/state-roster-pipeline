@@ -17,43 +17,26 @@ namespace StateBallot.States.Co;
 /// filing date, address, or contact info at all.
 /// </summary>
 [StateCode("CO")]
-public sealed class CoCollector : IStateCollector
+public sealed class CoCollector(int year, string stateDataDir, string? inputDataRoot = null, CoSourceConfig? config = null)
+    : StateCollectorBase<CoSourceConfig>(year, stateDataDir, inputDataRoot, config)
 {
-    private readonly CoSourceConfig _config;
-    private readonly IPublishSchedule _schedule;
-    private readonly int _year;
-    private readonly string _stateDataDir;
-    private readonly string _inputDataRoot;
-
-    public string StateCode => "CO";
-
-    /// <param name="stateDataDir">Per-state output directory (data/output/&lt;xx&gt;/). Inputs are under data/input/&lt;xx&gt;/,
-    /// including date_formats.json.</param>
-    public CoCollector(
-        int year, string stateDataDir, string? inputDataRoot = null, CoSourceConfig? config = null)
-    {
-        _year = year;
-        _stateDataDir = stateDataDir;
-        _inputDataRoot = ResolveInputDataRoot(stateDataDir, inputDataRoot);
-        _config = config ?? new CoSourceConfig();
-        _schedule = new CoPublishSchedule();
-    }
+    protected override string SourceHomeUrl => "https://www.sos.state.co.us/pubs/elections/Candidates/CandidateHome.html";
+    protected override IPublishSchedule Schedule { get; } = new CoPublishSchedule();
 
     public const string CandidateListPageRole = "candidate-list-page";
     public const string CandidateListRole = "candidate-list";
 
-    public async Task CaptureAsync(HttpFetcher fetcher, DateOnly asOf)
+    public override async Task CaptureAsync(HttpFetcher fetcher, DateOnly asOf)
     {
-        Console.WriteLine($"Capturing Colorado sources for {_year}...");
+        Console.WriteLine($"Capturing Colorado sources for {Year}...");
 
-        var dateFormats = DateFormatConfig.Load(DataPaths.DateFormatsPath(_inputDataRoot, StateCode));
-        var elections = await new CoElectionDateScraper(_config, dateFormats).TryCaptureAsync(fetcher, _year);
+        var elections = await new CoElectionDateScraper(Config, DateFormats).TryCaptureAsync(fetcher, Year);
         if (elections is null)
             return;
 
         foreach (var type in elections.Select(e => e.ElectionType).Distinct())
         {
-            var pageUrl = _config.CandidateListPageUrl(type);
+            var pageUrl = Config.CandidateListPageUrl(type);
             var html = await fetcher.GetStringAsync(pageUrl, FetchTag.Of(CandidateListPageRole, ("type", type)));
             var (xlsxUrl, _) = ResolveXlsxUrl(pageUrl, html);
             if (xlsxUrl is not null)
@@ -61,20 +44,16 @@ public sealed class CoCollector : IStateCollector
         }
     }
 
-    public CollectResult Normalize(CaptureReader capture)
+    protected override CollectResult NormalizeCore(CaptureReader capture)
     {
-        Console.WriteLine($"Normalizing Colorado capture {capture.CaptureId} for {_year}...");
+        Console.WriteLine($"Normalizing Colorado capture {capture.CaptureId} for {Year}...");
 
-        var dataRoot = _inputDataRoot;
-        var dateFormats = DateFormatConfig.Load(DataPaths.DateFormatsPath(dataRoot, StateCode));
-        var fieldMap = LookupTableLoader.Load(DataPaths.CandidateFieldMapPath(dataRoot, StateCode));
-
-        var calendarUrl = _config.ElectionCalendarPdfUrl(_year);
+        var calendarUrl = Config.ElectionCalendarPdfUrl(Year);
         var calendar = capture.Require(CoElectionDateScraper.Role);
         if (!calendar.HasPayload)
             throw new InvalidOperationException(
-                $"No election calendar published yet for {_year} at {calendarUrl}. Re-run later.");
-        var elections = new CoElectionDateScraper(_config, dateFormats).Parse(calendar.Bytes(), _year);
+                $"No election calendar published yet for {Year} at {calendarUrl}. Re-run later.");
+        var elections = new CoElectionDateScraper(Config, DateFormats).Parse(calendar.Bytes(), Year);
         Console.WriteLine($"  Elections found: {elections.Count}");
         RowHelpers.StampState(elections, StateCode);
 
@@ -84,7 +63,7 @@ public sealed class CoCollector : IStateCollector
 
         foreach (var election in elections)
         {
-            var pageUrl = _config.CandidateListPageUrl(election.ElectionType);
+            var pageUrl = Config.CandidateListPageUrl(election.ElectionType);
             var pageHtml = capture.Require(CandidateListPageRole, ("type", election.ElectionType)).Text();
             var (xlsxUrl, problem) = ResolveXlsxUrl(pageUrl, pageHtml);
             if (xlsxUrl is null)
@@ -114,7 +93,7 @@ public sealed class CoCollector : IStateCollector
 
             foreach (var row in rows)
             {
-                var candidate = CoCandidateMapper.ToCandidateRow(row, election, xlsxUrl, fieldMap);
+                var candidate = CoCandidateMapper.ToCandidateRow(row, election, xlsxUrl, FieldMap);
                 RowHelpers.StampState(candidate, StateCode);
                 result.Candidates.Add(candidate);
             }
@@ -122,12 +101,6 @@ public sealed class CoCollector : IStateCollector
             Console.WriteLine($"  {election.Name} ({election.ElectionDate:yyyy-MM-dd}): {rows.Count} candidates ({xlsxUrl})");
         }
 
-        if (result.Candidates.Count == 0)
-            throw new InvalidOperationException(
-                "No candidates collected for any discovered election; refusing to write hollow outputs. " +
-                "Check https://www.sos.state.co.us/pubs/elections/Candidates/CandidateHome.html manually.");
-
-        CollectResultSorter.Sort(result);
         BuildSourcesManifest(result, calendarUrl, candidateListUrls);
         return result;
     }
@@ -143,9 +116,9 @@ public sealed class CoCollector : IStateCollector
         var doc = new HtmlParser().ParseDocument(html);
 
         var headingMatch = CoSelectors.CandidateListHeading.Match(doc.Body?.TextContent ?? "");
-        if (!headingMatch.Success || headingMatch.Groups["year"].Value != _year.ToString())
+        if (!headingMatch.Success || headingMatch.Groups["year"].Value != Year.ToString())
             return (null,
-                $"{pageUrl} does not show a {_year} " +
+                $"{pageUrl} does not show a {Year} " +
                 $"candidate list (found heading: '{(headingMatch.Success ? headingMatch.Value : "none")}'). " +
                 "This page always reflects the current cycle only; back-filling past years isn't supported by this source.");
 
@@ -153,7 +126,7 @@ public sealed class CoCollector : IStateCollector
         if (string.IsNullOrWhiteSpace(href))
             return (null, $"no XLSX link found on {pageUrl}.");
 
-        return (_config.Resolve(pageUrl, href), null);
+        return (Config.Resolve(pageUrl, href), null);
     }
 
     private void BuildSourcesManifest(CollectResult result, string calendarUrl, List<SourceEntry> candidateListUrls)
@@ -161,17 +134,6 @@ public sealed class CoCollector : IStateCollector
         var sources = result.Sources;
         sources.Elections = [new SourceEntry(calendarUrl, "pdf")];
         sources.StatewideCandidates = candidateListUrls;
-        sources.VerificationOnly = [new SourceEntry($"https://ballotpedia.org/Colorado_elections,_{_year}", "html")];
-        sources.NextRun = _schedule.Recommend(result, _year);
-    }
-
-    private static string ResolveInputDataRoot(string stateDataDir, string? inputDataRoot)
-    {
-        if (!string.IsNullOrWhiteSpace(inputDataRoot))
-            return Path.GetFullPath(inputDataRoot);
-        return DataPaths.TryInferPipelineDataRoot(stateDataDir)
-            ?? throw new InvalidOperationException(
-                $"Cannot infer input data root from output dir '{stateDataDir}'. " +
-                "Pass inputDataRoot (CLI --input-root) when writing outside data/output/<xx>.");
+        sources.VerificationOnly = [new SourceEntry($"https://ballotpedia.org/Colorado_elections,_{Year}", "html")];
     }
 }

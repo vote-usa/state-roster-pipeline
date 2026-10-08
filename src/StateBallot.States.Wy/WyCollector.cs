@@ -13,49 +13,28 @@ namespace StateBallot.States.Wy;
 /// (not attempted here).
 /// </summary>
 [StateCode("WY")]
-public sealed class WyCollector : IStateCollector
+public sealed class WyCollector(int year, string stateDataDir, string? inputDataRoot = null, WySourceConfig? config = null)
+    : StateCollectorBase<WySourceConfig>(year, stateDataDir, inputDataRoot, config)
 {
-    private readonly WySourceConfig _config;
-    private readonly IPublishSchedule _schedule;
-    private readonly int _year;
-    private readonly string _stateDataDir;
-    private readonly string _inputDataRoot;
-
-    public string StateCode => "WY";
-
-    /// <param name="stateDataDir">Per-state output directory (data/output/&lt;xx&gt;/). Inputs are under data/input/&lt;xx&gt;/,
-    /// including date_formats.json.</param>
-    public WyCollector(
-        int year, string stateDataDir, string? inputDataRoot = null, WySourceConfig? config = null)
-    {
-        _year = year;
-        _stateDataDir = stateDataDir;
-        _inputDataRoot = ResolveInputDataRoot(stateDataDir, inputDataRoot);
-        _config = config ?? new WySourceConfig();
-        _schedule = new WyPublishSchedule();
-    }
+    protected override string SourceHomeUrl => Config.BaseUrl;
+    protected override IPublishSchedule Schedule { get; } = new WyPublishSchedule();
 
     public const string CandidateListRole = "candidate-list";
 
-    public async Task CaptureAsync(HttpFetcher fetcher, DateOnly asOf)
+    public override async Task CaptureAsync(HttpFetcher fetcher, DateOnly asOf)
     {
-        Console.WriteLine($"Capturing Wyoming sources for {_year}...");
+        Console.WriteLine($"Capturing Wyoming sources for {Year}...");
 
-        var dateFormats = DateFormatConfig.Load(DataPaths.DateFormatsPath(_inputDataRoot, StateCode));
-        var elections = await new ElectionDateScraper(_config, dateFormats).CaptureAsync(fetcher, _year);
+        var elections = await new ElectionDateScraper(Config, DateFormats).CaptureAsync(fetcher, Year);
         foreach (var type in elections.Select(e => e.ElectionType).Distinct())
-            await fetcher.GetStringAsync(_config.CandidateListUrl(_year, type), FetchTag.Of(CandidateListRole, ("type", type)));
+            await fetcher.GetStringAsync(Config.CandidateListUrl(Year, type), FetchTag.Of(CandidateListRole, ("type", type)));
     }
 
-    public CollectResult Normalize(CaptureReader capture)
+    protected override CollectResult NormalizeCore(CaptureReader capture)
     {
-        Console.WriteLine($"Normalizing Wyoming capture {capture.CaptureId} for {_year}...");
+        Console.WriteLine($"Normalizing Wyoming capture {capture.CaptureId} for {Year}...");
 
-        var dataRoot = _inputDataRoot;
-        var dateFormats = DateFormatConfig.Load(DataPaths.DateFormatsPath(dataRoot, StateCode));
-        var fieldMap = LookupTableLoader.Load(DataPaths.CandidateFieldMapPath(dataRoot, StateCode));
-
-        var elections = new ElectionDateScraper(_config, dateFormats).Parse(capture.Require(ElectionDateScraper.Role).Text(), _year);
+        var elections = new ElectionDateScraper(Config, DateFormats).Parse(capture.Require(ElectionDateScraper.Role).Text(), Year);
         Console.WriteLine($"  Elections found: {elections.Count}");
         RowHelpers.StampState(elections, StateCode);
 
@@ -64,7 +43,7 @@ public sealed class WyCollector : IStateCollector
 
         foreach (var election in elections)
         {
-            var url = _config.CandidateListUrl(_year, election.ElectionType);
+            var url = Config.CandidateListUrl(Year, election.ElectionType);
             var csvText = capture.Require(CandidateListRole, ("type", election.ElectionType)).Text();
             var rows = DelimitedTableParser.Parse(csvText);
 
@@ -79,7 +58,7 @@ public sealed class WyCollector : IStateCollector
 
             foreach (var row in rows)
             {
-                var candidate = WyCandidateMapper.ToCandidateRow(row, election, url, fieldMap);
+                var candidate = WyCandidateMapper.ToCandidateRow(row, election, url, FieldMap);
                 RowHelpers.StampState(candidate, StateCode);
                 result.Candidates.Add(candidate);
             }
@@ -87,12 +66,6 @@ public sealed class WyCollector : IStateCollector
             Console.WriteLine($"  {election.Name} ({election.ElectionDate:yyyy-MM-dd}): {rows.Count} candidates ({url})");
         }
 
-        if (result.Candidates.Count == 0)
-            throw new InvalidOperationException(
-                "No candidates collected for any discovered election; refusing to write hollow outputs. " +
-                "Check https://sos.wyo.gov manually.");
-
-        CollectResultSorter.Sort(result);
         BuildSourcesManifest(result, elections);
         return result;
     }
@@ -100,21 +73,10 @@ public sealed class WyCollector : IStateCollector
     private void BuildSourcesManifest(CollectResult result, List<Election> elections)
     {
         var sources = result.Sources;
-        sources.Elections = [new SourceEntry(_config.ElectionInfoPageUrl(_year), "html")];
+        sources.Elections = [new SourceEntry(Config.ElectionInfoPageUrl(Year), "html")];
         sources.StatewideCandidates = elections
-            .Select(e => new SourceEntry(_config.CandidateListUrl(_year, e.ElectionType), "csv"))
+            .Select(e => new SourceEntry(Config.CandidateListUrl(Year, e.ElectionType), "csv"))
             .ToList();
-        sources.VerificationOnly = [new SourceEntry($"https://ballotpedia.org/Wyoming_elections,_{_year}", "html")];
-        sources.NextRun = _schedule.Recommend(result, _year);
-    }
-
-    private static string ResolveInputDataRoot(string stateDataDir, string? inputDataRoot)
-    {
-        if (!string.IsNullOrWhiteSpace(inputDataRoot))
-            return Path.GetFullPath(inputDataRoot);
-        return DataPaths.TryInferPipelineDataRoot(stateDataDir)
-            ?? throw new InvalidOperationException(
-                $"Cannot infer input data root from output dir '{stateDataDir}'. " +
-                "Pass inputDataRoot (CLI --input-root) when writing outside data/output/<xx>.");
+        sources.VerificationOnly = [new SourceEntry($"https://ballotpedia.org/Wyoming_elections,_{Year}", "html")];
     }
 }
