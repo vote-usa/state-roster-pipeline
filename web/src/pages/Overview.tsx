@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Alert, Box, Button, IconButton, InputAdornment, Link, Stack, Table, TableBody, TableCell, TableHead, TableRow, TextField, Tooltip, Typography } from "@mui/material";
+import { Accordion, AccordionDetails, AccordionSummary, Alert, Box, Button, IconButton, InputAdornment, Link, Stack, Table, TableBody, TableCell, TableHead, TableRow, TextField, Tooltip, Typography } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
+import ExpandMore from "@mui/icons-material/ExpandMore";
 import Sync from "@mui/icons-material/Sync";
 import PlayCircleOutline from "@mui/icons-material/PlayCircleOutlineOutlined";
 import { electionKey, isActive, useApi, type JobsData, type StateSummary } from "../api";
@@ -22,6 +23,8 @@ export function Overview() {
 
   const needle = search.trim().toLowerCase();
   const shown = [...(states.data ?? [])].sort((a, b) => a.name.localeCompare(b.name)).filter(s => needle === "" || s.name.toLowerCase().includes(needle) || s.code.toLowerCase() === needle);
+  const implemented = shown.filter(s => s.implemented);
+  const unimplemented = shown.filter(s => !s.implemented);
 
   return (
     <>
@@ -75,10 +78,20 @@ export function Overview() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {shown.map(s => <StateRow key={s.code} state={s} onStart={() => startRun({ stateCode: s.code })} />)}
+              {implemented.map(s => <StateRow key={s.code} state={s} onStart={() => startRun({ stateCode: s.code })} />)}
             </TableBody>
           </Table>
           {shown.length === 0 && <Typography color="text.secondary" sx={{ py: 2 }}>No state matches “{search}”.</Typography>}
+          {unimplemented.length > 0 && (
+            <Accordion variant="outlined" disableGutters sx={{ mt: 4, "&::before": { display: "none" } }}>
+              <AccordionSummary expandIcon={<ExpandMore />}>
+                <Typography variant="h3">{unimplemented.length} {unimplemented.length === 1 ? "state" : "states"} with no collector yet</Typography>
+              </AccordionSummary>
+              <AccordionDetails>
+                <Typography color="text.secondary" sx={{ lineHeight: 1.9 }}>{unimplemented.map(s => s.name).join(", ")}</Typography>
+              </AccordionDetails>
+            </Accordion>
+          )}
         </Box>
       )}
     </>
@@ -87,18 +100,6 @@ export function Overview() {
 
 function StateRow({ state: s, onStart }: { state: StateSummary; onStart: () => void }) {
   const stateName = { fontSize: "1.35rem", fontWeight: 500, whiteSpace: "nowrap" };
-
-  if (!s.implemented) {
-    return (
-      <TableRow>
-        <TableCell><Typography sx={{ ...stateName, color: "text.disabled" }}>{s.name}</Typography></TableCell>
-        <TableCell colSpan={2} />
-        <TableCell><Typography color="text.secondary" sx={{ fontSize: "0.8rem" }}>No collector yet</Typography></TableCell>
-        <TableCell colSpan={2} />
-      </TableRow>
-    );
-  }
-
   const next = nextCheck(s.nextRun?.after);
   return (
     <TableRow hover>
