@@ -149,12 +149,12 @@ Or run the two halves on the host, which reloads as you edit:
 ```bash
 docker compose up -d --wait mysql
 dotnet run --project src/StateBallot.Api      # http://localhost:5080, reads ROSTER_STAGING_CONNECTION
-cd web && npm install && npm run dev          # http://localhost:5173
+cd web && npm ci && npm run dev               # http://localhost:5173, see web/README.md
 ```
 
 Both ways use ports 5080 and 5173, so stop one before starting the other (`docker compose stop web api`).
 
-The staging schema must be at version 5 (`--migrate`) for the job queue.
+The API applies pending migrations and seeds source links when it starts, the same as `--migrate`, so a fresh database needs no separate step.
 
 The API has no authentication. It listens on localhost only, and the compose services publish their ports to this machine only. Do not expose it.
 

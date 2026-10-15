@@ -18,6 +18,8 @@ public sealed class JobWorker(StagingDb db, JobStore jobs, DataRoot dataRoot, IL
     protected override async Task ExecuteAsync(CancellationToken stopping)
     {
         var recovered = false;
+        // The loop retries every AfterError, so a lasting problem is logged once, not on every retry.
+        string? lastError = null;
         while (!stopping.IsCancellationRequested)
         {
             try
@@ -30,7 +32,14 @@ public sealed class JobWorker(StagingDb db, JobStore jobs, DataRoot dataRoot, IL
                     recovered = true;
                 }
 
-                if (await jobs.ClaimNextAsync(stopping) is { } job)
+                var job = await jobs.ClaimNextAsync(stopping);
+                if (lastError is not null)
+                {
+                    logger.LogInformation("The job queue can be read again.");
+                    lastError = null;
+                }
+
+                if (job is not null)
                     await RunAsync(job, stopping);
                 else
                     await Task.Delay(Idle, stopping);
@@ -41,8 +50,11 @@ public sealed class JobWorker(StagingDb db, JobStore jobs, DataRoot dataRoot, IL
             }
             catch (Exception ex)
             {
-                logger.LogError(
-                    "The job queue could not be read: {Message} If the Jobs table is missing, run the CLI with --migrate.", ex.Message);
+                if (ex.Message != lastError)
+                    logger.LogError(
+                        "The job queue could not be read, retrying every {Seconds}s: {Message} If the Jobs table is missing, check the migration at startup above.",
+                        AfterError.TotalSeconds, ex.Message);
+                lastError = ex.Message;
                 await Task.Delay(AfterError, stopping).ContinueWith(_ => { }, CancellationToken.None);
             }
         }
