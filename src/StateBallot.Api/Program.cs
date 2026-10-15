@@ -22,6 +22,11 @@ builder.Services.AddSingleton(jobs);
 builder.Services.AddSingleton(new DataRoot(dataRoot));
 builder.Services.AddHostedService<JobWorker>();
 
+// Column-mapping configuration (step 1): see MappingApi.
+builder.Services.AddSingleton<ColumnMappingStore>();
+builder.Services.AddSingleton<IMappingEvaluator, MappingEvaluator>();
+builder.Services.AddSingleton<ISourceLoader, SourceSampleLoader>();
+
 var app = builder.Build();
 app.Logger.LogInformation("Staging {Staging}, data root {DataRoot}", StagingDb.Describe(db.StagingConnectionString), dataRoot);
 
@@ -37,6 +42,10 @@ app.UseExceptionHandler(handler => handler.Run(async context =>
             : error?.Message ?? "Unexpected error.",
     });
 }));
+
+// Serves the throwaway column-mapping tester at / (wwwroot/index.html).
+app.UseDefaultFiles();
+app.UseStaticFiles();
 
 var api = app.MapGroup("/api");
 
@@ -197,6 +206,8 @@ api.MapPost("/jobs", async (StartJob body, CancellationToken ct) =>
     var jobId = await jobs.EnqueueAsync(new JobStore.NewJob(state, year, kind, normalizeCaptureId, election, requestedBy), ct);
     return Results.Accepted($"/api/jobs/{jobId}", await jobs.GetAsync(jobId, ct));
 });
+
+app.MapMappingApi();
 
 app.Run();
 
