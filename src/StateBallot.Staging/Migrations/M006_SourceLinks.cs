@@ -9,8 +9,8 @@ namespace StateBallot.Staging.Migrations;
 /// keep a snapshot of the links they used, so a capture made after an edit can be explained
 /// and normalized again with the same URLs.
 /// </summary>
-[Migration(5, "Source links")]
-public sealed class M005_SourceLinks : Migration
+[Migration(6, "Source links")]
+public sealed class M006_SourceLinks : Migration
 {
     public override void Up()
     {

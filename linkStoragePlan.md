@@ -107,7 +107,7 @@ Placeholders are a closed set: `{year}`, `{electionId}`, `{countyCode}`, `{raceI
 
 ## 4. Database
 
-New migration `M005_SourceLinks` in `roster_staging` (the pipeline's own schema, not `vote`).
+New migration `M006_SourceLinks` in `roster_staging` (the pipeline's own schema, not `vote`).
 
 **`SourceLinks`**: one row per (state, key, variant).
 
@@ -189,7 +189,7 @@ Each phase leaves the pipeline working and can be committed on its own.
 The result: same behavior, but every URL is data in git.
 
 **Phase 2: the database.**
-1. `M005_SourceLinks` (table + `Captures.LinksJson`).
+1. `M006_SourceLinks` (table + `Captures.LinksJson`).
 2. `LinkSeeder` inside `Migrator.ApplyAsync`, with the drift report.
 3. A DB-first loader in `CollectorRunner`, and a links snapshot on each capture.
 

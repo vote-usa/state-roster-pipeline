@@ -144,7 +144,7 @@ Adding one: a new class `M00n_<Name>` with `[Migration(n, "<description>")]`, im
 | 2 | `M002_RawCapture` | `Captures`, `CaptureFetches`, `CollectionPasses.CaptureId` |
 | 3 | `M003_CountyListText` | `County` on `RunCandidates`, `RunMeasures`, `PassProposedMeasures` becomes TEXT |
 | 4 | `M004_CandidateStatus` | `RunCandidates.Status`, the candidate's filing status as the source publishes it |
-| 5 | `M005_SourceLinks` | `SourceLinks`, `SourceParameters`, `Captures.LinksJson` |
+| 6 | `M006_SourceLinks` | `SourceLinks`, `SourceParameters`, `Captures.LinksJson` |
 
 ## Tests
 
