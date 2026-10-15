@@ -1,0 +1,24 @@
+{
+  "state": "MT",
+  "links": [
+    {
+      "key": "home",
+      "url": "https://candidatefiling.mt.gov/candidatefiling/CandidateList.aspx",
+      "kind": "home",
+      "notes": "Checked by hand when a run comes back empty."
+    },
+    {
+      "key": "election-index",
+      "url": "https://candidatefiling.mt.gov/candidatefiling/CandidateList.aspx",
+      "format": "html",
+      "notes": "Redirects to the current election; its dropdown lists every election id with type and date."
+    },
+    {
+      "key": "candidate-list-page",
+      "url": "https://candidatefiling.mt.gov/candidatefiling/CandidateList.aspx?e={electionId}",
+      "format": "html",
+      "notes": "Candidate list for one election. The CSV comes from a WebForms export postback."
+    }
+  ],
+  "parameters": []
+}

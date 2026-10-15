@@ -50,9 +50,10 @@ state-roster-pipeline/
   data/
     input/
       state_catalog.json     # all 50 states + DC (implemented | unimplemented)
-      ca/ wa/ …               # county_fips.json, sources.json (tracked), plus
+      ca/ wa/ …               # source_links.json (URLs + hand-kept ids, seeds the
+                              # SourceLinks table), county_fips.json, plus
                               # per-state date_formats.json / selectors.json /
-                              # election_type_names.json / election_ids.json
+                              # election_type_names.json / candidate_field_map.json
                               # where that state uses them
     output/
       ca/ wa/ …               # generated roster outputs (gitignored)
@@ -109,16 +110,16 @@ Caveats:
 
 Requires .NET 8 SDK. Roster outputs under `data/output/<xx>/` are gitignored —
 re-run the collector to refresh them. Tracked inputs live under `data/input/`
-(`state_catalog.json`, and per-state `county_fips.json`, `sources.json`, and
+(`state_catalog.json`, and per-state `source_links.json`, `county_fips.json`, and
 whichever of `date_formats.json` / `selectors.json` / `election_type_names.json` /
-`election_ids.json` that state's collector loads - see
+`candidate_field_map.json` that state's collector loads - see
 `configDrivenPipelineInfo.md` for which).
 
 ## Docker
 
 The image builds the CLI with the .NET 8 SDK and runs it on the .NET 8 runtime,
-so no local SDK is needed. `data/` is bind-mounted, so outputs and
-`sources.json` land on the host exactly as with a local run.
+so no local SDK is needed. `data/` is bind-mounted, so outputs land on the host
+exactly as with a local run.
 
 ```bash
 docker compose build
@@ -148,12 +149,12 @@ Or run the two halves on the host, which reloads as you edit:
 ```bash
 docker compose up -d --wait mysql
 dotnet run --project src/StateBallot.Api      # http://localhost:5080, reads ROSTER_STAGING_CONNECTION
-cd web && npm install && npm run dev          # http://localhost:5173
+cd web && npm ci && npm run dev               # http://localhost:5173, see web/README.md
 ```
 
 Both ways use ports 5080 and 5173, so stop one before starting the other (`docker compose stop web api`).
 
-The staging schema must be at version 5 (`--migrate`) for the job queue.
+The API applies pending migrations and seeds source links when it starts, the same as `--migrate`, so a fresh database needs no separate step.
 
 The API has no authentication. It listens on localhost only, and the compose services publish their ports to this machine only. Do not expose it.
 
@@ -193,14 +194,20 @@ dotnet run --project src/StateBallot.Cli -- \
 ## Adding a state
 
 1. Flip the state to `implemented` in [`data/input/state_catalog.json`](data/input/state_catalog.json).
-2. Create `StateBallot.States.<Xx>` with a `SourceConfig` (URLs), a `Selectors`
-   class (CSS selectors/regexes), a mapper (`ToElection`/`ToCandidateRow`, pure
-   functions - see the mapper-class convention in `configDrivenPipelineInfo.md`),
-   a `[StateCode("XX")]` collector, and an `IPublishSchedule`; reference it from
-   the Cli project (`CollectorDiscovery` finds it via reflection - see
-   `IStateCollector`'s doc comment for the required constructor shape).
-3. Add `data/input/<xx>/date_formats.json` (required - `DateFormatConfig.Load`
-   fails loudly if it's missing/empty) and `county_fips.json`.
+2. Create `StateBallot.States.<Xx>` with a `SourceConfig` (named accessors over the
+   state's links, derived from `SourceConfigBase`), a `Selectors` class (CSS
+   selectors/regexes), a mapper (`ToElection`/`ToCandidateRow`, pure functions - see
+   the mapper-class convention in `configDrivenPipelineInfo.md`), a
+   `[StateCode("XX")]` collector derived from `StateCollectorBase<XxSourceConfig>`,
+   and an `IPublishSchedule`; reference it from the Cli project (`CollectorDiscovery`
+   finds it via reflection - see `StateCollectorBase`'s doc comment for the
+   one-line constructor it needs).
+3. Add `data/input/<xx>/source_links.json` with every URL the collector fetches
+   (keyed by the fetch role it tags the download with) and a `home` link; then
+   `--migrate` to seed it into the database
+   (see "Source links" in [`db/README.md`](db/README.md)). Add
+   `date_formats.json` (required - `DateFormatConfig.Load` fails loudly if it's
+   missing/empty) and `county_fips.json`.
 4. If the source is a flat CSV/TSV or XLSX file, use `DelimitedTableParser` /
    `XlsxTableParser` (Core) rather than writing a new parser. If it's
    bot-blocked behind a WebForms postback (not a plain static file), see
@@ -216,7 +223,8 @@ Conventions every state collector must follow:
 
 - Target year is a parameter, never hardcoded; use `ElectionFilters` for "upcoming".
 - County lists come from data files or the state's site at runtime, not code.
-- CSS selectors/regexes centralized in one `Selectors` class; URLs in one config class.
+- CSS selectors/regexes centralized in one `Selectors` class; URLs in `source_links.json`,
+  read through one config class - never a URL literal in collector code.
 - Fail loudly (naming URL + selector) when a page yields zero rows; never write empty
   outputs silently. Data not yet published is recorded in `CollectResult.Gaps`.
 - Outputs deterministic via `CollectResultSorter.Sort`.
@@ -322,8 +330,9 @@ Notable per-state quirks (see `configDrivenPipelineInfo.md` for the rest):
   election ids (no dropdown, no sibling links) and no live source for a
   *past* election's date once it's passed (the SOS site removes per-election
   date/results pages once they're no longer current) - so v1 scope is the
-  general election only, with its id hand-maintained in
-  `data/input/nm/election_ids.json` rather than derived from the year. The
+  general election only, with its id hand-maintained as the `election-id`
+  source parameter (`data/input/nm/source_links.json`, editable in the
+  `SourceParameters` table) rather than derived from the year. The
   export's own CSV option has a real data-quality bug (unescaped commas in
   some fields shift every later column on that row, ~13% of rows) fixed by
   exporting "Excel (xls)" instead - actually a plain HTML `<table>` wearing a
@@ -351,7 +360,7 @@ Notable per-state quirks (see `configDrivenPipelineInfo.md` for the rest):
   replay - `WebFormsPostback.TriggerPostbackAsync` (Core) was added for this,
   setting `__EVENTTARGET`/`__EVENTARGUMENT` directly rather than a named
   button field. Both election ids are hand-maintained
-  (`data/input/sd/election_ids.json`, same reason and mechanism as NM's) -
+  (`election-id` source parameters, same reason and mechanism as NM's) -
   VIP has no discoverable index of its own elections either - but unlike NM,
   both the primary's and general's real dates stay live and scrapable from
   the election-calendar page even after the primary has passed, so v1 scope
@@ -379,14 +388,17 @@ Notable per-state quirks (see `configDrivenPipelineInfo.md` for the rest):
 ## Outputs (`data/output/<state>/`) and inputs (`data/input/`)
 
 Roster outputs (gitignored): `elections.json|csv`, `candidates.json|csv`,
-`measures.json|csv`, `county_directory.json`, `county_ballots.json|csv`.
+`measures.json|csv`, `county_directory.json`, `county_ballots.json|csv`, and
+`sources.json` (the URLs the run used + format per data group, payload hashes, known
+gaps, and a machine-readable `next_run` recommendation; the pass's `SourcesJson`
+column holds the same).
 
-Tracked inputs: `data/input/state_catalog.json`, `data/input/<state>/county_fips.json`,
-and `data/input/<state>/sources.json` (provenance with URL + format per data group,
-known gaps, and a machine-readable `next_run` recommendation) - plus, for states that
-use them, `date_formats.json`, `selectors.json`, `election_type_names.json`, and
-`election_ids.json` (see `configDrivenPipelineInfo.md` for what each does and its
-fail-loud/permissive policy).
+Tracked inputs: `data/input/state_catalog.json`, and per state `source_links.json`
+(every URL the collector fetches, its home link, and hand-maintained
+parameters such as election ids - the seed for the `SourceLinks` table) and
+`county_fips.json` - plus, for states that use them, `date_formats.json`,
+`selectors.json`, `election_type_names.json`, and `candidate_field_map.json` (see
+`configDrivenPipelineInfo.md` for what each does and its fail-loud/permissive policy).
 
 `candidates.*` carries a canonical set of fields across every state (see
 `StateBallot.Core/Models.cs`'s `CandidateRow`): `source_candidate_id`, `filing_date`,

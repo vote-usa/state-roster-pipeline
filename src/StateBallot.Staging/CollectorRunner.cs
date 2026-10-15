@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Globalization;
+using MySqlConnector;
 using StateBallot.Core;
 using StateBallot.Core.Raw;
 using StateBallot.States.Ca;
@@ -96,12 +97,13 @@ public sealed class CollectorRunner
     /// Returns the capture directory and, when stored, its Captures id.
     /// </summary>
     private async Task<(string Dir, int? Id)> CaptureAsync(
-        RunRequest request, string state, Func<int, string, string?, IStateCollector> factory, string stateRawDir,
+        RunRequest request, string state, Func<int, string, string?, SourceLinkSet?, IStateCollector> factory, string stateRawDir,
         string inputDataRoot, string? stateOutputDir, bool persist, string? gitSha, TextWriter log, CancellationToken ct)
     {
+        var links = await LoadLinksAsync(state, inputDataRoot, persist, log, ct);
         var writer = persist ? new CaptureWriter(_db!) : null;
-        int? captureId = writer is null ? null : await writer.BeginAsync(request, gitSha, ct);
-        var sink = StartCapture(stateRawDir, captureId, state, request.Year, log);
+        int? captureId = writer is null ? null : await writer.BeginAsync(request, gitSha, links.ToJson(), ct);
+        var sink = StartCapture(stateRawDir, captureId, state, request.Year, links, log);
         var rawDir = Path.GetRelativePath(inputDataRoot, sink.Directory).Replace('\\', '/');
         log.WriteLine(captureId is null
             ? $"Dry-run capture {sink.CaptureId}, not stored"
@@ -123,7 +125,7 @@ public sealed class CollectorRunner
                             : $"https://web.archive.org/web/{stamp}id_/{url}";
                 }
 
-                var collector = factory(request.Year, stateOutputDir ?? inputDataRoot, inputDataRoot);
+                var collector = factory(request.Year, stateOutputDir ?? inputDataRoot, inputDataRoot, links);
                 await collector.CaptureAsync(fetcher, DateOnly.FromDateTime(sink.StartedAt));
             }
         }
@@ -146,10 +148,23 @@ public sealed class CollectorRunner
 
     /// <summary>Stage 2: build the result from the capture alone, then store it as a pass with one run per election.</summary>
     private async Task<RunOutcome> NormalizeAsync(
-        RunRequest request, string state, Func<int, string, string?, IStateCollector> factory, string captureDir, int? captureId,
+        RunRequest request, string state, Func<int, string, string?, SourceLinkSet?, IStateCollector> factory, string captureDir, int? captureId,
         string inputDataRoot, string? stateOutputDir, bool persist, string? gitSha, TextWriter log, CancellationToken ct)
     {
         var capture = new CaptureReader(captureDir);
+
+        // Normalize with the links the capture was fetched with, so a later edit can't change
+        // what an old capture's rows say they came from. Older captures have no snapshot.
+        SourceLinkSet links;
+        if (capture.Log.Links is { } snapshot)
+        {
+            links = SourceLinkSet.FromFile(snapshot, $"capture {capture.CaptureId}", state);
+            log.WriteLine($"Links: {links.Origin} snapshot");
+        }
+        else
+        {
+            links = await LoadLinksAsync(state, inputDataRoot, persist, log, ct);
+        }
 
         RunWriter? writer = null;
         int? passId = null;
@@ -166,7 +181,7 @@ public sealed class CollectorRunner
         var tee = ConsoleTee.Start(log, captured);
         try
         {
-            var collector = factory(capture.Year, stateOutputDir ?? inputDataRoot, inputDataRoot);
+            var collector = factory(capture.Year, stateOutputDir ?? inputDataRoot, inputDataRoot, links);
             var collected = collector.Normalize(capture);
             collected.Sources.AttachPayloadHashes(capture.Log.Fetches);
 
@@ -189,8 +204,7 @@ public sealed class CollectorRunner
             var filesWritten = false;
             if (stateOutputDir is not null && !request.DryRun)
             {
-                var sourcesPath = DataPaths.SourcesPath(inputDataRoot, state);
-                new ResultWriter(stateOutputDir, sourcesPath).WriteAll(result);
+                new ResultWriter(stateOutputDir).WriteAll(result);
                 filesWritten = true;
                 Console.WriteLine($"\nFiles exported to {Path.GetFullPath(stateOutputDir)}");
             }
@@ -289,7 +303,8 @@ public sealed class CollectorRunner
     /// Opens data/raw/&lt;xx&gt;/&lt;capture-id&gt;/, or dry-&lt;utc stamp&gt; when nothing is stored.
     /// A directory left over from a database that was since recreated is moved aside, not overwritten.
     /// </summary>
-    private static RawSink StartCapture(string stateRawDir, int? captureId, string state, int year, TextWriter log)
+    private static RawSink StartCapture(
+        string stateRawDir, int? captureId, string state, int year, SourceLinkSet links, TextWriter log)
     {
         var stamp = DateTime.UtcNow.ToString("yyyyMMdd'T'HHmmss'Z'", CultureInfo.InvariantCulture);
         var name = captureId?.ToString(CultureInfo.InvariantCulture) ?? $"dry-{stamp}";
@@ -300,7 +315,50 @@ public sealed class CollectorRunner
             Directory.Move(dir, aside);
             log.WriteLine($"Moved an older capture that reused this capture id to {aside}.");
         }
-        return new RawSink(dir, name, state, year);
+        return new RawSink(dir, name, state, year, links.ToFile());
+    }
+
+    /// <summary>
+    /// The state's links for a capture. A stored run reads them from the staging database and
+    /// fails when the state has none there. A dry run uses the database when it can reach it
+    /// and the state has rows, otherwise the seed file, so it still works with no database.
+    /// </summary>
+    private async Task<SourceLinkSet> LoadLinksAsync(
+        string state, string inputDataRoot, bool persist, TextWriter log, CancellationToken ct)
+    {
+        string? fallbackReason = null;
+        if (_db is not null)
+        {
+            var connection = persist
+                ? _db.StagingConnectionString
+                : new MySqlConnectionStringBuilder(_db.StagingConnectionString) { ConnectionTimeout = 3 }.ConnectionString;
+            try
+            {
+                if (await new LinkStore(connection).LoadAsync(state, ct) is { } fromDb)
+                {
+                    log.WriteLine($"Links: {fromDb.Origin} ({fromDb.Links.Count} links, {fromDb.Parameters.Count} parameters)");
+                    return fromDb;
+                }
+                if (persist)
+                    throw new RunSetupException(
+                        $"No {state} source links in {StagingDb.Describe(connection)}. Run --migrate to seed them " +
+                        $"from {DataPaths.SourceLinksPath(inputDataRoot, state)}.");
+                fallbackReason = "no rows in the staging database";
+            }
+            catch (MySqlException ex) when (persist && ex.ErrorCode == MySqlErrorCode.NoSuchTable)
+            {
+                throw new RunSetupException(
+                    $"The staging database has no SourceLinks table. Run --migrate first. ({ex.Message})");
+            }
+            catch (MySqlException ex) when (!persist)
+            {
+                fallbackReason = $"staging database unavailable: {ex.Message}";
+            }
+        }
+
+        var fromFile = SourceLinkSet.Load(inputDataRoot, state);
+        log.WriteLine($"Links: {fromFile.Origin}{(fallbackReason is null ? "" : $" ({fallbackReason})")}");
+        return fromFile;
     }
 
     private static void PruneRaw(string stateRawDir, int keep, TextWriter log)

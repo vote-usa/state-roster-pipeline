@@ -1,10 +1,12 @@
+using StateBallot.Core;
+
 namespace StateBallot.States.Wv;
 
-/// <summary>All source URLs for the WV SOS candidate API in one place.</summary>
-public sealed class WvSourceConfig
+/// <summary>
+/// Named accessors over West Virginia's source links (data/input/wv/source_links.json,
+/// or the SourceLinks table when a run has a database). The URLs themselves are data.
+/// </summary>
+public sealed class WvSourceConfig : SourceConfigBase
 {
-    public string BaseUrl { get; init; } = "https://candidates.wvsos.gov";
-    public string Endpoint { get; init; } = "/candidate-web-api/candidates";
-
-    public string CandidatesUrl => $"{BaseUrl}{Endpoint}";
+    public string CandidatesUrl => Links.Url("candidates-page");
 }

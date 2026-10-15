@@ -1,0 +1,18 @@
+{
+  "state": "WV",
+  "links": [
+    {
+      "key": "home",
+      "url": "https://candidates.wvsos.gov",
+      "kind": "home",
+      "notes": "Checked by hand when a run comes back empty."
+    },
+    {
+      "key": "candidates-page",
+      "url": "https://candidates.wvsos.gov/candidate-web-api/candidates",
+      "format": "json",
+      "notes": "Undocumented paginated POST API behind the candidate search."
+    }
+  ],
+  "parameters": []
+}

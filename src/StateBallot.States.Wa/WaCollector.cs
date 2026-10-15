@@ -26,12 +26,13 @@ public sealed class WaCollector : IStateCollector
         int year,
         string stateDataDir,
         string? inputDataRoot = null,
-        WaSourceConfig? config = null)
+        WaSourceConfig? config = null,
+        SourceLinkSet? links = null)
     {
         _year = year;
         _stateDataDir = stateDataDir;
         _inputDataRoot = ResolveInputDataRoot(stateDataDir, inputDataRoot);
-        _config = config ?? new WaSourceConfig();
+        _config = config ?? new WaSourceConfig { Links = links ?? SourceLinkSet.Load(_inputDataRoot, StateCode) };
         _schedule = new WaPublishSchedule();
         _dateFormats = DateFormatConfig.Load(DataPaths.DateFormatsPath(_inputDataRoot, StateCode));
         _selectors = Selectors.Load(DataPaths.SelectorsPath(_inputDataRoot, StateCode));
@@ -262,10 +263,7 @@ public sealed class WaCollector : IStateCollector
                 .Select(e => new SourceEntry(_config.VoterGuideUrl(e.ElectionId, kv.Key), "json"))
                 .ToList(),
             StringComparer.Ordinal);
-        sources.VerificationOnly =
-        [
-            new SourceEntry("https://ballotpedia.org/Washington_elections,_" + _year, "html"),
-        ];
+        sources.VerificationOnly = _config.VerificationSources(_year);
         sources.NextRun = _schedule.Recommend(result, _year);
     }
 

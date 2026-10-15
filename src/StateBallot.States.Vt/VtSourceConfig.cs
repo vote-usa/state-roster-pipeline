@@ -1,26 +1,15 @@
+using StateBallot.Core;
+
 namespace StateBallot.States.Vt;
 
-/// <summary>All source URLs for the VT SOS elections site in one place.</summary>
-public sealed class VtSourceConfig
+/// <summary>
+/// Named accessors over Vermont's source links (data/input/vt/source_links.json,
+/// or the SourceLinks table when a run has a database). The URLs themselves are data.
+/// </summary>
+public sealed class VtSourceConfig : SourceConfigBase
 {
-    public string FilesBaseUrl { get; init; } =
-        "https://outside.vermont.gov/dept/sos/Elections_Division/election_info_resources/candidates";
+    public string CandidatesPageUrl => Links.Url("candidates-page");
 
-    /// <summary>
-    /// The evergreen candidates page. Unlike the XLSX files below, this page's
-    /// own URL is never year-parameterized - it always shows whatever cycle is
-    /// current, including its "Primary Election - Tuesday, August 11, 2026 |
-    /// General Election - Tuesday, November 3, 2026" plain-text date line (the
-    /// only place either date is published; the candidate XLSX files never
-    /// carry a date). See VtElectionDateScraper for how a year mismatch is
-    /// detected.
-    /// </summary>
-    public string CandidatesPageUrl { get; init; } =
-        "https://sos.vermont.gov/elections/election-info-resources/candidates";
-
-    /// <param name="kind">"Primary" or "General" (case-insensitive).</param>
-    public string CandidateListUrl(int year, string kind) =>
-        string.Equals(kind, "Primary", StringComparison.OrdinalIgnoreCase)
-            ? $"{FilesBaseUrl}/{year}_statewide_primary_qualified_candidates.xlsx"
-            : $"{FilesBaseUrl}/{year}_general_election_qualified_candidates.xlsx";
+    /// <param name="kind">"Primary" or "General" (case-insensitive); anything else is treated as General.</param>
+    public string CandidateListUrl(int year, string kind) => Links.Url("candidate-list", PrimaryOrGeneral(kind), year: year);
 }
