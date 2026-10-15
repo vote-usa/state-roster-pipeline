@@ -1,14 +1,21 @@
 import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
+import { Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, FormControl, FormControlLabel, FormLabel, InputLabel, MenuItem, Radio, RadioGroup, Select, TextField, Typography } from "@mui/material";
 import { startJob, useApi, type RunKind, type StateDetail, type StateSummary } from "./api";
-import { ErrorText, Pending, ago, bytes, type StartRunPreset } from "./ui";
+import { Pending, ago, bytes, kindLabel, type StartRunPreset } from "./ui";
 
 const NAME_KEY = "roster-console.requested-by";
 
 function savedName(): string {
   try { return localStorage.getItem(NAME_KEY) ?? ""; } catch { return ""; }
 }
+
+const KINDS: [RunKind, string][] = [
+  ["both", "Fetch every source page, then build one run per election from it."],
+  ["capture", "Fetch and save the source pages. Nothing is parsed yet."],
+  ["normalize", "Rebuild runs from saved pages. No network, and the year comes from the retrieve."],
+];
 
 export function StartRunDialog({ preset, onClose }: { preset: StartRunPreset; onClose: () => void }) {
   const navigate = useNavigate();
@@ -26,13 +33,11 @@ export function StartRunDialog({ preset, onClose }: { preset: StartRunPreset; on
   const [refusal, setRefusal] = useState<string | null>(null);
   const detail = useApi<StateDetail>(`/states/${stateCode || "none"}`);
 
-  if (!states.data) return <div className="backdrop" onClick={onClose}><div className="dialog"><Pending query={states} /></div></div>;
-
   // Only a succeeded retrieve whose payloads are still on disk can be normalized.
   const usable = (detail.data?.code === stateCode ? detail.data.captures : []).filter(c => c.status === "succeeded" && c.filesPresent);
   const chosen = usable.find(c => c.captureId === captureId) ?? usable[0];
   const name = requestedBy.trim();
-  const blocked = sending || name === "" || (kind === "normalize" && !chosen);
+  const blocked = sending || name === "" || stateCode === "" || (kind === "normalize" && !chosen);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -58,62 +63,56 @@ export function StartRunDialog({ preset, onClose }: { preset: StartRunPreset; on
   }
 
   return (
-    <div className="backdrop" onClick={onClose}>
-      <form className="dialog" onSubmit={submit} onClick={e => e.stopPropagation()}>
-        <h2>Start a run</h2>
+    <Dialog open onClose={onClose} maxWidth="sm" fullWidth slotProps={{ paper: { component: "form", onSubmit: submit } as never }}>
+      <DialogTitle sx={{ color: "secondary.main", fontWeight: 500, fontSize: "1.4rem" }}>Start a run</DialogTitle>
+      <DialogContent>
+        {!states.data ? <Pending query={states} /> : (
+          <>
+            <Box sx={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 2, mt: 1 }}>
+              <FormControl fullWidth>
+                <InputLabel id="run-state">State</InputLabel>
+                <Select labelId="run-state" label="State" value={stateCode} onChange={e => { setPicked(e.target.value); setCaptureId(null); }}>
+                  {implemented.map(s => <MenuItem key={s.code} value={s.code}>{s.name}</MenuItem>)}
+                </Select>
+              </FormControl>
+              <TextField label="Year" type="number" value={kind === "normalize" && chosen ? chosen.year : year}
+                disabled={kind === "normalize"} onChange={e => setYear(Number(e.target.value))} />
+            </Box>
 
-        <div className="fields">
-          <label>State
-            <select value={stateCode} onChange={e => { setPicked(e.target.value); setCaptureId(null); }}>
-              {implemented.map(s => <option key={s.code} value={s.code}>{s.code} {s.name}</option>)}
-            </select>
-          </label>
-          <label>Year
-            <input type="number" value={kind === "normalize" && chosen ? chosen.year : year} disabled={kind === "normalize"} onChange={e => setYear(Number(e.target.value))} />
-          </label>
-        </div>
-
-        <fieldset>
-          <legend>What to run</legend>
-          <label className="choice">
-            <input type="radio" checked={kind === "both"} onChange={() => setKind("both")} />
-            <span><b>Retrieve and normalize</b><small>Fetch every source page, then build one run per election from it.</small></span>
-          </label>
-          <label className="choice">
-            <input type="radio" checked={kind === "capture"} onChange={() => setKind("capture")} />
-            <span><b>Retrieve only</b><small>Fetch and save the source pages. Nothing is parsed yet.</small></span>
-          </label>
-          <label className="choice">
-            <input type="radio" checked={kind === "normalize"} onChange={() => setKind("normalize")} />
-            <span><b>Normalize an existing retrieve</b><small>Rebuild runs from saved pages. No network, and the year comes from the retrieve.</small></span>
-          </label>
-          {kind === "normalize" && (usable.length === 0
-            ? <p className="warn">{detail.data ? `${stateCode} has no succeeded retrieve with its payloads still on disk.` : "Loading retrieves…"}</p>
-            : <select className="indent" value={chosen!.captureId} onChange={e => setCaptureId(Number(e.target.value))}>
-                {usable.map(c => (
-                  <option key={c.captureId} value={c.captureId}>
-                    retrieve {c.captureId}, {c.year}, {ago(c.startedAt)}, {c.fetchCount} fetches, {bytes(c.rawBytes)}
-                  </option>
+            <FormControl sx={{ mt: 3, width: "100%" }}>
+              <FormLabel sx={{ fontSize: "0.8rem", mb: 0.5 }}>What to run</FormLabel>
+              <RadioGroup value={kind} onChange={e => setKind(e.target.value as RunKind)}>
+                {KINDS.map(([value, help]) => (
+                  <FormControlLabel key={value} value={value} control={<Radio />} sx={{ alignItems: "flex-start", mb: 0.5, "& .MuiRadio-root": { pt: 0.5 } }}
+                    label={<Box sx={{ pt: 0.5 }}>
+                      <Typography sx={{ fontWeight: 500 }}>{value === "normalize" ? "Normalize an existing retrieve" : kindLabel[value]}</Typography>
+                      <Typography color="text.secondary" sx={{ fontSize: "0.8rem" }}>{help}</Typography>
+                    </Box>} />
                 ))}
-              </select>)}
-        </fieldset>
+              </RadioGroup>
+              {kind === "normalize" && (usable.length === 0
+                ? <Alert severity="warning" sx={{ ml: 4 }}>{detail.data ? `${stateCode} has no succeeded retrieve with its payloads still on disk.` : "Loading retrieves…"}</Alert>
+                : <Select size="small" sx={{ ml: 4 }} value={chosen!.captureId} onChange={e => setCaptureId(Number(e.target.value))}>
+                    {usable.map(c => (
+                      <MenuItem key={c.captureId} value={c.captureId}>Retrieve {c.captureId}, {c.year}, {ago(c.startedAt)}, {c.fetchCount} fetches, {bytes(c.rawBytes)}</MenuItem>
+                    ))}
+                  </Select>)}
+            </FormControl>
 
-        <div className="fields">
-          <label>Only this election <span className="muted">(optional)</span>
-            <input type="date" value={electionFilter} disabled={kind === "capture"} onChange={e => setElectionFilter(e.target.value)} />
-          </label>
-          <label>Your name <span className="muted">(recorded on the run)</span>
-            <input value={requestedBy} onChange={e => setRequestedBy(e.target.value)} />
-          </label>
-        </div>
+            <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 2, mt: 3 }}>
+              <TextField label="Only this election (optional)" type="date" value={electionFilter} disabled={kind === "capture"}
+                onChange={e => setElectionFilter(e.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
+              <TextField label="Your name" helperText="Recorded on the run" value={requestedBy} onChange={e => setRequestedBy(e.target.value)} />
+            </Box>
 
-        <ErrorText text={refusal} />
-
-        <div className="actions">
-          <button type="button" onClick={onClose}>Cancel</button>
-          <button type="submit" className="primary" disabled={blocked}>{sending ? "Starting…" : "Start"}</button>
-        </div>
-      </form>
-    </div>
+            {refusal && <Alert severity="error" sx={{ mt: 2 }}>{refusal}</Alert>}
+          </>
+        )}
+      </DialogContent>
+      <DialogActions sx={{ px: 3, pb: 2.5 }}>
+        <Button onClick={onClose}>Cancel</Button>
+        <Button type="submit" variant="contained" disabled={blocked}>{sending ? "Starting…" : "Start"}</Button>
+      </DialogActions>
+    </Dialog>
   );
 }

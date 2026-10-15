@@ -1,14 +1,15 @@
-import { Link, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
+import { Box, Table, TableBody, TableCell, TableHead, TableRow, Typography } from "@mui/material";
 import { electionsFrom, useApi, type StateDetail } from "../api";
-import { CaptureLink, Empty, Pending, When, count } from "../ui";
+import { CaptureLink, Empty, PageHeader, Pending, To, When, count, runType } from "../ui";
 
 function Delta({ value, previous }: { value: number; previous: number | undefined }) {
   const change = previous === undefined ? 0 : value - previous;
   return (
-    <td className="num">
+    <TableCell align="right">
       {count(value)}
-      {change !== 0 && <span className={change > 0 ? "up" : "down"}> {change > 0 ? "+" : ""}{count(change)}</span>}
-    </td>
+      {change !== 0 && <Typography component="span" sx={{ fontSize: "inherit", color: change > 0 ? "success.main" : "error.main" }}> {change > 0 ? "+" : ""}{count(change)}</Typography>}
+    </TableCell>
   );
 }
 
@@ -26,34 +27,39 @@ export function ElectionPage() {
 
   return (
     <>
-      <p className="crumbs"><Link to="/">States</Link> / <Link to={`/states/${code}`}>{state.data.name}</Link></p>
-      <h1>{latest.electionDate} {latest.electionType}</h1>
-      <p className="muted">{latest.electionName}. Source election id {latest.sourceElectionId || "none"}.</p>
+      <PageHeader crumbs={[["National – US States", "/"], [state.data.name, `/states/${code}`]]} title={`${latest.electionDate} ${latest.electionType}`} />
+      <Typography color="text.secondary" sx={{ mt: -2, mb: 3 }}>{latest.electionName}. Source election id {latest.sourceElectionId || "none"}.</Typography>
 
-      <h2>Run history</h2>
-      <p className="muted">Each normalization stores a new run and never changes an old one. Changes are against the run before it.</p>
-      <table>
-        <thead>
-          <tr><th>Run</th><th>Stored</th><th>From</th><th className="num">Candidates</th><th className="num">Measures</th><th className="num">County ballots</th><th className="num">Gaps</th></tr>
-        </thead>
-        <tbody>
-          {runs.map((r, i) => {
-            const before = runs[i + 1];
-            const p = passes.get(r.passId);
-            return (
-              <tr key={r.runId}>
-                <td><Link to={`/runs/${r.runId}`}><b>run {r.runId}</b></Link>{i === 0 && <span className="muted"> latest</span>}</td>
-                <td><When iso={r.createdAt} /></td>
-                <td>pass {r.passId}{p && <> of <CaptureLink id={p.captureId} /></>}</td>
-                <Delta value={r.candidateCount} previous={before?.candidateCount} />
-                <Delta value={r.measureCount} previous={before?.measureCount} />
-                <Delta value={r.countyBallotCount} previous={before?.countyBallotCount} />
-                <td className="num">{p?.gaps.length ?? ""}</td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+      <Typography variant="h2">Run history</Typography>
+      <Typography color="text.secondary" sx={{ mb: 1.5 }}>Each normalization stores a new run and never changes an old one. Changes are against the run before it.</Typography>
+      <Box sx={{ overflowX: "auto" }}>
+        <Table>
+          <TableHead>
+            <TableRow>
+              <TableCell>Run</TableCell><TableCell>Run Type</TableCell><TableCell>Date Created</TableCell><TableCell>From</TableCell>
+              <TableCell align="right">Candidates</TableCell><TableCell align="right">Measures</TableCell><TableCell align="right">County ballots</TableCell><TableCell align="right">Gaps</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {runs.map((r, i) => {
+              const before = runs[i + 1];
+              const p = passes.get(r.passId);
+              return (
+                <TableRow key={r.runId} hover>
+                  <TableCell><To to={`/runs/${r.runId}`}><b>Run {r.runId}</b></To>{i === 0 && <Typography component="span" color="text.secondary"> latest</Typography>}</TableCell>
+                  <TableCell>{p ? runType(p.source) : ""}</TableCell>
+                  <TableCell><When iso={r.createdAt} /></TableCell>
+                  <TableCell>pass {r.passId}{p && <> of <CaptureLink id={p.captureId} /></>}</TableCell>
+                  <Delta value={r.candidateCount} previous={before?.candidateCount} />
+                  <Delta value={r.measureCount} previous={before?.measureCount} />
+                  <Delta value={r.countyBallotCount} previous={before?.countyBallotCount} />
+                  <TableCell align="right">{p?.gaps.length ?? ""}</TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </Box>
     </>
   );
 }
