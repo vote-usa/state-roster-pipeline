@@ -7,7 +7,6 @@
 **/obj
 **/.DS_Store
 data/output
-web
 *.md
 *.sln
 scripts
