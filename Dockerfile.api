@@ -1,0 +1,31 @@
+# syntax=docker/dockerfile:1.7-labs
+
+# The read API for the run console. Same shape as the CLI image in Dockerfile.
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+WORKDIR /build
+ENV DOTNET_CLI_TELEMETRY_OPTOUT=1 \
+    DOTNET_NOLOGO=1
+
+COPY --parents src/*/*.csproj ./
+RUN dotnet restore src/StateBallot.Api/StateBallot.Api.csproj
+
+COPY src/ src/
+RUN dotnet publish src/StateBallot.Api/StateBallot.Api.csproj \
+    --configuration Release --no-restore --output /out
+
+# The API locates data/ by walking up from the executable to a directory that has
+# src/ and data/ side by side, so the image keeps the repo shape.
+FROM mcr.microsoft.com/dotnet/aspnet:8.0
+WORKDIR /app
+ENV DOTNET_CLI_TELEMETRY_OPTOUT=1 \
+    DOTNET_NOLOGO=1 \
+    ASPNETCORE_URLS=http://+:5080
+
+COPY --from=build /out/ src/StateBallot.Api/
+COPY data/input/ data/input/
+RUN chown -R app:app /app
+
+USER app
+WORKDIR /app/src/StateBallot.Api
+EXPOSE 5080
+ENTRYPOINT ["dotnet", "StateBallot.Api.dll"]
