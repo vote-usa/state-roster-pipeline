@@ -1,0 +1,24 @@
+{
+  "state": "TX",
+  "links": [
+    {
+      "key": "home",
+      "url": "https://goelect.txelections.civixapps.com",
+      "kind": "home",
+      "notes": "Checked by hand when a run comes back empty."
+    },
+    {
+      "key": "elections",
+      "url": "https://goelect.txelections.civixapps.com/api-ivis-cbp/api/cbp/getElectionsByYear/{year}",
+      "format": "json",
+      "notes": "Undocumented API behind the candidate search. Needs browser-like Origin/Referer headers."
+    },
+    {
+      "key": "candidates",
+      "url": "https://goelect.txelections.civixapps.com/api-ivis-cbp/api/cbp/findQualifiedCandidates",
+      "format": "json",
+      "notes": "POST per election and office type."
+    }
+  ],
+  "parameters": []
+}

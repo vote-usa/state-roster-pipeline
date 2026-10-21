@@ -10,6 +10,16 @@ public sealed class TxNormalizeTests : IDisposable
     private readonly string _dir = Path.Combine(Path.GetTempPath(), "tx-capture-" + Guid.NewGuid().ToString("N"));
     private readonly string _inputRoot = Path.Combine(Path.GetTempPath(), "tx-input-" + Guid.NewGuid().ToString("N"));
 
+    private static readonly SourceLinkSet Links = new(
+        "TX",
+        [
+            new SourceLink { Key = "home", Url = "https://tx.example.test", Kind = SourceLinkKind.Home },
+            new SourceLink { Key = "elections", Url = "https://tx.example.test/elections/{year}" },
+            new SourceLink { Key = "candidates", Url = "https://tx.example.test/candidates" },
+        ],
+        [],
+        "test");
+
     public TxNormalizeTests()
     {
         var stateInput = Path.Combine(_inputRoot, "input", "tx");
@@ -31,7 +41,7 @@ public sealed class TxNormalizeTests : IDisposable
     [Fact]
     public void Normalize_FiltersUpcomingElectionsAsOfTheCaptureDate()
     {
-        var config = new TxSourceConfig();
+        var config = new TxSourceConfig { Links = Links };
         var sink = new RawSink(_dir, "1", "TX", 2026);
         Record(sink, config.ElectionsUrl(2026), FetchTag.Of(TxElectionClient.Role), """
             [
@@ -44,7 +54,7 @@ public sealed class TxNormalizeTests : IDisposable
             """);
         SetCaptureDate(new DateTime(2026, 9, 23, 12, 0, 0, DateTimeKind.Utc));
 
-        var result = new TxCollector(2026, _dir, _inputRoot).Normalize(new CaptureReader(_dir));
+        var result = new TxCollector(2026, _dir, _inputRoot, links: Links).Normalize(new CaptureReader(_dir));
 
         var election = Assert.Single(result.Elections);
         Assert.Equal("2", election.ElectionId);
@@ -57,12 +67,12 @@ public sealed class TxNormalizeTests : IDisposable
     public void Normalize_WhenTheCaptureLacksAnElectionsCandidates_Throws()
     {
         var sink = new RawSink(_dir, "1", "TX", 2026);
-        Record(sink, new TxSourceConfig().ElectionsUrl(2026), FetchTag.Of(TxElectionClient.Role), """
+        Record(sink, new TxSourceConfig { Links = Links }.ElectionsUrl(2026), FetchTag.Of(TxElectionClient.Role), """
             [ { "idElection": 2, "txElectionName": "2026 NOVEMBER GENERAL", "cdElectionType": "G", "dtElectionDate": "2026-11-03" } ]
             """);
         SetCaptureDate(new DateTime(2026, 9, 23, 12, 0, 0, DateTimeKind.Utc));
 
-        var ex = Assert.Throws<InvalidOperationException>(() => new TxCollector(2026, _dir, _inputRoot).Normalize(new CaptureReader(_dir)));
+        var ex = Assert.Throws<InvalidOperationException>(() => new TxCollector(2026, _dir, _inputRoot, links: Links).Normalize(new CaptureReader(_dir)));
         Assert.Contains("'candidates' (election=2)", ex.Message);
     }
 

@@ -1,0 +1,24 @@
+{
+  "state": "NE",
+  "links": [
+    {
+      "key": "home",
+      "url": "https://sos.nebraska.gov/elections",
+      "kind": "home",
+      "notes": "Checked by hand when a run comes back empty."
+    },
+    {
+      "key": "elections-page",
+      "url": "https://sos.nebraska.gov/elections",
+      "format": "html",
+      "notes": "Primary and general dates in plain text."
+    },
+    {
+      "key": "candidate-filing-list",
+      "url": "https://sos.nebraska.gov/sites/default/files/doc/elections/{year}/Statewide_Candidate_Filing_List.xlsx",
+      "format": "xlsx",
+      "notes": "Sheet 0 is candidates, sheet 1 is judicial retention questions."
+    }
+  ],
+  "parameters": []
+}

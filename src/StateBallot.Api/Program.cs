@@ -25,6 +25,19 @@ builder.Services.AddHostedService<JobWorker>();
 var app = builder.Build();
 app.Logger.LogInformation("Staging {Staging}, data root {DataRoot}", StagingDb.Describe(db.StagingConnectionString), dataRoot);
 
+// Same as the CLI's --migrate, so a fresh database works with `docker compose up web` alone. A database
+// that cannot be reached still lets the API start: its endpoints answer 503 and say why.
+try
+{
+    var migrated = await new Migrator(db.StagingConnectionString, dataRoot).ApplyAsync();
+    app.Logger.LogInformation("Staging schema at version {Version} ({Applied} applied now); source links: {Inserted} seeded",
+        migrated.CurrentVersion, migrated.Applied, migrated.Links.Inserted);
+}
+catch (Exception ex)
+{
+    app.Logger.LogError("The staging schema could not be migrated: {Message}", ex.Message);
+}
+
 app.UseExceptionHandler(handler => handler.Run(async context =>
 {
     var error = context.Features.Get<IExceptionHandlerFeature>()?.Error;

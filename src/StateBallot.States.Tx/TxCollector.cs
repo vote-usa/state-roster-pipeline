@@ -17,13 +17,14 @@ public sealed class TxCollector : IStateCollector
 
     /// <param name="stateDataDir">Per-state output directory (data/output/&lt;xx&gt;/). Inputs are under data/input/&lt;xx&gt;/,
     /// including date_formats.json and election_type_names.json.</param>
-    public TxCollector(int year, string stateDataDir, string? inputDataRoot = null, TxSourceConfig? config = null)
+    public TxCollector(
+        int year, string stateDataDir, string? inputDataRoot = null, TxSourceConfig? config = null, SourceLinkSet? links = null)
     {
         _year = year;
-        _config = config ?? new TxSourceConfig();
         _schedule = new TxPublishSchedule();
 
         var dataRoot = ResolveInputDataRoot(stateDataDir, inputDataRoot);
+        _config = config ?? new TxSourceConfig { Links = links ?? SourceLinkSet.Load(dataRoot, StateCode) };
         _dateFormats = DateFormatConfig.Load(DataPaths.DateFormatsPath(dataRoot, StateCode));
         _electionTypeNames = new Dictionary<string, string>(
             LookupTableLoader.Load(DataPaths.ElectionTypeNamesPath(dataRoot, StateCode)), StringComparer.OrdinalIgnoreCase);
@@ -105,7 +106,7 @@ public sealed class TxCollector : IStateCollector
         if (!anyCandidates)
             throw new InvalidOperationException(
                 "Every upcoming election returned zero candidates; refusing to write hollow outputs. " +
-                "Check https://goelect.txelections.civixapps.com manually.");
+                $"Check {_config.HomeUrl(_year)} manually.");
 
         CollectResultSorter.Sort(result);
         BuildSourcesManifest(result);
@@ -117,7 +118,7 @@ public sealed class TxCollector : IStateCollector
         var sources = result.Sources;
         sources.Elections = [new SourceEntry(_config.ElectionsUrl(_year), "json")];
         sources.StatewideCandidates = [new SourceEntry(_config.CandidatesUrl, "json (POST)")];
-        sources.VerificationOnly = [new SourceEntry("https://ballotpedia.org/Texas_elections," + _year, "html")];
+        sources.VerificationOnly = _config.VerificationSources(_year);
         sources.NextRun = _schedule.Recommend(result, _year);
     }
 

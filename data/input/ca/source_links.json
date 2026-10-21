@@ -1,0 +1,47 @@
+{
+  "state": "CA",
+  "links": [
+    {
+      "key": "home",
+      "url": "https://www.sos.ca.gov/elections",
+      "kind": "home",
+      "notes": "Checked by hand when a run comes back empty."
+    },
+    {
+      "key": "upcoming-elections",
+      "url": "https://www.sos.ca.gov/elections/upcoming-elections",
+      "format": "html",
+      "notes": "Statewide and special elections, with links to each special election's page."
+    },
+    {
+      "key": "certified-list",
+      "variant": "primary",
+      "url": "https://elections.cdn.sos.ca.gov/statewide-elections/{year}-primary/cert-list-candidates.pdf",
+      "format": "pdf",
+      "notes": "Certified list of candidates for the statewide primary."
+    },
+    {
+      "key": "certified-list",
+      "variant": "general",
+      "url": "https://elections.cdn.sos.ca.gov/statewide-elections/{year}-general/cert-list-candidates.pdf",
+      "format": "pdf",
+      "notes": "Certified list of candidates for the statewide general."
+    },
+    {
+      "key": "qualified-measures",
+      "url": "https://www.sos.ca.gov/elections/ballot-measures/qualified-ballot-measures",
+      "format": "html"
+    },
+    {
+      "key": "county-elections",
+      "url": "https://www.sos.ca.gov/elections/upcoming-elections/county-administered-elections",
+      "format": "html"
+    },
+    {
+      "key": "county-directory",
+      "url": "https://www.sos.ca.gov/elections/voting-resources/county-elections-offices",
+      "format": "html"
+    }
+  ],
+  "parameters": []
+}

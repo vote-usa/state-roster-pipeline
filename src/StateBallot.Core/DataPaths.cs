@@ -2,7 +2,7 @@ namespace StateBallot.Core;
 
 /// <summary>
 /// Resolves input vs output paths.
-/// Pipeline default: input under data/input/ (catalog, county_fips, sources,
+/// Pipeline default: input under data/input/ (catalog, county_fips, source_links,
 /// date_formats, election_type_names, selectors, …), output under
 /// data/output/&lt;xx&gt;/. Snapshot publishes can point --output-root at a
 /// checkout of state-roster-data (states at the repo root: &lt;output-root&gt;/&lt;xx&gt;/).
@@ -29,9 +29,6 @@ public static class DataPaths
     public static string CountyFipsPath(string inputDataRoot, string stateCode) =>
         Path.Combine(StateInputDir(inputDataRoot, stateCode), "county_fips.json");
 
-    public static string SourcesPath(string inputDataRoot, string stateCode) =>
-        Path.Combine(StateInputDir(inputDataRoot, stateCode), "sources.json");
-
     public static string SnapshotPath(string inputDataRoot) =>
         Path.Combine(InputRoot(inputDataRoot), "snapshot.json");
 
@@ -44,15 +41,9 @@ public static class DataPaths
     public static string CandidateFieldMapPath(string inputDataRoot, string stateCode) =>
         Path.Combine(StateInputDir(inputDataRoot, stateCode), "candidate_field_map.json");
 
-    /// <summary>
-    /// For a state whose source exposes no way to discover its own current
-    /// election ids (no index page, no predictable URL template) - a
-    /// hand-maintained canonical type name (e.g. "General") -> the source's
-    /// own id, re-derived by a human each cycle. See NmSourceConfig for the
-    /// first consumer.
-    /// </summary>
-    public static string ElectionIdsPath(string inputDataRoot, string stateCode) =>
-        Path.Combine(StateInputDir(inputDataRoot, stateCode), "election_ids.json");
+    /// <summary>The state's source links and parameters (see <see cref="SourceLinkSet"/>), the seed for the SourceLinks table.</summary>
+    public static string SourceLinksPath(string inputDataRoot, string stateCode) =>
+        Path.Combine(StateInputDir(inputDataRoot, stateCode), SourceLinkSet.FileName);
 
     public static string SelectorsPath(string inputDataRoot, string stateCode) =>
         Path.Combine(StateInputDir(inputDataRoot, stateCode), "selectors.json");

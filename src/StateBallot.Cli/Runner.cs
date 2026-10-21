@@ -21,6 +21,8 @@ public static class Runner
         var dryRun = false;
         string? wayback = null;
         var migrate = false;
+        string? linksCommand = null;
+        string? linksState = null;
         string? triggeredBy = null;
 
         for (var i = 0; i < args.Length; i++)
@@ -64,6 +66,11 @@ public static class Runner
                 case "--migrate":
                     migrate = true;
                     break;
+                case "--export-links" or "--reseed-links":
+                    linksCommand = args[i];
+                    if (i + 1 < args.Length && !args[i + 1].StartsWith("--", StringComparison.Ordinal))
+                        linksState = args[++i].ToUpperInvariant();
+                    break;
                 case "--triggered-by" when i + 1 < args.Length:
                     triggeredBy = args[++i];
                     break;
@@ -91,7 +98,12 @@ public static class Runner
                           --input-root <dir>   Pipeline data root for inputs (default: repo data/)
                           --output-root <dir>  Also export files to <dir>/<state>/ (e.g. a state-roster-data checkout)
                           --out <dir>          Legacy: a data root with input/ + output/, exports files too
-                          --migrate            Apply pending migrations to the staging schema and exit
+                          --migrate            Apply pending migrations to the staging schema, seed source links that
+                                               are missing from data/input/<xx>/source_links.json, and exit.
+                                               Links already in the database are kept, and drift is reported.
+                          --export-links [XX]  Write the database's source links back to the seed files (one state, or all)
+                          --reseed-links [XX]  Replace the database's source links with the seed files (one state, or all).
+                                               Rows only in the database are deleted.
 
                         The staging connection comes from ROSTER_STAGING_CONNECTION and defaults to
                         the local Docker MySQL in db/. Run --migrate once before the first collection.
@@ -112,7 +124,9 @@ public static class Runner
         var db = StagingDb.FromEnvironment();
 
         if (migrate)
-            return await MigrateAsync(db);
+            return await MigrateAsync(db, inputRootArg);
+        if (linksCommand is not null)
+            return await LinksAsync(db, linksCommand, linksState, inputRootArg);
 
         var request = new RunRequest(state, year)
         {
@@ -149,12 +163,34 @@ public static class Runner
         }
     }
 
-    private static async Task<int> MigrateAsync(StagingDb db)
+    private static async Task<int> MigrateAsync(StagingDb db, string? inputRoot)
     {
         Console.WriteLine($"Migrating {StagingDb.Describe(db.StagingConnectionString)}");
-        var report = await new Migrator(db.StagingConnectionString).ApplyAsync();
+        var report = await new Migrator(db.StagingConnectionString, inputRoot).ApplyAsync();
         Console.WriteLine(
             $"Applied: {report.Applied}; already applied: {report.AlreadyApplied}; at version {report.CurrentVersion}.");
+        Console.WriteLine($"Source links: {report.Links.Inserted} seeded, {report.Links.Unchanged} already up to date.");
+        foreach (var note in report.Links.Notes)
+            Console.WriteLine($"  {note}");
+        return 0;
+    }
+
+    private static async Task<int> LinksAsync(StagingDb db, string command, string? state, string? inputRoot)
+    {
+        var dataRoot = inputRoot ?? CollectorRunner.FindDataRoot();
+        var store = new LinkStore(db.StagingConnectionString);
+        if (command == "--export-links")
+        {
+            var written = await store.ExportAsync(dataRoot, state);
+            Console.WriteLine(written.Count == 0
+                ? $"No source links in {StagingDb.Describe(db.StagingConnectionString)} to export."
+                : $"Exported {string.Join(", ", written)} to {DataPaths.InputRoot(dataRoot)}/<xx>/{SourceLinkSet.FileName}.");
+        }
+        else
+        {
+            var reseeded = await store.ReseedAsync(dataRoot, state);
+            Console.WriteLine($"Reseeded {string.Join(", ", reseeded)} from {DataPaths.InputRoot(dataRoot)}/<xx>/{SourceLinkSet.FileName}.");
+        }
         return 0;
     }
 

@@ -18,8 +18,9 @@ StateBallot.States.<Xx>/     # one project per state: SourceConfig, Selectors,
                               # mapper(s), scraper/client(s), PublishSchedule, Collector
 StateBallot.States.<Xx>.Tests/  # mapper/parsing unit tests, one project per state
 StateBallot.Cli/             # entrypoint: catalog + CollectorDiscovery + Runner
-data/input/<xx>/             # tracked, hand-edited config: date_formats.json,
-                              # selectors.json, county_fips.json, election_type_names.json
+data/input/<xx>/             # tracked, hand-edited config: source_links.json (the seed
+                              # for the SourceLinks table), date_formats.json, selectors.json,
+                              # county_fips.json, election_type_names.json, candidate_field_map.json
 data/output/<xx>/            # generated rosters (gitignored)
 ```
 
@@ -53,12 +54,11 @@ chosen deliberately per what a wrong value would do downstream:
 | `candidate_field_map.json` (canonical `CandidateRow` field name → that state's own column name, e.g. `{"Party": "Party Affiliation", ...}`) | `LookupTableLoader.Load` (same loader, same permissive-empty semantics — it's the identical flat-string-map shape) | Missing file throws; a field simply absent from the map means "not published/needs a transform," not an error | See `CandidateFieldMapper` below — the Tier 2 config-table extraction from the collector-abstraction analysis. |
 | `selectors.json` (named CSS-selector/regex strings, CA and WA today) | Each state's own `Selectors.Load(path)` | Missing file or missing key throws | Selectors are load-bearing for every scrape; a missing pattern should fail at the exact call site that needed it. |
 | `county_fips.json` (county name → FIPS code) | `CountyFipsLoader.LoadRequired` / `.LoadOrEmpty` | State's choice — CA/WA differ (WA treats a missing FIPS as an acceptable null enrichment field; CA treats the file as authoritative for the expected county set) | Two real states, two real different semantics — modeled as two explicit methods, not a boolean flag. |
-| `election_ids.json` (canonical election type name → that source's own opaque id, e.g. NM's `{"General": "2917"}` or SD's `{"Primary": "773", "General": "774"}`) | `LookupTableLoader.Load` (same loader/shape as the field map above) | Missing file throws; missing entry for the requested type throws with a message pointing at how to re-derive it | For a source with no discoverable index of its own current elections at all (no dropdown, no sibling links) — the id has to be found by a human once per cycle; see NmSourceConfig/SdSourceConfig. |
+| `source_links.json` (every URL the collector fetches, keyed by fetch role and optionally split by `primary`/`general` variant, with `{year}`/`{electionId}`/`{countyCode}`/`{raceId}` placeholders; plus the state's `home` link and hand-maintained `parameters` such as NM/SD election ids and HI's bootstrap id) | `SourceLinkSet` (Core), read through each state's `XxSourceConfig : SourceConfigBase`. It is the seed for the `SourceLinks`/`SourceParameters` tables, and a stored run reads the database copy (see "Source links" in `db/README.md`) | Missing file throws; an unknown placeholder or duplicate key throws on load; a missing link or an unfilled placeholder throws when the URL is built; a missing parameter throws (NM) or is recorded as a gap (SD) | URLs and per-cycle ids are what people edit, so they are data the console can change, not C#. Replaced the earlier `election_ids.json` files and the compiled-in URLs. |
 
 `DataPaths` (Core) centralizes every one of these paths so no state hand-builds
 `Path.Combine` logic itself: `DateFormatsPath`, `ElectionTypeNamesPath`,
-`CandidateFieldMapPath`, `SelectorsPath`, `CountyFipsPath`, `SourcesPath`,
-`ElectionIdsPath`.
+`CandidateFieldMapPath`, `SelectorsPath`, `CountyFipsPath`, `SourceLinksPath`.
 
 ### `CandidateFieldMapper` (Core) — the config-table field mapping
 
@@ -768,10 +768,10 @@ search, which is not something a collector can depend on repeating). HI hit a
 milder version of this same problem and solved it by reading its *own* page's
 election dropdown; NM's page doesn't have one to read. So this is the first
 state whose election id is hand-maintained config instead of discovered at
-all: `data/input/nm/election_ids.json` (loaded via a new `DataPaths.
-ElectionIdsPath`, using the same generic `LookupTableLoader` the field-map
-config already uses) - a human re-derives the value once per cycle and the
-collector fails loudly, naming the file, if the entry it needs is missing.
+all (originally `data/input/nm/election_ids.json`; now the `election-id`
+source parameter in `data/input/nm/source_links.json` and the
+`SourceParameters` table) - a human re-derives the value once per cycle and the
+collector fails loudly, naming where it looked, if the entry it needs is missing.
 **v1 scope is the general election only** for a related but distinct reason:
 even though the *candidate* data for NM's primary is sitting at its own,
 still-fetchable `eid`, this pipeline could find no live source anywhere for
@@ -947,8 +947,8 @@ SD SOS's "Voter Information Portal") shares NM's exact election-id problem -
 no dropdown, no sibling links, nothing discoverable at all, the id is
 opaque and has to be found by a human (confirmed live: `eid=773` is the 2026
 primary, `774` the general, found only via a web search, not any page on the
-site itself) - so `data/input/sd/election_ids.json` hand-maintains both,
-same mechanism NM's onboarding introduced. Where SD differs from NM in a way
+site itself) - so both are hand-maintained `election-id` source parameters
+(originally `data/input/sd/election_ids.json`), same mechanism NM's onboarding introduced. Where SD differs from NM in a way
 that actually matters: NM's SOS site removes a *past* election's date once
 it's over, which is why NM's v1 scope stops at the general; SD's own
 election-calendar page keeps *both* the primary's and the general's real
@@ -1055,7 +1055,7 @@ general, each with its own id, name, *and* real date all embedded directly
 in one option's text (confirmed live: `"FEDERAL PRIMARY 2026 (06/02/2026)
 (Primary)"`) - so a single fetch (the redirect followed transparently by
 `HttpFetcher`'s default `HttpClient` behavior) discovers everything this
-collector needs. No hand-maintained `election_ids.json` at all, unlike NM
+collector needs. No hand-maintained election id at all, unlike NM
 and SD - the one thing distinguishing this portal from those two isn't the
 underlying software (identical Telerik grid, identical `type="button"` +
 `__doPostBack` export toolbar button, so `WebFormsPostback.

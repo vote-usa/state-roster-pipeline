@@ -1,0 +1,30 @@
+{
+  "state": "WY",
+  "links": [
+    {
+      "key": "home",
+      "url": "https://sos.wyo.gov",
+      "kind": "home",
+      "notes": "Checked by hand when a run comes back empty."
+    },
+    {
+      "key": "election-info-page",
+      "url": "https://sos.wyo.gov/Elections/{year}ElectionInformation.aspx",
+      "format": "html",
+      "notes": "Yearly page; election dates come from its JSON-LD events."
+    },
+    {
+      "key": "candidate-list",
+      "variant": "primary",
+      "url": "https://sos.wyo.gov/Elections/Docs/{year}/{year}_WY_Primary_Election_Candidates.csv",
+      "format": "csv"
+    },
+    {
+      "key": "candidate-list",
+      "variant": "general",
+      "url": "https://sos.wyo.gov/Elections/Docs/{year}/{year}_WY_General_Election_Candidates.csv",
+      "format": "csv"
+    }
+  ],
+  "parameters": []
+}

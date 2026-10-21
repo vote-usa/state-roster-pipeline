@@ -1,0 +1,37 @@
+{
+  "state": "SD",
+  "links": [
+    {
+      "key": "home",
+      "url": "https://vip.sdsos.gov",
+      "kind": "home",
+      "notes": "Checked by hand when a run comes back empty."
+    },
+    {
+      "key": "upcoming-elections",
+      "url": "https://sdsos.gov/elections-voting/upcoming-elections/general-information/default.aspx",
+      "format": "html",
+      "notes": "Evergreen landing page. Its *-candidate-calendar.aspx link is followed for the year's dates."
+    },
+    {
+      "key": "candidate-list-page",
+      "url": "https://vip.sdsos.gov/candidatelist.aspx?eid={electionId}",
+      "format": "html",
+      "notes": "Candidate list for one election. The CSV comes from a WebForms export postback."
+    }
+  ],
+  "parameters": [
+    {
+      "key": "election-id",
+      "variant": "primary",
+      "value": "773",
+      "notes": "VIP has no index of its election ids. Re-derive by hand each cycle."
+    },
+    {
+      "key": "election-id",
+      "variant": "general",
+      "value": "774",
+      "notes": "VIP has no index of its election ids. Re-derive by hand each cycle."
+    }
+  ]
+}
