@@ -65,7 +65,7 @@ services:
       - ./data:/app/data
 
   web:
-    build: ./web
+    build: ../state-roster-client
     image: state-roster-web:local
     depends_on:
       - api

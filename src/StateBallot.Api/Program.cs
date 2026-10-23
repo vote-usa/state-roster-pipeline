@@ -4,7 +4,7 @@ using StateBallot.Api;
 using StateBallot.Core;
 using StateBallot.Staging;
 
-// API for the run console in web/. Local only: no auth, so it listens on localhost unless told otherwise.
+// API for the run console in ../state-roster-client. Local only: no auth, so it listens on localhost unless told otherwise.
 var builder = WebApplication.CreateBuilder(args);
 if (string.IsNullOrEmpty(builder.Configuration["urls"]))
     builder.WebHost.UseUrls("http://localhost:5080");

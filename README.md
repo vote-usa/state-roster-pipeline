@@ -46,7 +46,6 @@ state-roster-pipeline/
     StateBallot.States.{Xx}.Tests/  # mapper/parsing tests - one project per state
     StateBallot.Cli/         # args + catalog/discovery runner
     StateBallot.Api/         # API for the run console: reads staging, queues and runs jobs
-  web/                       # run console (React), talks to StateBallot.Api
   data/
     input/
       state_catalog.json     # all 50 states + DC (implemented | unimplemented)
@@ -149,7 +148,7 @@ Or run the two halves on the host, which reloads as you edit:
 ```bash
 docker compose up -d --wait mysql
 dotnet run --project src/StateBallot.Api      # http://localhost:5080, reads ROSTER_STAGING_CONNECTION
-cd web && npm ci && npm run dev               # http://localhost:5173, see web/README.md
+cd ../state-roster-client && npm ci && npm run dev   # http://localhost:5173, see that repo's README
 ```
 
 Both ways use ports 5080 and 5173, so stop one before starting the other (`docker compose stop web api`).
