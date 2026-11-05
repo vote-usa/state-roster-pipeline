@@ -82,7 +82,14 @@ public sealed class StagingQueries
         public long? Bytes { get; init; }
         public long DurationMs { get; init; }
         public string? Error { get; init; }
+        [JsonIgnore] public string? FileName { get; init; }
+
+        /// <summary>False for a fetch that failed or got a 4xx. A pruned capture still says true; check FilesPresent.</summary>
+        public bool HasPayload => FileName is not null;
     }
+
+    /// <summary>A saved payload on disk, and the content type the source sent it with.</summary>
+    public sealed record PayloadFile(string Path, string ContentType);
 
     public sealed record SourceView(string Group, string Url, string Format, bool Hashed);
 
@@ -234,10 +241,34 @@ public sealed class StagingQueries
         await using var cn = await _db.OpenStagingAsync(ct);
         return (await cn.QueryAsync<FetchView>(new CommandDefinition(
             """
-            SELECT Seq, Role, KeysJson, Method, Url, Status, ContentType, Bytes, DurationMs, Error
+            SELECT Seq, Role, KeysJson, Method, Url, Status, ContentType, Bytes, DurationMs, Error, FileName
             FROM CaptureFetches WHERE CaptureId = @CaptureId ORDER BY Seq
             """,
             new { CaptureId = captureId }, cancellationToken: ct))).AsList();
+    }
+
+    /// <summary>
+    /// The file a fetch's payload was saved to, or null when there is none: the fetch failed, the capture's
+    /// payloads were pruned, or the stored path would lead outside data/raw.
+    /// </summary>
+    public async Task<PayloadFile?> PayloadAsync(int captureId, int seq, CancellationToken ct = default)
+    {
+        await using var cn = await _db.OpenStagingAsync(ct);
+        var (rawDir, fileName, contentType) = await cn.QuerySingleOrDefaultAsync<(string?, string?, string?)>(new CommandDefinition(
+            """
+            SELECT c.RawDir, f.FileName, f.ContentType
+            FROM CaptureFetches f JOIN Captures c ON c.CaptureId = f.CaptureId
+            WHERE f.CaptureId = @CaptureId AND f.Seq = @Seq
+            """,
+            new { CaptureId = captureId, Seq = seq }, cancellationToken: ct));
+        if (rawDir is null || fileName is null)
+            return null;
+
+        var rawRoot = Path.GetFullPath(Path.Combine(_dataRoot, "raw")) + Path.DirectorySeparatorChar;
+        var path = Path.GetFullPath(Path.Combine(_dataRoot, rawDir, fileName));
+        if (!path.StartsWith(rawRoot, StringComparison.Ordinal) || !File.Exists(path))
+            return null;
+        return new PayloadFile(path, contentType ?? "application/octet-stream");
     }
 
     /// <summary>The newest pass of each state, any status.</summary>

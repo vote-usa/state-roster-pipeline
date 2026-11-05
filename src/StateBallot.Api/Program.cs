@@ -121,6 +121,20 @@ api.MapGet("/captures/{id:int}", async (int id, CancellationToken ct) =>
         })
         : Results.NotFound(new { error = $"No retrieve {id}." }));
 
+// A fetch's payload exactly as it was saved. It is served from the console's own origin, so a scraped page
+// is sandboxed: its scripts cannot run, or call this API. A PDF is not, because browsers will not show a
+// sandboxed PDF, and a PDF viewer runs no page scripts.
+api.MapGet("/captures/{id:int}/fetches/{seq:int}/payload", async (int id, int seq, HttpResponse response, CancellationToken ct) =>
+{
+    if (await queries.PayloadAsync(id, seq, ct) is not { } payload)
+        return Results.NotFound(new { error = $"Retrieve {id} has no saved payload for fetch {seq}. The fetch failed, or the payloads were pruned." });
+
+    response.Headers.XContentTypeOptions = "nosniff";
+    if (!payload.ContentType.Contains("pdf", StringComparison.OrdinalIgnoreCase))
+        response.Headers.ContentSecurityPolicy = "sandbox";
+    return Results.File(payload.Path, payload.ContentType, enableRangeProcessing: true);
+});
+
 api.MapGet("/runs/{id:int}", async (int id, CancellationToken ct) =>
     await queries.RunAsync(id, ct) is { } run
         ? Results.Ok(new { run, pass = await queries.PassAsync(run.PassId, ct) })
