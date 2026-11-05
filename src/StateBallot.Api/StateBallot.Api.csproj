@@ -3,6 +3,7 @@
   <ItemGroup>
     <ProjectReference Include="..\StateBallot.Core\StateBallot.Core.csproj" />
     <ProjectReference Include="..\StateBallot.Staging\StateBallot.Staging.csproj" />
+    <ProjectReference Include="..\StateBallot.States.Wv\StateBallot.States.Wv.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

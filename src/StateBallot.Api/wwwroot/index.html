@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Column mapping — step 1</title>
+  <style>
+    :root {
+      --ground: #f6f7f9; --surface: #ffffff; --ink: #1a2030; --muted: #5c6675;
+      --border: #e4e7ec; --accent: #3b5bdb; --accent-soft: #eaeefc;
+      --manual: #0f766e; --manual-soft: #e3f3f0; --manual-border: #c3e3dd;
+      --step: #6d4bbd; --step-soft: #efe9fb; --step-border: #ddd1f3;
+      --req: #b45309; --ok: #15803d;
+      --mono: ui-monospace, "Cascadia Code", "SF Mono", Menlo, Consolas, monospace;
+      --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--ground); color: var(--ink); font-family: var(--sans); font-size: 14px; line-height: 1.5; }
+    header { position: sticky; top: 0; z-index: 5; background: var(--surface); border-bottom: 1px solid var(--border);
+             padding: 14px 20px; display: flex; flex-wrap: wrap; gap: 16px; align-items: center; }
+    header h1 { font-size: 15px; margin: 0; font-weight: 600; letter-spacing: .01em; }
+    header .step { color: var(--muted); font-weight: 400; }
+    .controls { display: flex; gap: 8px; align-items: flex-end; margin-left: auto; }
+    label.field { display: flex; flex-direction: column; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; gap: 3px; }
+    input, select, button { font-family: inherit; font-size: 14px; }
+    input, select { padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--ink); }
+    input.state { width: 64px; text-transform: uppercase; font-family: var(--mono); }
+    input.year { width: 76px; font-family: var(--mono); }
+    button { padding: 7px 13px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--ink); cursor: pointer; }
+    button:hover { border-color: var(--accent); }
+    button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+    button:disabled { opacity: .45; cursor: default; }
+    button.small { padding: 4px 8px; font-size: 12px; }
+    button.link { border: none; background: none; color: var(--accent); padding: 2px 4px; }
+    .groupbar { display: none; gap: 16px; align-items: flex-end; flex-wrap: wrap; padding: 12px 20px; background: var(--surface); border-bottom: 1px solid var(--border); }
+    .groupbar.on { display: flex; }
+    .groupbar .sep { width: 1px; align-self: stretch; background: var(--border); }
+    .status { padding: 8px 20px; font-size: 13px; color: var(--muted); min-height: 18px; }
+    .status.err { color: var(--req); }
+    main { display: grid; grid-template-columns: minmax(0,1fr) 300px; gap: 20px; padding: 16px 20px 40px; align-items: start; }
+    @media (max-width: 920px) { main { grid-template-columns: 1fr; } }
+    .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; }
+    .panel > h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted);
+                  margin: 0; padding: 12px 16px; border-bottom: 1px solid var(--border); font-weight: 600; }
+    .summary { display: flex; gap: 20px; padding: 10px 16px; border-bottom: 1px solid var(--border); font-size: 13px; }
+    .summary b { font-variant-numeric: tabular-nums; }
+    .target { display: grid; grid-template-columns: 200px minmax(0,1fr); gap: 14px; padding: 12px 16px; border-bottom: 1px solid var(--border); }
+    .target:last-child { border-bottom: none; }
+    .target .meta { display: flex; flex-direction: column; gap: 2px; }
+    .target .name { font-family: var(--mono); font-size: 13px; word-break: break-word; }
+    .target .req { font-size: 11px; color: var(--req); text-transform: uppercase; letter-spacing: .05em; }
+    .target.filled .name { font-weight: 600; }
+    .target.missing { background: #fff9f0; }
+    .right { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+    .input-row { display: flex; gap: 10px; align-items: flex-start; flex-wrap: wrap; }
+    .input-row > .chip { margin-top: 2px; }
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+    .chip { display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; padding: 3px 6px 3px 10px; font-family: var(--mono); font-size: 12px; }
+    .chip.column { background: var(--accent-soft); color: var(--accent); border: 1px solid #d4dcfa; }
+    .chip.manual { background: var(--manual-soft); color: var(--manual); border: 1px solid var(--manual-border); }
+    .chip button { all: unset; cursor: pointer; width: 16px; height: 16px; line-height: 16px; text-align: center; border-radius: 50%; font-size: 13px; }
+    .chip button:hover { background: #fff; }
+    .chip .ord { color: var(--muted); font-size: 10px; }
+    .chip .tag { font-family: var(--sans); font-size: 9px; text-transform: uppercase; letter-spacing: .06em; opacity: .7; }
+    .add { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+    .add select { max-width: 200px; }
+    .add input.manual { width: 140px; }
+    .pipeline { display: flex; flex-direction: column; gap: 6px; border-left: 2px solid var(--step-border); padding-left: 10px; }
+    .pipeline .phead { font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: var(--step); font-weight: 600; }
+    .pstep { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+    .pstep .pos { font-size: 10px; color: var(--muted); font-variant-numeric: tabular-nums; width: 14px; }
+    .pstep select { background: var(--step-soft); border-color: var(--step-border); color: var(--step); font-family: var(--mono); font-size: 12px; }
+    .pstep input.param { width: 110px; font-size: 12px; }
+    .pstep .pname { font-size: 11px; color: var(--muted); font-family: var(--mono); }
+    .src { padding: 6px 0; }
+    .src-row { display: flex; justify-content: space-between; gap: 8px; padding: 5px 16px; font-size: 12px; border-bottom: 1px solid #f0f2f5; }
+    .src-row:last-child { border-bottom: none; }
+    .src-row .col { font-family: var(--mono); color: var(--ink); word-break: break-all; }
+    .src-row .val { color: var(--muted); max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .src-row .use { color: var(--accent); font-variant-numeric: tabular-nums; }
+    .result { font-size: 12px; font-family: var(--mono); padding: 2px 0; }
+    .result .lbl { font-family: var(--sans); color: var(--muted); margin-right: 6px; }
+    .result.ok { color: var(--ok); }
+    .result.err { color: var(--req); }
+    .result .qval { white-space: pre-wrap; }
+    .result .empty-val { color: var(--muted); font-style: italic; }
+    .empty { padding: 24px 16px; color: var(--muted); }
+    footer { position: sticky; bottom: 0; background: var(--surface); border-top: 1px solid var(--border);
+             padding: 12px 20px; display: flex; gap: 14px; align-items: center; }
+    .hint { color: var(--muted); font-size: 12px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Column mapping <span class="step">· step 1: inputs &amp; transform per target</span></h1>
+    <div class="controls">
+      <label class="field">State<input id="state" class="state" value="WV" maxlength="2" /></label>
+      <label class="field">Year<input id="year" class="year" type="number" /></label>
+      <button id="load">Load source data</button>
+    </div>
+  </header>
+
+  <div id="groupbar" class="groupbar">
+    <label class="field">Mapping group<select id="group"></select></label>
+    <button id="clone" title="Create a copy of this group with its mappings">Clone</button>
+    <div class="sep"></div>
+    <label class="field">New group name<input id="new-name" placeholder="e.g. WV General 2026" /></label>
+    <label class="field">Election type<input id="new-type" placeholder="General / Primary…" style="width:150px" /></label>
+    <label class="field">Party<input id="new-party" placeholder="optional" style="width:90px" /></label>
+    <button id="create">Create group</button>
+  </div>
+
+  <div id="status" class="status">Enter a state and year, then load its source columns.</div>
+
+  <main>
+    <section class="panel">
+      <h2>Target columns — canonical candidate fields</h2>
+      <div id="summary" class="summary" hidden>
+        <span>Mapped <b id="sum-mapped">0</b>/<b id="sum-total">0</b></span>
+        <span>Required unmapped <b id="sum-req">0</b></span>
+        <span>Source columns <b id="sum-src">0</b></span>
+      </div>
+      <div id="targets"><div class="empty">Load source data to begin mapping.</div></div>
+    </section>
+
+    <aside class="panel">
+      <h2>Source columns</h2>
+      <div id="sources" class="src"><div class="empty">None loaded.</div></div>
+    </aside>
+  </main>
+
+  <footer>
+    <button id="save" class="primary" disabled>Save mapping</button>
+    <div class="sep" style="width:1px;align-self:stretch;background:var(--border)"></div>
+    <label class="field">Test on<select id="preview-row" disabled></select></label>
+    <button id="preview" disabled>Test transform</button>
+    <span id="save-hint" class="hint"></span>
+  </footer>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    // state.mapping[target] = { inputs: [ {kind,sourceColumn|manualValue} ], transform: [ {kind, params:{}} ] }
+    // state.draft[target] = uncommitted manual-value text, preserved across re-renders
+    const state = { targets: [], source: null, groups: [], groupId: null, transforms: [], mapping: {}, draft: {}, preview: null };
+    const COLUMN = "column", MANUAL = "manual";
+
+    document.addEventListener("DOMContentLoaded", () => {
+      $("year").value = new Date().getFullYear();
+      $("load").addEventListener("click", load);
+      $("save").addEventListener("click", save);
+      $("create").addEventListener("click", createGroup);
+      $("clone").addEventListener("click", cloneGroup);
+      $("preview").addEventListener("click", previewTransform);
+      $("group").addEventListener("change", () => selectGroup($("group").value ? Number($("group").value) : null));
+      $("state").addEventListener("keydown", (e) => { if (e.key === "Enter") load(); });
+    });
+
+    const stateCode = () => $("state").value.trim().toUpperCase();
+    function setStatus(msg, isErr) { const el = $("status"); el.textContent = msg; el.classList.toggle("err", !!isErr); }
+
+    async function load() {
+      const code = stateCode(), year = $("year").value;
+      if (code.length !== 2) return setStatus("State must be a two-letter code.", true);
+      setStatus(`Loading ${code} source data for ${year}…`);
+      $("load").disabled = true;
+      try {
+        const [targets, source, groups, transforms] = await Promise.all([
+          fetchJson("/api/targets"),
+          fetchJson(`/api/source?state=${code}&year=${year}`),
+          fetchJson(`/api/groups?state=${code}`),
+          fetchJson("/api/transforms"),
+        ]);
+        state.targets = targets;
+        state.source = source;
+        state.groups = groups;
+        state.transforms = transforms;
+        $("groupbar").classList.add("on");
+        $("new-name").value = `${code} ${$("new-type").value || ""} ${year}`.replace(/\s+/g, " ").trim();
+        renderGroupOptions();
+        renderPreviewRows();
+        await selectGroup(groups.length ? groups[0].mappingGroupId : null);
+        setStatus(`Loaded ${source.rowCount} ${code} rows · ${source.columns.length} source columns.`);
+      } catch (e) {
+        setStatus(e.message, true);
+      } finally {
+        $("load").disabled = false;
+      }
+    }
+
+    function renderGroupOptions() {
+      const sel = $("group");
+      sel.innerHTML = state.groups.length
+        ? state.groups.map((g) => `<option value="${g.mappingGroupId}">${esc(groupLabel(g))}</option>`).join("")
+        : `<option value="">— none yet, create one —</option>`;
+      if (state.groupId) sel.value = String(state.groupId);
+    }
+
+    function groupLabel(g) {
+      const facets = [g.year, g.electionType, g.party].filter(Boolean).join(" · ");
+      return g.name + (facets ? `  (${facets})` : "");
+    }
+
+    async function createGroup() {
+      const code = stateCode();
+      const body = {
+        name: $("new-name").value.trim(),
+        stateCode: code,
+        year: $("year").value ? Number($("year").value) : null,
+        electionType: $("new-type").value.trim() || null,
+        party: $("new-party").value.trim() || null,
+      };
+      if (!body.name) return setStatus("Give the new group a name.", true);
+      try {
+        const g = await fetchJson("/api/groups", { method: "POST", headers: json(), body: JSON.stringify(body) });
+        state.groups.unshift(g);
+        renderGroupOptions();
+        await selectGroup(g.mappingGroupId);
+        setStatus(`Created group "${g.name}".`);
+      } catch (e) { setStatus(e.message, true); }
+    }
+
+    async function cloneGroup() {
+      if (!state.groupId) return;
+      const src = state.groups.find((x) => x.mappingGroupId === state.groupId);
+      const body = {
+        name: $("new-name").value.trim() || `Copy of ${src ? src.name : "group"}`,
+        stateCode: stateCode(),
+        year: $("year").value ? Number($("year").value) : null,
+        electionType: $("new-type").value.trim() || (src ? src.electionType : null),
+        party: $("new-party").value.trim() || (src ? src.party : null),
+      };
+      try {
+        const g = await fetchJson(`/api/groups/${state.groupId}/clone`, { method: "POST", headers: json(), body: JSON.stringify(body) });
+        state.groups.unshift(g);
+        renderGroupOptions();
+        await selectGroup(g.mappingGroupId);
+        setStatus(`Cloned into "${g.name}" with its mappings.`);
+      } catch (e) { setStatus(e.message, true); }
+    }
+
+    function renderPreviewRows() {
+      const sel = $("preview-row");
+      const rows = state.source ? state.source.sampleRows || [] : [];
+      sel.innerHTML = rows.map((r, i) => `<option value="${i}">${esc(sampleLabel(r, i))}</option>`).join("");
+      sel.disabled = rows.length === 0;
+    }
+
+    function sampleLabel(row, i) {
+      const hint = row.candidateBallotName || [row.candidateFirstName, row.candidateLastName].filter(Boolean).join(" ") ||
+        Object.values(row).find((v) => v && String(v).trim()) || "";
+      return `row ${i + 1}${hint ? " — " + String(hint).slice(0, 40) : ""}`;
+    }
+
+    async function previewTransform() {
+      if (!state.groupId || !state.source) return;
+      flushDrafts();
+      const idx = Number($("preview-row").value || 0);
+      const row = (state.source.sampleRows || [])[idx] || {};
+      const columns = Object.entries(state.mapping)
+        .filter(([, m]) => m.inputs.length > 0)
+        .map(([targetColumn, m]) => ({ targetColumn, inputs: m.inputs, transform: m.transform }));
+      try {
+        const results = await fetchJson("/api/preview", { method: "POST", headers: json(), body: JSON.stringify({ columns, row }) });
+        state.preview = {};
+        for (const r of results) state.preview[r.targetColumn] = r;
+        setStatus(`Tested ${results.length} target(s) against ${sampleLabel(row, idx)}.`);
+        render();
+      } catch (e) { setStatus(e.message, true); }
+    }
+
+    async function selectGroup(id) {
+      state.groupId = id;
+      state.mapping = {};
+      state.draft = {};
+      state.preview = null;
+      $("group").value = id ? String(id) : "";
+      $("save").disabled = !id;
+      $("clone").disabled = !id;
+      $("preview").disabled = !id;
+      $("preview-row").disabled = !id || !(state.source && state.source.sampleRows && state.source.sampleRows.length);
+      if (id) {
+        const cols = await fetchJson(`/api/groups/${id}/columns`);
+        for (const c of cols)
+          state.mapping[c.targetColumn] = {
+            inputs: (c.inputs || []).map((i) => ({
+              kind: i.kind, sourceColumn: i.sourceColumn, manualValue: i.manualValue,
+              transform: (i.transform || []).map((s) => ({ kind: s.kind, params: { ...(s.params || {}) } })),
+            })),
+            transform: (c.transform || []).map((s) => ({ kind: s.kind, params: { ...(s.params || {}) } })),
+          };
+      }
+      $("save-hint").textContent = id ? "" : "Create or pick a group to map into.";
+      render();
+    }
+
+    function flushDrafts() {
+      for (const [target, text] of Object.entries(state.draft)) {
+        const v = (text || "").trim();
+        if (v) mapOf(target).inputs.push({ kind: MANUAL, manualValue: v });
+      }
+      state.draft = {};
+    }
+
+    async function save() {
+      if (!state.groupId) return;
+      flushDrafts();
+      const columns = Object.entries(state.mapping)
+        .filter(([, m]) => m.inputs.length > 0)
+        .map(([targetColumn, m]) => ({ targetColumn, inputs: m.inputs, transform: m.transform }));
+      setStatus(`Saving ${columns.length} mapped column(s)…`);
+      try {
+        const saved = await fetchJson(`/api/groups/${state.groupId}/columns`, {
+          method: "PUT", headers: json(), body: JSON.stringify(columns),
+        });
+        state.mapping = {};
+        for (const c of saved)
+          state.mapping[c.targetColumn] = {
+            inputs: (c.inputs || []).map((i) => ({
+              kind: i.kind, sourceColumn: i.sourceColumn, manualValue: i.manualValue,
+              transform: (i.transform || []).map((s) => ({ kind: s.kind, params: { ...(s.params || {}) } })),
+            })),
+            transform: (c.transform || []).map((s) => ({ kind: s.kind, params: { ...(s.params || {}) } })),
+          };
+        setStatus(`Saved. ${saved.length} target column(s) mapped.`);
+        render();
+      } catch (e) { setStatus(e.message, true); }
+    }
+
+    const json = () => ({ "Content-Type": "application/json" });
+    async function fetchJson(url, opts) {
+      const res = await fetch(url, opts);
+      const text = await res.text();
+      const body = text ? JSON.parse(text) : null;
+      if (!res.ok) throw new Error((body && (body.error || body.detail)) || `Request failed (${res.status}).`);
+      return body;
+    }
+
+    function mapOf(target) {
+      return state.mapping[target] || (state.mapping[target] = { inputs: [], transform: [] });
+    }
+    function edited() { state.preview = null; } // results no longer reflect the mapping
+    function addColumn(target, col) {
+      mapOf(target).inputs.push({ kind: COLUMN, sourceColumn: col, transform: [] });
+      edited(); render();
+    }
+    function addManual(target) {
+      const v = (state.draft[target] || "").trim();
+      if (!v) return;
+      mapOf(target).inputs.push({ kind: MANUAL, manualValue: v, transform: [] });
+      state.draft[target] = "";
+      edited(); render();
+    }
+    function removeInput(target, index) { mapOf(target).inputs.splice(index, 1); edited(); render(); }
+
+    function transformKind(name) { return state.transforms.find((k) => k.name === name); }
+    // A pipeline is any array of steps (a target's, or one input's). These mutate it in place.
+    function addStep(steps) {
+      const first = state.transforms[0];
+      if (first) steps.push({ kind: first.name, params: {} });
+      edited(); render();
+    }
+    function setStepKind(steps, index, kind) { steps[index] = { kind, params: {} }; edited(); render(); }
+    function setStepParam(steps, index, name, value) { steps[index].params[name] = value; edited(); }
+    function removeStep(steps, index) { steps.splice(index, 1); edited(); render(); }
+
+    function render() { renderSummary(); renderTargets(); renderSources(); }
+
+    function renderSummary() {
+      if (!state.targets.length) return;
+      const mapped = state.targets.filter((t) => (state.mapping[t.name]?.inputs.length || 0) > 0).length;
+      const reqMissing = state.targets.filter((t) => t.required && !(state.mapping[t.name]?.inputs.length)).length;
+      $("summary").hidden = false;
+      $("sum-mapped").textContent = mapped;
+      $("sum-total").textContent = state.targets.length;
+      $("sum-req").textContent = reqMissing;
+      $("sum-src").textContent = state.source ? state.source.columns.length : 0;
+    }
+
+    function renderTargets() {
+      const host = $("targets");
+      host.innerHTML = "";
+      if (!state.targets.length) { host.innerHTML = `<div class="empty">Load source data to begin mapping.</div>`; return; }
+      const cols = state.source ? state.source.columns : [];
+      const disabled = !state.groupId;
+
+      for (const t of state.targets) {
+        const m = state.mapping[t.name] || { inputs: [], transform: [] };
+        const row = document.createElement("div");
+        row.className = "target" + (m.inputs.length ? " filled" : "") + (t.required && !m.inputs.length ? " missing" : "");
+
+        const meta = document.createElement("div");
+        meta.className = "meta";
+        meta.innerHTML = `<span class="name">${esc(t.name)}</span>` + (t.required ? `<span class="req">required</span>` : "");
+        row.appendChild(meta);
+
+        const right = document.createElement("div");
+        right.className = "right";
+        m.inputs.forEach((input, i) => right.appendChild(renderInputRow(t, input, i, disabled)));
+        right.appendChild(renderAddInput(t, cols, disabled));
+        if (m.inputs.length > 1) {
+          const label = document.createElement("div");
+          label.className = "phead"; label.textContent = "Combine / finish";
+          right.appendChild(label);
+        }
+        if (m.inputs.length) right.appendChild(renderPipeline(m.transform, disabled, "+ combine / finish step"));
+        const res = state.preview && state.preview[t.name];
+        if (res) right.appendChild(renderResult(res));
+        row.appendChild(right);
+        host.appendChild(row);
+      }
+    }
+
+    function renderInputRow(t, input, i, disabled) {
+      const rowEl = document.createElement("div");
+      rowEl.className = "input-row";
+
+      const isCol = input.kind === COLUMN;
+      const chip = document.createElement("span");
+      chip.className = "chip " + (isCol ? "column" : "manual");
+      chip.innerHTML = `<span class="ord">${i + 1}</span>` +
+        (isCol ? esc(input.sourceColumn) : `<span class="tag">value</span>${esc(input.manualValue)}`);
+      const x = document.createElement("button");
+      x.title = "Remove input"; x.textContent = "×";
+      x.addEventListener("click", () => removeInput(t.name, i));
+      chip.appendChild(x);
+      rowEl.appendChild(chip);
+
+      rowEl.appendChild(renderPipeline(input.transform, disabled, "+ step on this input"));
+      return rowEl;
+    }
+
+    function renderAddInput(t, cols, disabled) {
+      const add = document.createElement("div");
+      add.className = "add";
+      const sel = document.createElement("select");
+      sel.disabled = disabled;
+      sel.innerHTML = `<option value="">+ source column…</option>` +
+        cols.map((c) => `<option value="${esc(c)}">${esc(c)}</option>`).join("");
+      sel.addEventListener("change", () => { if (sel.value) addColumn(t.name, sel.value); });
+      add.appendChild(sel);
+
+      const manual = document.createElement("input");
+      manual.className = "manual"; manual.placeholder = "manual value"; manual.disabled = disabled;
+      manual.value = state.draft[t.name] || "";
+      manual.addEventListener("input", () => { state.draft[t.name] = manual.value; });
+      manual.addEventListener("keydown", (e) => { if (e.key === "Enter") addManual(t.name); });
+      manual.addEventListener("blur", () => addManual(t.name));
+      const addBtn = document.createElement("button");
+      addBtn.className = "small"; addBtn.type = "button"; addBtn.textContent = "+ value"; addBtn.disabled = disabled;
+      addBtn.addEventListener("click", () => addManual(t.name));
+      add.appendChild(manual);
+      add.appendChild(addBtn);
+      return add;
+    }
+
+    // Renders an editor for one pipeline (array of steps), mutating it in place.
+    function renderPipeline(steps, disabled, addLabel) {
+      const box = document.createElement("div");
+      box.className = "pipeline";
+
+      steps.forEach((step, i) => {
+        const line = document.createElement("div");
+        line.className = "pstep";
+
+        const pos = document.createElement("span");
+        pos.className = "pos"; pos.textContent = (i + 1) + ".";
+        line.appendChild(pos);
+
+        const kindSel = document.createElement("select");
+        kindSel.disabled = disabled;
+        kindSel.innerHTML = state.transforms
+          .map((k) => `<option value="${esc(k.name)}"${k.name === step.kind ? " selected" : ""}>${esc(k.name)}</option>`).join("");
+        kindSel.title = transformKind(step.kind)?.summary || "";
+        kindSel.addEventListener("change", () => setStepKind(steps, i, kindSel.value));
+        line.appendChild(kindSel);
+
+        const def = transformKind(step.kind);
+        (def ? def.params : []).forEach((p) => {
+          const name = document.createElement("span");
+          name.className = "pname"; name.textContent = p.name + (p.required ? "*" : "");
+          const inp = document.createElement("input");
+          inp.className = "param"; inp.disabled = disabled;
+          inp.placeholder = p.default != null && p.default !== "" ? `default: ${p.default}` : "";
+          inp.value = step.params[p.name] ?? "";
+          inp.addEventListener("input", () => setStepParam(steps, i, p.name, inp.value));
+          line.appendChild(name);
+          line.appendChild(inp);
+        });
+
+        const rm = document.createElement("button");
+        rm.className = "link"; rm.type = "button"; rm.textContent = "remove"; rm.disabled = disabled;
+        rm.addEventListener("click", () => removeStep(steps, i));
+        line.appendChild(rm);
+
+        box.appendChild(line);
+      });
+
+      const addStepBtn = document.createElement("button");
+      addStepBtn.className = "small link"; addStepBtn.type = "button"; addStepBtn.textContent = addLabel; addStepBtn.disabled = disabled;
+      addStepBtn.addEventListener("click", () => addStep(steps));
+      box.appendChild(addStepBtn);
+
+      return box;
+    }
+
+    function renderResult(res) {
+      const div = document.createElement("div");
+      if (res.error) {
+        div.className = "result err";
+        div.innerHTML = `<span class="lbl">⚠</span>${esc(res.error)}`;
+      } else {
+        div.className = "result ok";
+        div.innerHTML = `<span class="lbl">→</span>` +
+          (res.value === "" ? `<span class="empty-val">(empty)</span>` : `<span class="qval">"${esc(res.value)}"</span>`);
+      }
+      return div;
+    }
+
+    function renderSources() {
+      const host = $("sources");
+      host.innerHTML = "";
+      if (!state.source) { host.innerHTML = `<div class="empty">None loaded.</div>`; return; }
+      const usage = {};
+      for (const m of Object.values(state.mapping))
+        for (const i of m.inputs) if (i.kind === COLUMN) usage[i.sourceColumn] = (usage[i.sourceColumn] || 0) + 1;
+      for (const col of state.source.columns) {
+        const sample = firstSample(col);
+        const r = document.createElement("div");
+        r.className = "src-row";
+        r.innerHTML =
+          `<span class="col">${esc(col)}</span>` +
+          `<span class="val" title="${esc(sample)}">${esc(sample)}</span>` +
+          `<span class="use">${usage[col] ? "×" + usage[col] : ""}</span>`;
+        host.appendChild(r);
+      }
+    }
+
+    function firstSample(col) {
+      for (const row of state.source.sampleRows || []) {
+        const v = row[col];
+        if (v !== undefined && v !== null && String(v).trim() !== "") return String(v);
+      }
+      return "";
+    }
+
+    function esc(s) { return String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+  </script>
+</body>
+</html>
