@@ -12,4 +12,13 @@
     <VSTestTestCaseFilter Condition="'$(VSTestTestCaseFilter)' == ''">Category!=Integration</VSTestTestCaseFilter>
   </PropertyGroup>
 
+  <!--
+    The version of the pipeline and its API. Every capture and pass records it, with the git commit
+    the build was made from (the SDK stamps both into each assembly as "<Version>+<sha>"; see
+    BuildVersion). Bump it when the API or the shape of what a run stores changes.
+  -->
+  <PropertyGroup>
+    <Version>0.1.0</Version>
+  </PropertyGroup>
+
 </Project>

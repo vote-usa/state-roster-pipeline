@@ -16,7 +16,7 @@ public sealed class StagingQueries
         CaptureId, StateCode, Year, Status, Source, RequestedBy,
         DATE_FORMAT(StartedAt, '%Y-%m-%dT%H:%i:%sZ') AS StartedAt,
         DATE_FORMAT(FinishedAt, '%Y-%m-%dT%H:%i:%sZ') AS FinishedAt,
-        Wayback, RawDir, FetchCount, RawBytes, GitSha, ErrorText
+        Wayback, RawDir, FetchCount, RawBytes, Version, GitSha, ErrorText
         """;
 
     private const string PassColumns =
@@ -24,7 +24,7 @@ public sealed class StagingQueries
         PassId, CaptureId, StateCode, Year, Status, Source, RequestedBy,
         DATE_FORMAT(RequestedAt, '%Y-%m-%dT%H:%i:%sZ') AS RequestedAt,
         DATE_FORMAT(FinishedAt, '%Y-%m-%dT%H:%i:%sZ') AS FinishedAt,
-        DATE_FORMAT(ElectionFilter, '%Y-%m-%d') AS ElectionFilter, GitSha,
+        DATE_FORMAT(ElectionFilter, '%Y-%m-%d') AS ElectionFilter, Version, GitSha,
         RunCount, CandidateCount, MeasureCount, CountyBallotCount, CountyDirectoryCount,
         ProposedMeasureCount, UnassignedRowCount, GapsJson, ErrorText
         """;
@@ -61,6 +61,7 @@ public sealed class StagingQueries
         public string? RawDir { get; init; }
         public int FetchCount { get; init; }
         public long RawBytes { get; init; }
+        public string? Version { get; init; }
         public string? GitSha { get; init; }
         public string? ErrorText { get; init; }
         public string? LogText { get; init; }
@@ -100,6 +101,7 @@ public sealed class StagingQueries
         public string RequestedAt { get; init; } = "";
         public string? FinishedAt { get; init; }
         public string? ElectionFilter { get; init; }
+        public string? Version { get; init; }
         public string? GitSha { get; init; }
         public int RunCount { get; init; }
         public int CandidateCount { get; init; }

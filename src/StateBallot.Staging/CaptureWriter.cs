@@ -17,14 +17,15 @@ public sealed class CaptureWriter
 
     public sealed record CaptureInfo(int CaptureId, string StateCode, int Year, string Status, string? RawDir);
 
+    /// <param name="build">The version of the code making the capture.</param>
     /// <param name="linksJson">Snapshot of the source links the capture uses.</param>
-    public async Task<int> BeginAsync(RunRequest request, string? gitSha, string? linksJson, CancellationToken ct = default)
+    public async Task<int> BeginAsync(RunRequest request, BuildVersion build, string? linksJson, CancellationToken ct = default)
     {
         await using var cn = await _db.OpenStagingAsync(ct);
         return await cn.ExecuteScalarAsync<int>(new CommandDefinition(
             """
-            INSERT INTO Captures (StateCode, Year, Status, Source, RequestedBy, StartedAt, CliArgs, GitSha, Wayback, LinksJson)
-            VALUES (@StateCode, @Year, 'running', @Source, @RequestedBy, UTC_TIMESTAMP(), @CliArgs, @GitSha, @Wayback, @LinksJson);
+            INSERT INTO Captures (StateCode, Year, Status, Source, RequestedBy, StartedAt, CliArgs, Version, GitSha, Wayback, LinksJson)
+            VALUES (@StateCode, @Year, 'running', @Source, @RequestedBy, UTC_TIMESTAMP(), @CliArgs, @Version, @GitSha, @Wayback, @LinksJson);
             SELECT LAST_INSERT_ID();
             """,
             new
@@ -34,7 +35,8 @@ public sealed class CaptureWriter
                 request.Source,
                 request.RequestedBy,
                 request.CliArgs,
-                GitSha = gitSha,
+                build.Version,
+                build.GitSha,
                 request.Wayback,
                 LinksJson = linksJson,
             },

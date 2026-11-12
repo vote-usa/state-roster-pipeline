@@ -71,7 +71,7 @@ public sealed class CollectorRunner
         var inputDataRoot = Path.GetFullPath(pipelineDataRoot);
         var stateOutputDir = outputRoot is null ? null : DataPaths.StateOutputDir(outputRoot, state);
         var stateRawDir = RawRetention.StateDir(inputDataRoot, state);
-        var gitSha = TryGetGitSha(inputDataRoot);
+        var build = BuildVersion.Current;
 
         string captureDir;
         int? captureId;
@@ -83,13 +83,13 @@ public sealed class CollectorRunner
         else
         {
             (captureDir, captureId) = await CaptureAsync(
-                request, state, factory, stateRawDir, inputDataRoot, stateOutputDir, persist, gitSha, log, ct);
+                request, state, factory, stateRawDir, inputDataRoot, stateOutputDir, persist, build, log, ct);
             if (request.CaptureOnly)
                 return new RunOutcome(null, Path.GetFileName(captureDir), null, [], 0, false, stateOutputDir);
         }
 
         return await NormalizeAsync(
-            request, state, factory, captureDir, captureId, inputDataRoot, stateOutputDir, persist, gitSha, log, ct);
+            request, state, factory, captureDir, captureId, inputDataRoot, stateOutputDir, persist, build, log, ct);
     }
 
     /// <summary>
@@ -98,11 +98,11 @@ public sealed class CollectorRunner
     /// </summary>
     private async Task<(string Dir, int? Id)> CaptureAsync(
         RunRequest request, string state, Func<int, string, string?, SourceLinkSet?, IStateCollector> factory, string stateRawDir,
-        string inputDataRoot, string? stateOutputDir, bool persist, string? gitSha, TextWriter log, CancellationToken ct)
+        string inputDataRoot, string? stateOutputDir, bool persist, BuildVersion build, TextWriter log, CancellationToken ct)
     {
         var links = await LoadLinksAsync(state, inputDataRoot, persist, log, ct);
         var writer = persist ? new CaptureWriter(_db!) : null;
-        int? captureId = writer is null ? null : await writer.BeginAsync(request, gitSha, links.ToJson(), ct);
+        int? captureId = writer is null ? null : await writer.BeginAsync(request, build, links.ToJson(), ct);
         var sink = StartCapture(stateRawDir, captureId, state, request.Year, links, log);
         var rawDir = Path.GetRelativePath(inputDataRoot, sink.Directory).Replace('\\', '/');
         log.WriteLine(captureId is null
@@ -149,7 +149,7 @@ public sealed class CollectorRunner
     /// <summary>Stage 2: build the result from the capture alone, then store it as a pass with one run per election.</summary>
     private async Task<RunOutcome> NormalizeAsync(
         RunRequest request, string state, Func<int, string, string?, SourceLinkSet?, IStateCollector> factory, string captureDir, int? captureId,
-        string inputDataRoot, string? stateOutputDir, bool persist, string? gitSha, TextWriter log, CancellationToken ct)
+        string inputDataRoot, string? stateOutputDir, bool persist, BuildVersion build, TextWriter log, CancellationToken ct)
     {
         var capture = new CaptureReader(captureDir);
 
@@ -171,7 +171,7 @@ public sealed class CollectorRunner
         if (persist)
         {
             writer = new RunWriter(_db!);
-            passId = await writer.BeginPassAsync(request, captureId!.Value, gitSha, ct);
+            passId = await writer.BeginPassAsync(request, captureId!.Value, build, ct);
             log.WriteLine($"Collection pass {passId} normalizing capture {captureId}");
         }
 
@@ -409,29 +409,6 @@ public sealed class CollectorRunner
                 return Path.Combine(d.FullName, "data");
         }
         return Path.Combine(Environment.CurrentDirectory, "data");
-    }
-
-    private static string? TryGetGitSha(string startDir)
-    {
-        try
-        {
-            var psi = new ProcessStartInfo("git", "rev-parse HEAD")
-            {
-                WorkingDirectory = startDir,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-            };
-            using var p = Process.Start(psi);
-            if (p is null) return null;
-            var output = p.StandardOutput.ReadToEnd().Trim();
-            if (!p.WaitForExit(5000) || p.ExitCode != 0) return null;
-            return output.Length == 40 ? output : null;
-        }
-        catch
-        {
-            return null;
-        }
     }
 
     /// <summary>Points Console.Out at both the log and a buffer until disposed.</summary>
