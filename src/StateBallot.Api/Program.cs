@@ -16,6 +16,7 @@ var dataRoot = Environment.GetEnvironmentVariable("ROSTER_DATA_ROOT") is { Lengt
     : CollectorRunner.FindDataRoot();
 var queries = new StagingQueries(db, dataRoot);
 var jobs = new JobStore(db);
+var regionUrls = new RegionUrlStore(db);
 
 builder.Services.AddSingleton(db);
 builder.Services.AddSingleton(jobs);
@@ -219,6 +220,8 @@ api.MapPost("/jobs", async (StartJob body, CancellationToken ct) =>
     var jobId = await jobs.EnqueueAsync(new JobStore.NewJob(state, year, kind, normalizeCaptureId, election, requestedBy), ct);
     return Results.Accepted($"/api/jobs/{jobId}", await jobs.GetAsync(jobId, ct));
 });
+
+api.MapRegionUrlApi(regionUrls, dataRoot);
 
 app.MapMappingApi();
 
