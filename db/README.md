@@ -38,7 +38,7 @@ docker exec roster-vote-test mysql -uroot -proster roster_staging -e "SHOW TABLE
 ```
 
 The collector can also run in its container, reaching the database by service
-name instead of the published port:
+name instead of the published port. Uncomment the `collector` service in `docker-compose.yml` first:
 
 ```bash
 docker compose run --rm collector --migrate

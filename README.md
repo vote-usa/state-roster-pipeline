@@ -118,7 +118,7 @@ whichever of `date_formats.json` / `selectors.json` / `election_type_names.json`
 
 The image builds the CLI with the .NET 8 SDK and runs it on the .NET 8 runtime,
 so no local SDK is needed. `data/` is bind-mounted, so outputs land on the host
-exactly as with a local run.
+exactly as with a local run. The `collector` service is commented out in `docker-compose.yml` because the run console doesn't need it, so uncomment it first.
 
 ```bash
 docker compose build
