@@ -7,11 +7,16 @@ WORKDIR /build
 ENV DOTNET_CLI_TELEMETRY_OPTOUT=1 \
     DOTNET_NOLOGO=1
 
+# Directory.Build.props sets the version stamped into the build.
+COPY Directory.Build.props ./
 COPY --parents src/*/*.csproj ./
 RUN dotnet restore src/StateBallot.Cli/StateBallot.Cli.csproj
 
 COPY src/ src/
-RUN dotnet publish src/StateBallot.Cli/StateBallot.Cli.csproj \
+# .git is mounted for this step only, so the SDK can stamp the commit into the assemblies
+# ("<Version>+<sha>", see Directory.Build.props). It never lands in the image.
+RUN --mount=type=bind,source=.git,target=/build/.git \
+    dotnet publish src/StateBallot.Cli/StateBallot.Cli.csproj \
     --configuration Release --no-restore --output /out
 
 # Runtime stage. The CLI locates data/ by walking up from the executable to a

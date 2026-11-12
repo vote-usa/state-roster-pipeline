@@ -3,8 +3,8 @@ using FluentMigrator;
 
 namespace StateBallot.Staging.Migrations;
 
-[Migration(6, "Column mappings")]
-public sealed class M006_ColumnMappings : Migration
+[Migration(7, "Column mappings")]
+public sealed class M007_ColumnMappings : Migration
 {
     public override void Up()
     {

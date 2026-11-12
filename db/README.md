@@ -38,7 +38,7 @@ docker exec roster-vote-test mysql -uroot -proster roster_staging -e "SHOW TABLE
 ```
 
 The collector can also run in its container, reaching the database by service
-name instead of the published port:
+name instead of the published port. Uncomment the `collector` service in `docker-compose.yml` first:
 
 ```bash
 docker compose run --rm collector --migrate
@@ -57,9 +57,9 @@ A run has two stages. The **capture** fetches every source page for a state and 
 | --- | --- | --- |
 | `SourceLinks` | one URL per state, key and variant | the URL template a collector fetches (or its home page), format, notes, active flag, who last edited it. See "Source links" below |
 | `SourceParameters` | one value per state, key and variant | hand-maintained values beside the links, e.g. NM/SD election ids and HI's bootstrap election id |
-| `Captures` | one fetch of a state and year | who ran it, args, git sha, Wayback stamp, status, raw directory, fetch count, bytes, fetch log hash, log, and a snapshot of the source links it used (`LinksJson`) |
+| `Captures` | one fetch of a state and year | who ran it, args, version and git sha, Wayback stamp, status, raw directory, fetch count, bytes, fetch log hash, log, and a snapshot of the source links it used (`LinksJson`) |
 | `CaptureFetches` | one HTTP request | role and keys the collector tagged it with (e.g. `county-guide` {election, county}), method, URL, request body hash, status, content type, size, payload hash, file name, duration, error |
-| `CollectionPasses` | one normalization of a capture | `CaptureId`, who ran it, args, git sha, log, gaps, source manifest with payload hashes, counts |
+| `CollectionPasses` | one normalization of a capture | `CaptureId`, who ran it, args, version and git sha, log, gaps, source manifest with payload hashes, counts |
 | `Runs` | one election | the election's own fields, pending flag, counts, resolution columns |
 | `RunCandidates`, `RunMeasures` | one row per candidate or measure | the collector output, plus resolution columns |
 | `RunCountyBallots` + `...Candidates` / `...Measures` | one county's ballot for that election | what that county's voters see, verbatim |
@@ -149,6 +149,8 @@ Adding one: a new class `M00n_<Name>` with `[Migration(n, "<description>")]`, im
 | 4 | `M004_CandidateStatus` | `RunCandidates.Status`, the candidate's filing status as the source publishes it |
 | 5 | `M005_Jobs` | `Jobs`, the run console's queue |
 | 6 | `M006_SourceLinks` | `SourceLinks`, `SourceParameters`, `Captures.LinksJson` |
+| 7 | `M007_ColumnMappings` | `MappingGroups` and the column mapping tables. Numbered 6 when it merged, alongside `M006_SourceLinks`, which kept any database from migrating |
+| 8 | `M008_BuildVersion` | `Version` on `Captures` and `CollectionPasses` |
 
 ## Tests
 
