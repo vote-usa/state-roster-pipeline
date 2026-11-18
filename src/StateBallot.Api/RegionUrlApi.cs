@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using StateBallot.Core;
 using StateBallot.Staging;
 
@@ -6,6 +7,7 @@ namespace StateBallot.Api;
 /// <summary>
 /// The URLs a person keeps on a state's page in the console: for the state, or for counties and a
 /// city in it. Refusals answer 400 with { error }, like POST /jobs, and an unknown state or URL 404.
+/// Every change records the signed-in user as its editor.
 /// </summary>
 public static class RegionUrlApi
 {
@@ -22,14 +24,14 @@ public static class RegionUrlApi
         }
 
         // Cleans the request, or says why it can't be saved.
-        (RegionUrlStore.SaveUrl? Url, IResult? Refusal) Check(SaveUrlBody body)
+        (RegionUrlStore.SaveUrl? Url, IResult? Refusal) Check(SaveUrlBody body, ClaimsPrincipal user)
         {
             if (KnownState(body.StateCode) is not { } state)
                 return (null, Refuse($"No state '{body.StateCode}' in the catalog."));
             try
             {
                 return (RegionUrlStore.Clean(new RegionUrlStore.SaveUrl(
-                    state, body.Counties ?? [], body.City, body.Url ?? "", body.UrlType ?? "", body.EditedBy ?? "")), null);
+                    state, body.Counties ?? [], body.City, body.Url ?? "", body.UrlType ?? "", user.UserName())), null);
             }
             catch (ArgumentException ex)
             {
@@ -47,11 +49,11 @@ public static class RegionUrlApi
                 ? Results.Ok(await urls.StateHistoryAsync(state, ct))
                 : Results.NotFound(new { error = $"No state {code} in the catalog." }));
 
-        api.MapPost("/states/{code}/urls", async (string code, SaveUrlBody body, CancellationToken ct) =>
+        api.MapPost("/states/{code}/urls", async (string code, SaveUrlBody body, ClaimsPrincipal user, CancellationToken ct) =>
         {
             if (!string.IsNullOrWhiteSpace(body.StateCode) && !string.Equals(body.StateCode.Trim(), code, StringComparison.OrdinalIgnoreCase))
                 return Refuse($"The URL is for {body.StateCode}, but was sent to {code}.");
-            var (url, refusal) = Check(body with { StateCode = code });
+            var (url, refusal) = Check(body with { StateCode = code }, user);
             if (refusal is not null)
                 return refusal;
             try
@@ -65,9 +67,9 @@ public static class RegionUrlApi
             }
         });
 
-        api.MapPut("/urls/{id:int}", async (int id, SaveUrlBody body, CancellationToken ct) =>
+        api.MapPut("/urls/{id:int}", async (int id, SaveUrlBody body, ClaimsPrincipal user, CancellationToken ct) =>
         {
-            var (url, refusal) = Check(body);
+            var (url, refusal) = Check(body, user);
             if (refusal is not null)
                 return refusal;
             try
@@ -80,12 +82,9 @@ public static class RegionUrlApi
             }
         });
 
-        api.MapDelete("/urls/{id:int}", async (int id, string? editedBy, CancellationToken ct) =>
+        api.MapDelete("/urls/{id:int}", async (int id, ClaimsPrincipal user, CancellationToken ct) =>
         {
-            var by = (editedBy ?? "").Trim();
-            if (by.Length is 0 or > 100)
-                return Refuse("Enter your name (up to 100 characters). It is recorded on the edit.");
-            if (await urls.DeleteAsync(id, by, ct))
+            if (await urls.DeleteAsync(id, user.UserName(), ct))
                 return Results.NoContent();
             return await urls.GetAsync(id, ct) is null ? NoUrl(id) : Refuse($"URL {id} is already deleted.");
         });
@@ -93,16 +92,13 @@ public static class RegionUrlApi
         api.MapGet("/urls/{id:int}/history", async (int id, CancellationToken ct) =>
             await urls.GetAsync(id, ct) is null ? NoUrl(id) : Results.Ok(await urls.HistoryAsync(id, ct)));
 
-        api.MapPost("/urls/{id:int}/revert", async (int id, RevertBody body, CancellationToken ct) =>
+        api.MapPost("/urls/{id:int}/revert", async (int id, RevertBody body, ClaimsPrincipal user, CancellationToken ct) =>
         {
-            var by = (body.EditedBy ?? "").Trim();
-            if (by.Length is 0 or > 100)
-                return Refuse("Enter your name (up to 100 characters). It is recorded on the edit.");
             if (body.VersionId is not { } versionId)
                 return Refuse("Choose the version to revert to.");
             try
             {
-                return await urls.RevertAsync(id, versionId, by, ct) is { } reverted ? Results.Ok(reverted) : NoUrl(id);
+                return await urls.RevertAsync(id, versionId, user.UserName(), ct) is { } reverted ? Results.Ok(reverted) : NoUrl(id);
             }
             catch (ArgumentException ex)
             {
@@ -112,7 +108,7 @@ public static class RegionUrlApi
     }
 
     internal sealed record SaveUrlBody(
-        string? StateCode, IReadOnlyList<string>? Counties, string? City, string? Url, string? UrlType, string? EditedBy);
+        string? StateCode, IReadOnlyList<string>? Counties, string? City, string? Url, string? UrlType);
 
-    internal sealed record RevertBody(int? VersionId, string? EditedBy);
+    internal sealed record RevertBody(int? VersionId);
 }

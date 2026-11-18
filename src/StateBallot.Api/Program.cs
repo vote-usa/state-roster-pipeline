@@ -1,10 +1,12 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Diagnostics;
 using MySqlConnector;
 using StateBallot.Api;
 using StateBallot.Core;
 using StateBallot.Staging;
 
-// API for the run console in ../state-roster-client. Local only: no auth, so it listens on localhost unless told otherwise.
+// API for the run console in ../state-roster-client. Every endpoint but sign-in needs a signed-in user (AuthApi).
+// It listens on localhost unless told otherwise.
 var builder = WebApplication.CreateBuilder(args);
 if (string.IsNullOrEmpty(builder.Configuration["urls"]))
     builder.WebHost.UseUrls("http://localhost:5080");
@@ -17,11 +19,13 @@ var dataRoot = Environment.GetEnvironmentVariable("ROSTER_DATA_ROOT") is { Lengt
 var queries = new StagingQueries(db, dataRoot);
 var jobs = new JobStore(db);
 var regionUrls = new RegionUrlStore(db);
+var users = new UserStore(db);
 
 builder.Services.AddSingleton(db);
 builder.Services.AddSingleton(jobs);
 builder.Services.AddSingleton(new DataRoot(dataRoot));
 builder.Services.AddHostedService<JobWorker>();
+builder.Services.AddConsoleAuth();
 
 // Column-mapping configuration (step 1): see MappingApi.
 builder.Services.AddSingleton<ColumnMappingStore>();
@@ -60,8 +64,12 @@ app.UseExceptionHandler(handler => handler.Run(async context =>
 // Serves the throwaway column-mapping tester at / (wwwroot/index.html).
 app.UseDefaultFiles();
 app.UseStaticFiles();
+app.UseAuthentication();
+app.UseAuthorization();
+app.UseRateLimiter();
 
 var api = app.MapGroup("/api");
+api.MapAuthApi(users);
 
 api.MapGet("/states", async (CancellationToken ct) =>
 {
@@ -162,7 +170,7 @@ api.MapGet("/jobs/{id:int}", async (int id, CancellationToken ct) =>
 
 // The console calls a capture a "retrieve", so the messages a person reads here do too.
 // Queues a run and returns at once. Everything that can be refused is refused here, so a queued job is one that can start.
-api.MapPost("/jobs", async (StartJob body, CancellationToken ct) =>
+api.MapPost("/jobs", async (StartJob body, ClaimsPrincipal user, CancellationToken ct) =>
 {
     IResult Refuse(string error) => Results.BadRequest(new { error });
 
@@ -176,10 +184,6 @@ api.MapPost("/jobs", async (StartJob body, CancellationToken ct) =>
     var kind = body.Kind;
     if (kind is not (JobStore.Capture or JobStore.Normalize or JobStore.Both))
         return Refuse($"Kind must be {JobStore.Capture}, {JobStore.Normalize} or {JobStore.Both}.");
-
-    var requestedBy = (body.RequestedBy ?? "").Trim();
-    if (requestedBy.Length is 0 or > 100)
-        return Refuse("Enter your name (up to 100 characters). It is recorded on the run.");
 
     string? election = null;
     if (kind != JobStore.Capture && !string.IsNullOrWhiteSpace(body.ElectionFilter))
@@ -217,7 +221,7 @@ api.MapPost("/jobs", async (StartJob body, CancellationToken ct) =>
     if (await jobs.ActiveForStateAsync(state, ct) is { } active)
         return Results.Conflict(new { error = $"{entry.Name} already has job {active.JobId} {active.Status}. Wait for it to finish." });
 
-    var jobId = await jobs.EnqueueAsync(new JobStore.NewJob(state, year, kind, normalizeCaptureId, election, requestedBy), ct);
+    var jobId = await jobs.EnqueueAsync(new JobStore.NewJob(state, year, kind, normalizeCaptureId, election, user.UserName()), ct);
     return Results.Accepted($"/api/jobs/{jobId}", await jobs.GetAsync(jobId, ct));
 });
 
@@ -228,4 +232,4 @@ app.MapMappingApi();
 app.Run();
 
 internal sealed record StartJob(
-    string? StateCode, int? Year, string? Kind, int? NormalizeCaptureId, string? ElectionFilter, string? RequestedBy);
+    string? StateCode, int? Year, string? Kind, int? NormalizeCaptureId, string? ElectionFilter);

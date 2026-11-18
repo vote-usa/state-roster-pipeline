@@ -69,6 +69,7 @@ A run has two stages. The **capture** fetches every source page for a state and 
 | `Jobs` | one run requested from the console | what to run (`capture`, `normalize` of a named capture, or `both`), optional election filter, who asked, status, and the capture and pass it produced |
 | `RegionUrls` | one URL a person keeps for a state, or for counties and a city in it | the URL, its type (`official_landing`, `ballotpedia`, `candidate_data`, `measure_data`), counties (JSON), city, a deleted flag, who last edited it. For people to read; collectors use `SourceLinks` |
 | `RegionUrlVersions` | one add, edit, delete or revert of a region URL | the URL's fields as saved, the action, who and when. The console's edit history and change log |
+| `Users` | one person who can sign in to the run console | user name, password hash (ASP.NET Core Identity `PasswordHasher`), disabled flag, failed sign-ins in a row, lockout end, last sign-in. No roles: every user can do everything. Added with `--add-user <name>` |
 
 The payloads themselves are not in the database. They are files under `data/raw/<xx>/<capture id>/` beside a `fetch_log.json` that mirrors `CaptureFetches`, gitignored and pruned to the newest few per state by `--keep-raw` (default 3). `CaptureFetches` rows are kept after the files are pruned, so a stored row can always be tied to the hash of the payload it came from. Passes stored before captures existed have a null `CaptureId`.
 
@@ -154,6 +155,7 @@ Adding one: a new class `M00n_<Name>` with `[Migration(n, "<description>")]`, im
 | 7 | `M007_ColumnMappings` | `MappingGroups` and the column mapping tables. Numbered 6 when it merged, alongside `M006_SourceLinks`, which kept any database from migrating |
 | 8 | `M008_BuildVersion` | `Version` on `Captures` and `CollectionPasses` |
 | 9 | `M009_RegionUrls` | `RegionUrls`, `RegionUrlVersions` |
+| 10 | `M010_Users` | `Users`, who can sign in to the run console |
 
 ## Tests
 
