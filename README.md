@@ -153,6 +153,8 @@ cd ../state-roster-client && npm ci && npm run dev   # http://localhost:5173, se
 
 Both ways use ports 5080 and 5173, so stop one before starting the other (`docker compose stop web api`).
 
+A state's page also keeps Overview and Roster URLs for the state, or for counties and a city in it. People add, edit, delete and revert them there, and every change is kept as a version (`RegionUrls`, `RegionUrlVersions`). The endpoints are in `src/StateBallot.Api/RegionUrlApi.cs`.
+
 The API applies pending migrations and seeds source links when it starts, the same as `--migrate`, so a fresh database needs no separate step.
 
 The API has no authentication. It listens on localhost only, and the compose services publish their ports to this machine only. Do not expose it.
