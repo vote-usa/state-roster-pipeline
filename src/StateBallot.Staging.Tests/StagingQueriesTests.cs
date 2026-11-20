@@ -69,6 +69,8 @@ public sealed class StagingQueriesIntegrationTests : IAsyncLifetime
         // Capture 1 keeps its payloads and was normalized twice. Capture 2 was pruned.
         Directory.CreateDirectory(Path.Combine(_dataRoot, "raw", "tx", "1"));
         File.WriteAllText(Path.Combine(_dataRoot, "raw", "tx", "1", RawSink.LogFileName), "{}");
+        File.WriteAllText(Path.Combine(_dataRoot, "raw", "tx", "1", "002-example-gov-ballot.html"), "<p>ballot</p>");
+        File.WriteAllText(Path.Combine(_dataRoot, "outside.html"), "not a payload");
 
         await using var cn = await db.OpenStagingAsync();
         await cn.ExecuteAsync(
@@ -78,6 +80,10 @@ public sealed class StagingQueriesIntegrationTests : IAsyncLifetime
                 (2, 'TX', 2026, 'succeeded', '2026-10-02 10:00:00', '2026-10-02 10:00:05', 'raw/tx/2', 0);
             INSERT INTO CaptureFetches (CaptureId, Seq, FetchedAt, Role, KeysJson, Method, Url, Status, DurationMs) VALUES
                 (1, 1, '2026-10-01 10:00:01', 'candidates', '{"election": "53815"}', 'POST', 'https://example.gov/api', 200, 12);
+            INSERT INTO CaptureFetches (CaptureId, Seq, FetchedAt, Role, Method, Url, Status, ContentType, FileName, DurationMs) VALUES
+                (1, 2, '2026-10-01 10:00:02', 'ballot', 'GET', 'https://example.gov/ballot', 200, 'text/html', '002-example-gov-ballot.html', 12),
+                (1, 3, '2026-10-01 10:00:03', 'escape', 'GET', 'https://example.gov/escape', 200, 'text/html', '../../outside.html', 12),
+                (2, 1, '2026-10-02 10:00:01', 'ballot', 'GET', 'https://example.gov/ballot', 200, 'text/html', '001-example-gov-ballot.html', 12);
             INSERT INTO CollectionPasses (PassId, CaptureId, StateCode, Year, Status, RequestedAt, GapsJson) VALUES
                 (1, 1, 'TX', 2026, 'succeeded', '2026-10-01 10:00:05', '[]'),
                 (2, 1, 'TX', 2026, 'succeeded', '2026-10-03 09:00:00', '["One gap."]'),
@@ -125,8 +131,23 @@ public sealed class StagingQueriesIntegrationTests : IAsyncLifetime
         Assert.Equal(new[] { (2, false), (1, true) }, captures.Select(c => (c.CaptureId, c.FilesPresent)).ToArray());
         Assert.Equal(2, (await _queries.LatestCapturesAsync()).Single().CaptureId);
 
-        var fetch = Assert.Single(await _queries.FetchesAsync(1));
-        Assert.Equal("53815", fetch.Keys!.Value.GetProperty("election").GetString());
+        var fetches = await _queries.FetchesAsync(1);
+        Assert.Equal("53815", fetches[0].Keys!.Value.GetProperty("election").GetString());
+        Assert.Equal(new[] { false, true, true }, fetches.Select(f => f.HasPayload).ToArray());
+    }
+
+    [Fact]
+    public async Task Payload_IsTheSavedFile_AndNeverOutsideRaw()
+    {
+        var payload = await _queries.PayloadAsync(1, 2);
+        Assert.NotNull(payload);
+        Assert.Equal("<p>ballot</p>", await File.ReadAllTextAsync(payload.Path));
+        Assert.Equal("text/html", payload.ContentType);
+
+        Assert.Null(await _queries.PayloadAsync(1, 1));   // the fetch saved nothing
+        Assert.Null(await _queries.PayloadAsync(1, 3));   // a stored name that leads out of data/raw
+        Assert.Null(await _queries.PayloadAsync(2, 1));   // pruned
+        Assert.Null(await _queries.PayloadAsync(1, 99));  // no such fetch
     }
 
     [Fact]
