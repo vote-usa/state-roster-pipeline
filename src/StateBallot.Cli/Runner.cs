@@ -24,6 +24,7 @@ public static class Runner
         string? linksCommand = null;
         string? linksState = null;
         string? triggeredBy = null;
+        string? addUser = null;
 
         for (var i = 0; i < args.Length; i++)
         {
@@ -71,6 +72,9 @@ public static class Runner
                     if (i + 1 < args.Length && !args[i + 1].StartsWith("--", StringComparison.Ordinal))
                         linksState = args[++i].ToUpperInvariant();
                     break;
+                case "--add-user" when i + 1 < args.Length:
+                    addUser = args[++i];
+                    break;
                 case "--triggered-by" when i + 1 < args.Length:
                     triggeredBy = args[++i];
                     break;
@@ -104,6 +108,8 @@ public static class Runner
                           --export-links [XX]  Write the database's source links back to the seed files (one state, or all)
                           --reseed-links [XX]  Replace the database's source links with the seed files (one state, or all).
                                                Rows only in the database are deleted.
+                          --add-user <name>    Add a run console user, or give an existing one a new password and
+                                               clear its lockout. Asks for the password, or reads it from stdin.
 
                         The staging connection comes from ROSTER_STAGING_CONNECTION and defaults to
                         the local Docker MySQL in db/. Run --migrate once before the first collection.
@@ -127,6 +133,8 @@ public static class Runner
             return await MigrateAsync(db, inputRootArg);
         if (linksCommand is not null)
             return await LinksAsync(db, linksCommand, linksState, inputRootArg);
+        if (addUser is not null)
+            return await AddUserAsync(db, addUser);
 
         var request = new RunRequest(state, year)
         {
@@ -192,6 +200,54 @@ public static class Runner
             Console.WriteLine($"Reseeded {string.Join(", ", reseeded)} from {DataPaths.InputRoot(dataRoot)}/<xx>/{SourceLinkSet.FileName}.");
         }
         return 0;
+    }
+
+    private static async Task<int> AddUserAsync(StagingDb db, string userName)
+    {
+        string password;
+        if (Console.IsInputRedirected)
+            password = Console.In.ReadLine() ?? "";
+        else
+        {
+            password = ReadHidden($"Password for {userName}: ");
+            if (ReadHidden("Again: ") != password)
+            {
+                Console.Error.WriteLine("The passwords differ. Nothing was saved.");
+                return 2;
+            }
+        }
+
+        try
+        {
+            var added = await new UserStore(db).SetPasswordAsync(userName, password);
+            Console.WriteLine(added
+                ? $"Added {userName.Trim()} to {StagingDb.Describe(db.StagingConnectionString)}."
+                : $"Set a new password for {userName.Trim()} and cleared any lockout.");
+            return 0;
+        }
+        catch (ArgumentException ex)
+        {
+            Console.Error.WriteLine(ex.Message);
+            return 2;
+        }
+    }
+
+    private static string ReadHidden(string prompt)
+    {
+        Console.Write(prompt);
+        var typed = new System.Text.StringBuilder();
+        while (Console.ReadKey(intercept: true) is var key && key.Key != ConsoleKey.Enter)
+        {
+            if (key.Key == ConsoleKey.Backspace)
+            {
+                if (typed.Length > 0)
+                    typed.Length--;
+            }
+            else if (!char.IsControl(key.KeyChar))
+                typed.Append(key.KeyChar);
+        }
+        Console.WriteLine();
+        return typed.ToString();
     }
 
     private static string ImplementedStates() =>
