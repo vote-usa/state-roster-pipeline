@@ -21,8 +21,14 @@ public class MappingEvaluatorTests
 
     private static readonly IMappingEvaluator Evaluator = new MappingEvaluator();
 
+    private static ResolvedInput Plain(MappingInput input) => new(input, []);
+
     private static string Eval(List<MappingInput> inputs, params TransformStep[] steps) =>
-        Evaluator.Evaluate(new TargetColumnMapping { Inputs = inputs, Transform = steps.ToList() }, Row);
+        Evaluator.Evaluate(new ResolvedMapping(inputs.Select(Plain).ToList(), steps.ToList()), Row);
+
+    [Fact]
+    public void RulesetStep_NotExpanded_Throws() =>
+        Assert.Throws<InvalidOperationException>(() => Eval([Col("partyCode")], Step("ruleset", ("rulesetId", "1"))));
 
     [Fact]
     public void SingleColumn_NoSteps_PassesThrough() =>
@@ -63,15 +69,10 @@ public class MappingEvaluatorTests
         Assert.Equal("capito", Eval([Col("candidateLastName")], Step("regex_extract", ("pattern", "[a-z]+"))));
 
     [Fact]
-    public void RegexExtract_CaptureGroup()
-    {
-        var m = new TargetColumnMapping
-        {
-            Inputs = [Col("candidateBallotName")],
-            Transform = [Step("trim"), Step("regex_extract", ("pattern", @"^(\S+)"), ("group", "1"))],
-        };
-        Assert.Equal("Shelley", Evaluator.Evaluate(m, Row));
-    }
+    public void RegexExtract_CaptureGroup() =>
+        Assert.Equal("Shelley", Eval(
+            [Col("candidateBallotName")],
+            Step("trim"), Step("regex_extract", ("pattern", @"^(\S+)"), ("group", "1"))));
 
     [Fact]
     public void RegexReplace_IgnoreCase()
@@ -88,17 +89,8 @@ public class MappingEvaluatorTests
     public void PerInputTransform_PieceOfOneAllOfAnother()
     {
         // Initial of the first name + all of the last name, joined with a space.
-        var first = new MappingInput
-        {
-            Kind = MappingInputKinds.Column, SourceColumn = "candidateFirstName",
-            Transform = [Step("regex_extract", ("pattern", "^."))],
-        };
-        var last = Col("candidateLastName");
-        var mapping = new TargetColumnMapping
-        {
-            Inputs = [first, last],
-            Transform = [Step("concat", ("separator", " "))],
-        };
+        var first = new ResolvedInput(Col("candidateFirstName"), [Step("regex_extract", ("pattern", "^."))]);
+        var mapping = new ResolvedMapping([first, Plain(Col("candidateLastName"))], [Step("concat", ("separator", " "))]);
         Assert.Equal("s capito", Evaluator.Evaluate(mapping, Row));
     }
 }

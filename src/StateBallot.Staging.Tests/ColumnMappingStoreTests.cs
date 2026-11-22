@@ -19,6 +19,7 @@ public sealed class ColumnMappingStoreTests : IAsyncLifetime
         .Build();
 
     private ColumnMappingStore _store = null!;
+    private RulesetStore _rulesets = null!;
 
     public async Task InitializeAsync()
     {
@@ -26,6 +27,7 @@ public sealed class ColumnMappingStoreTests : IAsyncLifetime
         var db = new StagingDb(_mysql.GetConnectionString(), _mysql.GetConnectionString());
         await new Migrator(db.StagingConnectionString).ApplyAsync();
         _store = new ColumnMappingStore(db);
+        _rulesets = new RulesetStore(db);
     }
 
     public Task DisposeAsync() => _mysql.DisposeAsync().AsTask();
@@ -37,8 +39,13 @@ public sealed class ColumnMappingStoreTests : IAsyncLifetime
     private static MappingInput Val(string v) => new() { Kind = MappingInputKinds.Manual, ManualValue = v };
     private static TargetColumnMapping Map(string target, params MappingInput[] inputs) =>
         new() { TargetColumn = target, Inputs = inputs.ToList() };
+    private static TargetColumnMapping Linked(string target, string column, params int[] rulesetIds) =>
+        new() { TargetColumn = target, Inputs = [Col(column)], RulesetIds = rulesetIds.ToList() };
     private static TransformStep Step(string kind, params (string, string)[] p) =>
         new() { Kind = kind, Params = p.ToDictionary(x => x.Item1, x => x.Item2) };
+
+    private async Task<int> RulesetAsync(string name, params TransformStep[] steps) =>
+        (await _rulesets.CreateAsync(new Ruleset { Name = name, Steps = steps.ToList() })).RulesetId;
 
     [Fact]
     public async Task CreateGroup_AssignsIdAndTimestamps_AndNormalizesState()
@@ -167,7 +174,7 @@ public sealed class ColumnMappingStoreTests : IAsyncLifetime
         var group = await NewGroupAsync();
         await _store.SaveColumnsAsync(group.MappingGroupId,
         [
-            // duplicates are legitimate now: each input can carry its own per-input pipeline
+            // duplicates are legitimate: each input can carry its own rulesets
             Map("Party", Col("  partyCode  "), Col("partyCode"), Col("  ")),
             Map("Email", Col(""), Val("   ")),
         ]);
@@ -201,32 +208,10 @@ public sealed class ColumnMappingStoreTests : IAsyncLifetime
             _store.SaveColumnsAsync(999999, [Map("Office", Col("x"))]));
 
     [Fact]
-    public async Task SaveColumns_RoundTripsTransformPipeline()
+    public async Task SaveColumns_RoundTripsRulesetsInOrder_AtTheTargetAndOnEachInput()
     {
-        var group = await NewGroupAsync();
-        await _store.SaveColumnsAsync(group.MappingGroupId,
-        [
-            new TargetColumnMapping
-            {
-                TargetColumn = "CandidateName",
-                Inputs = [Col("candidateFirstName"), Col("candidateLastName")],
-                Transform =
-                [
-                    Step("concat", ("separator", " ")),
-                    Step("upper"),
-                ],
-            },
-        ]);
-
-        var loaded = Assert.Single(await _store.GetColumnsAsync(group.MappingGroupId));
-        Assert.Equal(new[] { "concat", "upper" }, loaded.Transform.Select(s => s.Kind));
-        Assert.Equal(" ", loaded.Transform[0].Params["separator"]);
-        Assert.Empty(loaded.Transform[1].Params);
-    }
-
-    [Fact]
-    public async Task SaveColumns_RoundTripsPerInputTransforms()
-    {
+        var join = await RulesetAsync("Join", Step("concat", ("separator", " ")));
+        var shout = await RulesetAsync("Shout", Step("upper"));
         var group = await NewGroupAsync();
         await _store.SaveColumnsAsync(group.MappingGroupId,
         [
@@ -235,61 +220,49 @@ public sealed class ColumnMappingStoreTests : IAsyncLifetime
                 TargetColumn = "CandidateName",
                 Inputs =
                 [
-                    new MappingInput { Kind = MappingInputKinds.Column, SourceColumn = "first", Transform = [Step("upper")] },
+                    new MappingInput { Kind = MappingInputKinds.Column, SourceColumn = "first", RulesetIds = [shout] },
                     new MappingInput { Kind = MappingInputKinds.Column, SourceColumn = "last" },
                 ],
-                Transform = [Step("concat", ("separator", " "))],
+                RulesetIds = [join, shout, join],
             },
         ]);
 
         var loaded = Assert.Single(await _store.GetColumnsAsync(group.MappingGroupId));
-        Assert.Equal(new[] { "upper" }, loaded.Inputs[0].Transform.Select(s => s.Kind));
-        Assert.Empty(loaded.Inputs[1].Transform);
-        Assert.Equal(new[] { "concat" }, loaded.Transform.Select(s => s.Kind));
-        Assert.Equal(" ", loaded.Transform[0].Params["separator"]);
+        Assert.Equal([join, shout, join], loaded.RulesetIds);
+        Assert.Equal([shout], loaded.Inputs[0].RulesetIds);
+        Assert.Empty(loaded.Inputs[1].RulesetIds);
     }
 
     [Fact]
-    public async Task SaveColumns_AppliesTransformParamDefaults()
+    public async Task SaveColumns_UnknownRuleset_Throws()
     {
         var group = await NewGroupAsync();
+        var ex = await Assert.ThrowsAsync<ArgumentException>(() =>
+            _store.SaveColumnsAsync(group.MappingGroupId, [Linked("Office", "officeName", 999)]));
+        Assert.Contains("No ruleset 999", ex.Message);
+    }
+
+    [Fact]
+    public async Task SaveColumns_NonPositiveRulesetId_Throws()
+    {
+        var group = await NewGroupAsync();
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            _store.SaveColumnsAsync(group.MappingGroupId, [Linked("Office", "officeName", 0)]));
+    }
+
+    [Fact]
+    public async Task DeleteRuleset_WhileAMappingReferencesIt_Throws_NamingTheGroup()
+    {
+        var tidy = await RulesetAsync("Tidy", Step("trim"));
+        var group = await NewGroupAsync("WV", "WV general");
         await _store.SaveColumnsAsync(group.MappingGroupId,
-        [
-            new TargetColumnMapping
-            {
-                TargetColumn = "Party",
-                Inputs = [Col("partyDescription")],
-                Transform = [Step("regex_extract", ("pattern", "^."))], // 'group' omitted -> default "0"
-            },
-        ]);
+            [new TargetColumnMapping { TargetColumn = "Office", Inputs = [new MappingInput { Kind = MappingInputKinds.Column, SourceColumn = "officeName", RulesetIds = [tidy] }] }]);
 
-        var step = Assert.Single((await _store.GetColumnsAsync(group.MappingGroupId)).Single().Transform);
-        Assert.Equal("0", step.Params["group"]);
-    }
+        var ex = await Assert.ThrowsAsync<ArgumentException>(() => _rulesets.DeleteAsync(tidy));
+        Assert.Contains("mapping group 'WV general'", ex.Message);
 
-    [Fact]
-    public async Task SaveColumns_UnknownTransformKind_Throws()
-    {
-        var group = await NewGroupAsync();
-        await Assert.ThrowsAsync<ArgumentException>(() => _store.SaveColumnsAsync(group.MappingGroupId,
-        [
-            new TargetColumnMapping { TargetColumn = "Office", Inputs = [Col("officeName")], Transform = [Step("bogus")] },
-        ]));
-    }
-
-    [Fact]
-    public async Task SaveColumns_TransformMissingRequiredParam_Throws()
-    {
-        var group = await NewGroupAsync();
-        await Assert.ThrowsAsync<ArgumentException>(() => _store.SaveColumnsAsync(group.MappingGroupId,
-        [
-            new TargetColumnMapping
-            {
-                TargetColumn = "Office",
-                Inputs = [Col("officeName")],
-                Transform = [Step("regex_replace", ("pattern", "x"))], // missing 'replacement'
-            },
-        ]));
+        await _store.SaveColumnsAsync(group.MappingGroupId, [Map("Office", Col("officeName"))]);
+        Assert.True(await _rulesets.DeleteAsync(tidy));
     }
 
     [Fact]
@@ -330,4 +303,18 @@ public sealed class ColumnMappingStoreTests : IAsyncLifetime
         await Assert.ThrowsAsync<ArgumentException>(() =>
             _store.CloneGroupAsync(999999, new MappingGroup { Name = "x", StateCode = "WV" }));
 
+    [Fact]
+    public async Task Save_LinkToADeactivatedRuleset_OnlyWhenTheGroupAlreadyHadIt()
+    {
+        var tidy = await RulesetAsync("Tidy", Step("trim"));
+        var kept = await NewGroupAsync("WV", "kept");
+        var fresh = await NewGroupAsync("WV", "fresh");
+        await _store.SaveColumnsAsync(kept.MappingGroupId, [Linked("CandidateName", "name", tidy)]);
+        await _rulesets.SetActiveAsync(tidy, false);
+
+        await _store.SaveColumnsAsync(kept.MappingGroupId,
+            [Linked("CandidateName", "name", tidy), Linked("Office", "office", tidy)]);
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            _store.SaveColumnsAsync(fresh.MappingGroupId, [Linked("CandidateName", "name", tidy)]));
+    }
 }

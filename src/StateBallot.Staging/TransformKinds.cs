@@ -4,8 +4,8 @@ public sealed record TransformParam(string Name, bool Required, string? Default 
 
 public sealed record TransformKind(string Name, string Summary, IReadOnlyList<TransformParam> Params);
 
-// The transform steps a target's pipeline may use, with the parameters each declares.
-// Drives both save-time validation and the editor's per-step form.
+// The steps a ruleset can hold, with the parameters each declares.
+// Drives both save-time validation and the ruleset editor's per-step form.
 public static class TransformKinds
 {
     public const string Passthrough = "passthrough";
@@ -16,6 +16,7 @@ public static class TransformKinds
     public const string Lower = "lower";
     public const string RegexReplace = "regex_replace";
     public const string RegexExtract = "regex_extract";
+    public const string Ruleset = "ruleset";
 
     public static IReadOnlyList<TransformKind> All { get; } =
     [
@@ -29,6 +30,7 @@ public static class TransformKinds
             [new("pattern", true), new("replacement", true), new("ignoreCase", false, "false")]),
         new(RegexExtract, "Keep the first match (or a capture group) of a pattern.",
             [new("pattern", true), new("group", false, "0")]),
+        new(Ruleset, "Run the steps of another saved ruleset.", [new(RulesetSteps.IdParam, true)]),
     ];
 
     private static readonly Dictionary<string, TransformKind> ByName =
