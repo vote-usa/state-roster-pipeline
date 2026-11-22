@@ -9,17 +9,17 @@ public static class MappingApi
         app.MapGet("/api/targets", () =>
             Results.Ok(CandidateTargetColumns.All.Select(c => new { c.Name, c.Required })));
 
-        app.MapGet("/api/transforms", () => Results.Ok(TransformKinds.All));
-
         // Runs the current (possibly unsaved) mapping against one source row, using the real evaluator.
-        app.MapPost("/api/preview", (PreviewRequest req, IMappingEvaluator evaluator) =>
+        app.MapPost("/api/preview", async (PreviewRequest req, IMappingEvaluator evaluator, RulesetStore rulesets, CancellationToken ct) =>
         {
             var row = req.Row ?? new Dictionary<string, string>();
-            var results = (req.Columns ?? []).Select(c =>
+            var columns = req.Columns ?? [];
+            var byId = columns.Any(c => RulesetSteps.RulesetIds(c).Any()) ? await rulesets.ByIdAsync(ct) : new Dictionary<int, Ruleset>();
+            var results = columns.Select(c =>
             {
                 try
                 {
-                    return new { targetColumn = c.TargetColumn, value = (string?)evaluator.Evaluate(c, row), error = (string?)null };
+                    return new { targetColumn = c.TargetColumn, value = (string?)evaluator.Evaluate(RulesetSteps.Resolve(c, byId), row), error = (string?)null };
                 }
                 catch (Exception ex)
                 {

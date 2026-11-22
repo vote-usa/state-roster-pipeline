@@ -3,24 +3,36 @@ using System.Text.RegularExpressions;
 
 namespace StateBallot.Staging;
 
-public interface IMappingEvaluator
+/// <summary>An input with the steps its rulesets run, in order.</summary>
+public sealed record ResolvedInput(MappingInput Input, List<TransformStep> Steps);
+
+/// <summary>A mapping with its rulesets replaced by the steps they run (<see cref="RulesetSteps.Resolve"/>).</summary>
+public sealed record ResolvedMapping(List<ResolvedInput> Inputs, List<TransformStep> Steps)
 {
-    string Evaluate(TargetColumnMapping mapping, IReadOnlyDictionary<string, string> row);
+    /// <summary>Manual-value inputs with no steps of their own, run through <paramref name="steps"/>.</summary>
+    public static ResolvedMapping OfValues(IEnumerable<string?> values, List<TransformStep> steps) => new(
+        values.Select(v => new ResolvedInput(new MappingInput { Kind = MappingInputKinds.Manual, ManualValue = v ?? "" }, [])).ToList(),
+        steps);
 }
 
-// Produces a target column's value from one source row by resolving its inputs and running its
-// transform pipeline. This is the single evaluator used both by the editor's preview and by an
+public interface IMappingEvaluator
+{
+    string Evaluate(ResolvedMapping mapping, IReadOnlyDictionary<string, string> row);
+}
+
+// Produces a target column's value from one source row: each input runs its own steps, then the
+// target's steps run on all of them. The single evaluator used both by the editor's preview and by an
 // actual conversion run - the behaviour a saved mapping promises.
 public sealed class MappingEvaluator : IMappingEvaluator
 {
-    public string Evaluate(TargetColumnMapping mapping, IReadOnlyDictionary<string, string> row)
+    public string Evaluate(ResolvedMapping mapping, IReadOnlyDictionary<string, string> row)
     {
         var values = mapping.Inputs.Select(input => EvaluateInput(input, row)).ToList();
-        return Reduce(RunPipeline(mapping.Transform, values));
+        return Reduce(RunPipeline(mapping.Steps, values));
     }
 
-    private static string EvaluateInput(MappingInput input, IReadOnlyDictionary<string, string> row) =>
-        Reduce(RunPipeline(input.Transform, [Resolve(input, row)]));
+    private static string EvaluateInput(ResolvedInput input, IReadOnlyDictionary<string, string> row) =>
+        Reduce(RunPipeline(input.Steps, [Resolve(input.Input, row)]));
 
     private static List<string> RunPipeline(List<TransformStep> steps, List<string> values)
     {
@@ -72,6 +84,9 @@ public sealed class MappingEvaluator : IMappingEvaluator
                     return match.Success && group >= 0 && group < match.Groups.Count ? match.Groups[group].Value : "";
                 }).ToList();
             }
+            case TransformKinds.Ruleset:
+                throw new InvalidOperationException(
+                    "A ruleset step has to be expanded with RulesetSteps.Expand before the pipeline is evaluated.");
             default:
                 return values; // unknown kinds cannot be saved, so this is unreachable in practice
         }

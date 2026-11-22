@@ -75,21 +75,21 @@ public sealed class ColumnMappingStore
             """,
             new { Id = groupId }, cancellationToken: ct));
 
-        var steps = await cn.QueryAsync<(int TransformStepId, int TargetMappingId, int? MappingInputId, string Kind)>(new CommandDefinition(
+        var targetRulesets = await cn.QueryAsync<(int TargetMappingId, int RulesetId)>(new CommandDefinition(
             """
-            SELECT s.TransformStepId, s.TargetMappingId, s.MappingInputId, s.Kind
-            FROM TransformSteps s JOIN TargetMappings t ON s.TargetMappingId = t.TargetMappingId
-            WHERE t.MappingGroupId = @Id ORDER BY s.Position
+            SELECT r.TargetMappingId, r.RulesetId
+            FROM TargetMappingRulesets r JOIN TargetMappings t ON r.TargetMappingId = t.TargetMappingId
+            WHERE t.MappingGroupId = @Id ORDER BY r.Position
             """,
             new { Id = groupId }, cancellationToken: ct));
 
-        var stepParams = await cn.QueryAsync<(int TransformStepId, string Name, string Value)>(new CommandDefinition(
+        var inputRulesets = await cn.QueryAsync<(int MappingInputId, int RulesetId)>(new CommandDefinition(
             """
-            SELECT p.TransformStepId, p.Name, p.Value
-            FROM TransformStepParams p
-            JOIN TransformSteps s ON p.TransformStepId = s.TransformStepId
-            JOIN TargetMappings t ON s.TargetMappingId = t.TargetMappingId
-            WHERE t.MappingGroupId = @Id
+            SELECT r.MappingInputId, r.RulesetId
+            FROM MappingInputRulesets r
+            JOIN MappingInputs i ON r.MappingInputId = i.MappingInputId
+            JOIN TargetMappings t ON i.TargetMappingId = t.TargetMappingId
+            WHERE t.MappingGroupId = @Id ORDER BY r.Position
             """,
             new { Id = groupId }, cancellationToken: ct));
 
@@ -105,20 +105,10 @@ public sealed class ColumnMappingStore
             byTarget[i.TargetMappingId].Inputs.Add(input);
         }
 
-        var stepById = new Dictionary<int, TransformStep>();
-        foreach (var s in steps)
-        {
-            var step = new TransformStep { Kind = s.Kind };
-            stepById[s.TransformStepId] = step;
-            if (s.MappingInputId is { } inputId && inputById.TryGetValue(inputId, out var owner))
-                owner.Transform.Add(step);
-            else
-                byTarget[s.TargetMappingId].Transform.Add(step);
-        }
-
-        foreach (var p in stepParams)
-            if (stepById.TryGetValue(p.TransformStepId, out var step))
-                step.Params[p.Name] = p.Value;
+        foreach (var r in targetRulesets)
+            byTarget[r.TargetMappingId].RulesetIds.Add(r.RulesetId);
+        foreach (var r in inputRulesets)
+            inputById[r.MappingInputId].RulesetIds.Add(r.RulesetId);
 
         return byTarget.Values
             .OrderBy(c => CatalogOrder.GetValueOrDefault(c.TargetColumn, int.MaxValue))
@@ -140,7 +130,26 @@ public sealed class ColumnMappingStore
         if (touched == 0)
             throw new ArgumentException($"No mapping group with id {groupId}.", nameof(groupId));
 
-        // Cascades to MappingInputs, TransformSteps and their params.
+        // RulesetStore already refuses loops, so only existence and deactivation are checked here.
+        var links = entries.SelectMany(RulesetSteps.RulesetIds).Distinct().ToList();
+        if (links.Count > 0)
+        {
+            var found = (await cn.QueryAsync<Ruleset>(new CommandDefinition(
+                "SELECT RulesetId, Name, IsActive FROM Rulesets WHERE RulesetId IN @Ids FOR UPDATE",
+                new { Ids = links },
+                transaction: tx, cancellationToken: ct))).ToList();
+            var missing = links.Except(found.Select(r => r.RulesetId)).ToList();
+            if (missing.Count > 0)
+                throw new ArgumentException($"No ruleset {string.Join(", ", missing)}.", nameof(columns));
+
+            var linkedBefore = await cn.QueryAsync<int>(new CommandDefinition(
+                $"SELECT g.RulesetId FROM ({RulesetStore.MappingReferences}) g WHERE g.MappingGroupId = @Id",
+                new { Id = groupId },
+                transaction: tx, cancellationToken: ct));
+            RulesetSteps.RefuseNewInactiveLinks(links, linkedBefore, found);
+        }
+
+        // Cascades to MappingInputs and both ruleset reference tables.
         await cn.ExecuteAsync(new CommandDefinition(
             "DELETE FROM TargetMappings WHERE MappingGroupId = @Id",
             new { Id = groupId },
@@ -168,37 +177,21 @@ public sealed class ColumnMappingStore
                     new { TargetMappingId = targetId, input.Kind, input.SourceColumn, input.ManualValue, Position = position },
                     transaction: tx, cancellationToken: ct));
 
-                await InsertStepsAsync(cn, tx, targetId, inputId, input.Transform, ct);
+                if (input.RulesetIds.Count > 0)
+                    await cn.ExecuteAsync(new CommandDefinition(
+                        "INSERT INTO MappingInputRulesets (MappingInputId, RulesetId, Position) VALUES (@MappingInputId, @RulesetId, @Position)",
+                        input.RulesetIds.Select((id, p) => new { MappingInputId = inputId, RulesetId = id, Position = p }).ToList(),
+                        transaction: tx, cancellationToken: ct));
             }
 
-            await InsertStepsAsync(cn, tx, targetId, null, entry.Transform, ct);
+            if (entry.RulesetIds.Count > 0)
+                await cn.ExecuteAsync(new CommandDefinition(
+                    "INSERT INTO TargetMappingRulesets (TargetMappingId, RulesetId, Position) VALUES (@TargetMappingId, @RulesetId, @Position)",
+                    entry.RulesetIds.Select((id, p) => new { TargetMappingId = targetId, RulesetId = id, Position = p }).ToList(),
+                    transaction: tx, cancellationToken: ct));
         }
 
         await tx.CommitAsync(ct);
-    }
-
-    private static async Task InsertStepsAsync(
-        System.Data.Common.DbConnection cn, System.Data.Common.DbTransaction tx,
-        int targetId, int? mappingInputId, List<TransformStep> steps, CancellationToken ct)
-    {
-        for (var position = 0; position < steps.Count; position++)
-        {
-            var step = steps[position];
-            var stepId = await cn.ExecuteScalarAsync<int>(new CommandDefinition(
-                """
-                INSERT INTO TransformSteps (TargetMappingId, MappingInputId, Kind, Position)
-                VALUES (@TargetMappingId, @MappingInputId, @Kind, @Position);
-                SELECT LAST_INSERT_ID();
-                """,
-                new { TargetMappingId = targetId, MappingInputId = mappingInputId, step.Kind, Position = position },
-                transaction: tx, cancellationToken: ct));
-
-            if (step.Params.Count > 0)
-                await cn.ExecuteAsync(new CommandDefinition(
-                    "INSERT INTO TransformStepParams (TransformStepId, Name, Value) VALUES (@TransformStepId, @Name, @Value)",
-                    step.Params.Select(p => new { TransformStepId = stepId, Name = p.Key, Value = p.Value }).ToList(),
-                    transaction: tx, cancellationToken: ct));
-        }
     }
 
     private static async Task<MappingGroup?> ReadGroupAsync(
@@ -243,47 +236,31 @@ public sealed class ColumnMappingStore
             {
                 TargetColumn = column.TargetColumn,
                 Inputs = inputs,
-                Transform = column.Transform.Select(CleanStep).ToList(),
+                RulesetIds = CleanRulesetIds(column.RulesetIds),
             });
         }
 
         return cleaned;
     }
 
-    private static TransformStep CleanStep(TransformStep step)
+    private static List<int> CleanRulesetIds(List<int>? ids)
     {
-        var kindName = (step.Kind ?? "").Trim().ToLowerInvariant();
-        if (!TransformKinds.TryGet(kindName, out var kind))
-            throw new ArgumentException($"Unknown transform kind '{step.Kind}'.", nameof(step));
-
-        // Param values are stored verbatim - whitespace can be meaningful (e.g. a " " separator).
-        var cleaned = new Dictionary<string, string>(StringComparer.Ordinal);
-        foreach (var p in kind.Params)
-        {
-            var value = step.Params.TryGetValue(p.Name, out var v) ? v : null;
-            if (string.IsNullOrEmpty(value))
-            {
-                if (p.Required)
-                    throw new ArgumentException($"Transform '{kindName}' requires '{p.Name}'.", nameof(step));
-                value = p.Default;
-            }
-            if (!string.IsNullOrEmpty(value))
-                cleaned[p.Name] = value;
-        }
-
-        return new TransformStep { Kind = kindName, Params = cleaned };
+        var list = ids ?? [];
+        if (list.Any(id => id <= 0))
+            throw new ArgumentException($"Ruleset ids must be positive, got {string.Join(", ", list.Where(id => id <= 0))}.", nameof(ids));
+        return list.ToList();
     }
 
     private static MappingInput? CleanInput(MappingInput input)
     {
         var kind = (input.Kind ?? "").Trim().ToLowerInvariant();
-        var transform = input.Transform.Select(CleanStep).ToList();
+        var rulesetIds = CleanRulesetIds(input.RulesetIds);
         return kind switch
         {
             MappingInputKinds.Column => Blank(input.SourceColumn) is { } c
-                ? new MappingInput { Kind = MappingInputKinds.Column, SourceColumn = c, Transform = transform } : null,
+                ? new MappingInput { Kind = MappingInputKinds.Column, SourceColumn = c, RulesetIds = rulesetIds } : null,
             MappingInputKinds.Manual => Blank(input.ManualValue) is { } v
-                ? new MappingInput { Kind = MappingInputKinds.Manual, ManualValue = v, Transform = transform } : null,
+                ? new MappingInput { Kind = MappingInputKinds.Manual, ManualValue = v, RulesetIds = rulesetIds } : null,
             _ => throw new ArgumentException($"Unknown mapping input kind '{input.Kind}'.", nameof(input)),
         };
     }

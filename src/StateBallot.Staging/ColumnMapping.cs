@@ -25,8 +25,8 @@ public sealed class MappingInput
     public string? SourceColumn { get; set; }
     public string? ManualValue { get; set; }
 
-    /// <summary>Pipeline applied to this input alone before the inputs are combined.</summary>
-    public List<TransformStep> Transform { get; set; } = new();
+    /// <summary>Rulesets run in order on this input alone, before the inputs are combined.</summary>
+    public List<int> RulesetIds { get; set; } = new();
 }
 
 public sealed class TransformStep
@@ -40,6 +40,6 @@ public sealed class TargetColumnMapping
     public string TargetColumn { get; set; } = "";
     public List<MappingInput> Inputs { get; set; } = new();
 
-    /// <summary>Ordered pipeline applied to the inputs to produce the target value. Empty = pass the single input through.</summary>
-    public List<TransformStep> Transform { get; set; } = new();
+    /// <summary>Rulesets run in order on the inputs to produce the target value. Empty = pass the single input through.</summary>
+    public List<int> RulesetIds { get; set; } = new();
 }
